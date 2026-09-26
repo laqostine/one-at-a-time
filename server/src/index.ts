@@ -51,6 +51,7 @@ app.post<{ Body: StateRequest }>('/api/state', async (req) => {
 
 registerGate(app); // POST /api/gate (fast System-One decision gate)
 (await import('./voiceid-routes.ts')).registerVoiceId(app); // single-phone mode: /api/voice/* (enroll, roster)
+(await import('./notes.ts')).registerNotes(app, () => roomInfo().token); // tables + notes taken (SQLite)
 
 app.post<{ Body: LaughRequest }>('/api/laugh', async (req) => {
   const t0 = Date.now();

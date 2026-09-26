@@ -6,6 +6,7 @@ import { colorForName, currentUtterance, lastMinutes, speakerColor, speakerName 
 import { useInterject, useLastActivity } from './state/useInterject';
 import { useAway, type AwayInterval } from './state/useAway';
 import { applyPrefs, loadPrefs, type Prefs } from './ui/prefs';
+import { useNotesDb } from './lib/notesDb';
 import { RenameDialog } from './ui/RenameDialog';
 import { SettingsDrawer } from './ui/SettingsDrawer';
 import { SpeakCard } from './ui/SpeakCard';
@@ -34,6 +35,7 @@ export default function App() {
   // The second page ("The table"): opened by swipe up or the PLANS label, never on its own.
   const [tableOpen, setTableOpen] = useState(false);
   const [lastCatchup, setLastCatchup] = useState<{ data: CatchupResponse; title?: string } | null>(null);
+  const notesDb = useNotesDb({ started: s.started, me: session.me.name, location: prefs.location, ledger: session.ledger, lastCatchup: lastCatchup?.data ?? null });
   // The third page ("The map"): swipe left or tap MAP.
   const [mapOpen, setMapOpen] = useState(false);
   const swipeY = useRef<{ x: number; y: number } | null>(null);
@@ -234,7 +236,7 @@ export default function App() {
       {settingsOpen && (
         <SettingsDrawer me={session.me} prefs={prefs} listening={s.listening} onMe={s.setMe} onPrefs={setPrefs}
           onListening={s.setListening} onClose={() => setSettingsOpen(false)} away={awayApi}
-          participantCount={s.participants.length}
+          participantCount={s.participants.length} notes={notesDb}
           captionsOnly={s.asr.source === 'webspeech' && s.listening} />
       )}
       {!role && <RoleGate onListener={() => { saveRole('listener'); setRole('listener'); }} />}

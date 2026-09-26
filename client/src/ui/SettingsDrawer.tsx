@@ -5,6 +5,7 @@ import { FONT_PX, type FontSize, type Prefs } from './prefs';
 import { Modal } from './Modal';
 import { JoinLink } from './JoinQr';
 import { goToPhone } from './Listener';
+import { listTables, locate, type TableRow } from '@/lib/notesDb';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -19,13 +20,18 @@ interface Props {
   /** Optional look-away section (camera, on-device). */
   away?: { enabled: boolean; sim: boolean; active: boolean; calibrating: boolean; setEnabled: (v: boolean) => void; calibrate: () => Promise<boolean> };
   captionsOnly?: boolean;
+  notes?: { tableId: string | null; setPosition: (p: { lat: number; lng: number }) => void };
 }
 
 const label = 'oat-label mb-2 block';
 const field = 'h-14 w-full rounded-xl border border-rule bg-cream px-4 text-[1.06rem] text-ink placeholder:text-ink-2';
 const LANGS: { v: string; l: string }[] = [{ v: 'en', l: 'EN' }, { v: 'it', l: 'IT' }, { v: 'tr', l: 'TR' }];
 
-export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose, participantCount = 0, away, captionsOnly }: Props) {
+export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose, participantCount = 0, away, captionsOnly, notes }: Props) {
+  const [location, setLocation] = useState(prefs.location);
+  const [pos, setPos] = useState<'idle' | 'busy' | 'ok' | 'no'>('idle');
+  const [past, setPast] = useState<TableRow[] | null>(null);
+  useEffect(() => { let dead = false; listTables().then((t) => { if (!dead) setPast(t); }).catch(() => { if (!dead) setPast([]); }); return () => { dead = true; }; }, []);
   const [name, setName] = useState(me.name);
   const [aliases, setAliases] = useState(me.aliases.join(', '));
   const save = () => onMe(name, aliases.split(',').map((a) => a.trim()).filter(Boolean));
@@ -113,6 +119,29 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
           )}
         </div>
 
+        <section aria-labelledby="oat-where" className="border-b border-rule py-4">
+          <label className="block">
+            <span id="oat-where" className={label}>Where is this table?</span>
+            <input value={location} onChange={(e) => setLocation(e.target.value)} onBlur={() => onPrefs({ ...prefs, location: location.trim() })}
+              placeholder="Nonna’s kitchen" className={field} />
+          </label>
+          <button type="button" disabled={pos === 'busy'} onClick={async () => {
+            setPos('busy'); const p = await locate(); if (p) { notes?.setPosition(p); setPos('ok'); } else setPos('no');
+          }} className="mt-2 min-h-12 cursor-pointer text-[1rem] text-ink-2 underline-offset-4 hover:underline disabled:cursor-default">
+            {pos === 'busy' ? 'Finding your position…' : pos === 'ok' ? 'Position saved with this table' : pos === 'no' ? 'No position (allow location and try again)' : 'Use my position'}
+          </button>
+          <p className="mt-2 text-[0.94rem] leading-snug text-ink-2">The notes the clerk takes here (plans, asks, what you missed) are kept with this place and date. Audio is never stored.</p>
+          {past && past.length > 0 && (
+            <ul className="mt-3 divide-y divide-rule border-t border-rule" aria-label="Past tables">
+              {past.slice(0, 5).map((t) => (
+                <li key={t.id} className="flex items-baseline justify-between gap-3 py-2 text-[1rem]">
+                  <span className="min-w-0 truncate font-bold text-ink">{t.location || 'Somewhere'}{t.me ? ` · ${t.me}` : ''}</span>
+                  <span className="oat-label shrink-0">{new Date(t.startedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · {t.notes ?? 0} notes</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
         <a href={`/enroll.html${roomToken ? `?token=${encodeURIComponent(roomToken)}` : ''}`} target="_blank" rel="noreferrer"
           className="flex min-h-16 items-center justify-between gap-4 border-b border-rule py-3 text-left">
           <span className="min-w-0">
