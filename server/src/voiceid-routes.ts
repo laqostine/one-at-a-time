@@ -1,12 +1,13 @@
 // HTTP for single-phone voice enrollment (client/enroll.html). Audio body = raw PCM16 LE mono 16 kHz
 // (Content-Type application/octet-stream), or a 16-bit mono WAV (header stripped; sample rate read from it).
 //   POST   /api/voice/enroll?token=&name=   -> { ok, name, samples, selfScore, roster }
-//   GET    /api/voice/roster?token=         -> { ok, available, roster: [{name, samples}] }
+//   GET    /api/voice/roster?token=         -> { ok, available, roster: [{name, samples}], threshold, self, cross }
+//          (threshold = midway between the least self-similar voice and the most alike pair, clamped 0.45-0.7)
 //   DELETE /api/voice/enroll?token=&name=   -> { ok, removed, roster }
 //   POST   /api/voice/identify?token=       -> identify() result (debug / manual testing)
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { room } from './rooms.ts';
-import { enroll, identify, pcmMs, removeVoice, roster, voiceIdAvailable, voiceIdError } from './voiceid.ts';
+import { calibration, enroll, identify, pcmMs, removeVoice, roster, voiceIdAvailable, voiceIdError } from './voiceid.ts';
 
 const MIN_ENROLL_MS = 1_500;
 const MAX_BODY = 30 * 16_000 * 2; // 30 s of 16 kHz PCM16
@@ -46,7 +47,7 @@ export function registerVoiceId(app: FastifyInstance): void {
     scope.get<{ Querystring: { token?: string } }>('/api/voice/roster', async (req, reply) => {
       const t = tableFor(req.query.token);
       if (!t) return reply.code(401).send({ ok: false, error: 'bad token' });
-      return { ok: true, available: voiceIdAvailable(), roster: roster(t) };
+      return { ok: true, available: voiceIdAvailable(), roster: roster(t), ...calibration(t) };
     });
 
     scope.post<{ Querystring: { token?: string; name?: string; rate?: string }; Body: Buffer }>('/api/voice/enroll', async (req, reply) => {
@@ -62,7 +63,7 @@ export function registerVoiceId(app: FastifyInstance): void {
       const t0 = Date.now();
       const r = enroll(t, name, pcm, sampleRate);
       req.log.info(`[voiceid] enroll "${r.name}" ${Math.round(ms)}ms samples=${r.samples} self=${r.selfScore?.toFixed(3) ?? '-'} ${Date.now() - t0}ms`);
-      return { ok: true, name: r.name, samples: r.samples, selfScore: r.selfScore, roster: roster(t) };
+      return { ok: true, name: r.name, samples: r.samples, selfScore: r.selfScore, roster: roster(t), ...calibration(t) };
     });
 
     scope.delete<{ Querystring: { token?: string; name?: string } }>('/api/voice/enroll', async (req, reply) => {

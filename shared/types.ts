@@ -110,7 +110,10 @@ export const ME_SPEAKER_ID = -2;
 // server -> client: JSON messages:
 export type AsrMessage =
   // name: set when the line came from an "Everyone joins" participant phone (speaker = stable per-name id >= 100)
-  | { type: 'transcript'; speaker: number; text: string; tStart: number; tEnd: number; final: boolean; name?: string; words?: AsrWord[] /* finals only */; prosody?: Prosody /* participant finals only */ }
+  // voiceName/voiceScore: single-phone voice id (enrolled voices, /enroll.html): who spoke by VOICE. voiceScore only when
+  // this line was identified itself (cosine 0..1); voiceName without a score = the remembered Deepgram-speaker mapping.
+  // Not `name`: the client treats `name` as "came from a participant phone".
+  | { type: 'transcript'; speaker: number; text: string; tStart: number; tEnd: number; final: boolean; name?: string; words?: AsrWord[] /* finals only */; prosody?: Prosody /* participant finals only */; voiceName?: string; voiceScore?: number }
   | { type: 'status'; state: 'connecting'|'open'|'closed'|'error'; detail?: string }
   // host only: who is connected via /join.html (sent on join/leave/speaking change)
   | { type: 'participants'; list: Participant[] }

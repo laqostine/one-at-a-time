@@ -22,6 +22,10 @@
 //   --bleed                 each line is ALSO mixed at -12 dB into one neighbouring phone (its mic hears the next seat);
 //                           the summary counts cross-speaker copies (a final whose best script match is someone else's line).
 //   --loud-lines i,j        scale those script lines (index into the text lines) x2.5: tests the prosody 'loud' path.
+//   --enroll                single-phone voice id: first POST a 5 s enrollment clip per speaker (same `say` voice, different
+//                           words) to /api/voice/enroll, then stream ONLY a mixed host mic (no phones, diarization on) and
+//                           report host finals whose voiceName == the script speaker. With --bleed: phones stream as usual
+//                           (multi-phone + fingerprints) and the report counts phone finals re-named by voice.
 // Every phone streams continuously (silence/noise between lines) in 100 ms chunks, in real time, like a real mic.
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -39,7 +43,7 @@ for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (!a.startsWith('--')) { pos.push(a); continue; }
   const k = a.slice(2);
-  if (['overlap', 'host', 'no-drive', 'tone-report', 'bleed'].includes(k)) flags[k] = true;
+  if (['overlap', 'host', 'no-drive', 'tone-report', 'bleed', 'enroll'].includes(k)) flags[k] = true;
   else flags[k] = argv[++i];
 }
 const base = pos[0] ?? flags.base ?? 'ws://localhost:8787';
@@ -53,7 +57,9 @@ const RATE = Number(flags.rate) || 185;
 const RATES = (flags.rates ?? '').split(',').map((s) => Number(s.trim()) || RATE);
 const rateOf = (speaker) => RATES[Number(speaker)] || RATE;
 const OVERLAP = !!flags.overlap;
-const HOST = !!flags.host;
+const ENROLL = !!flags.enroll;
+const SINGLE = ENROLL && !flags.bleed; // one host mic hears everyone; no phones
+const HOST = !!flags.host || SINGLE;
 const DRIVE = !flags['no-drive'];
 const drop = flags.drop ? { idx: flags.drop.split('@')[0], at: Number(flags.drop.split('@')[1]) * 1000 } : null;
 
@@ -74,6 +80,23 @@ function pcm16k(text, voice, rate = RATE) {
   }
   const b = readFileSync(raw);
   return new Int16Array(b.buffer, b.byteOffset, b.length / 2);
+}
+
+// ---------- voice enrollment (--enroll): 5 s per speaker, words the script never uses ----------
+const ENROLL_TEXT = [
+  "Hi, this is my voice for the table. Sunday lunch is at one, and everyone brings a side dish, please don't forget the bread this time.",
+  "Hello, this is me talking for a few seconds. I'll handle the grill, but someone has to pick up the charcoal from the shop before noon.",
+  "Hey, it's me, reading this out loud. I can't do evenings anymore, so let's keep it early and keep it simple for everyone.",
+];
+if (ENROLL) {
+  for (const [k, id] of Object.keys(names).entries()) {
+    const pcm = pcm16k(ENROLL_TEXT[k % ENROLL_TEXT.length], voiceList[id] ?? voiceList[0], rateOf(id));
+    const clip = Buffer.from(pcm.buffer, pcm.byteOffset, Math.min(pcm.length, 5 * SR) * 2);
+    const r = await fetch(`${http}/api/voice/enroll?token=${encodeURIComponent(token)}&name=${encodeURIComponent(names[id])}`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: clip });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) { console.error(`enroll ${names[id]} failed: ${r.status} ${JSON.stringify(j)}`); process.exit(1); }
+    console.log(`enrolled ${names[id]} (${voiceList[id]}, ${(clip.length / 2 / SR).toFixed(1)} s) table threshold=${j.threshold} self=${j.self} cross=${j.cross}`);
+  }
 }
 
 // ---------- schedule ----------
@@ -157,8 +180,10 @@ const speakersMap = {};
 function onHostMsg(j) {
   if (j.type === 'status' && (j.state === 'error')) S.statusErrors.push(`host: ${j.detail ?? ''}`);
   if (j.type === 'table' && j.overlap) S.tableOverlap++;
+  if (ENROLL && j.type === 'transcript' && !j.final && !j.name && j.text.trim()) (S.interimsV ??= []).push({ voiceName: j.voiceName, voiceScore: j.voiceScore, text: j.text, tokens: toks(j.text), tStart: j.tStart, tEnd: j.tEnd });
   if (j.type !== 'transcript' || !j.final || !j.text.trim()) return;
   const at = Date.now();
+  if (j.voiceName || ENROLL) (S.voice ??= []).push({ phone: !!j.name, name: j.name, voiceName: j.voiceName, voiceScore: j.voiceScore, text: j.text, tokens: toks(j.text), speaker: j.speaker, tStart: j.tStart, tEnd: j.tEnd });
   if (j.name) {
     S.finals[j.name] = (S.finals[j.name] ?? 0) + 1;
     speakersMap[j.speaker] = { id: j.speaker, name: j.name, color: '#888' };
@@ -178,7 +203,7 @@ function onHostMsg(j) {
       const u = new Set(); for (const f of partFinals) if (f.at >= from && f.at <= at + 2500) for (const w of f.tokens) u.add(w);
       if (frac(tk, u) >= 0.6) S.hostFinalsDup++; else S.hostFinalsUnique.push(j.text);
     }, 2600);
-    console.log(`  [host-mic ${el()}s] ${j.text}`);
+    console.log(`  [host-mic ${el()}s]${j.voiceName ? ` ${j.voiceName}${j.voiceScore != null ? `(${j.voiceScore})` : '(mapped)'}:` : ` dg${j.speaker}:`} ${j.text}`);
   }
 }
 // Like the real host client (useSession): tell the room the listener's name (phones' "Good pace for", Deepgram keyterm).
@@ -209,8 +234,8 @@ function openPhone(id) {
     ws.on('error', rej);
   });
 }
-for (const id of speakerIds) socks[id] = await openPhone(id);
-console.log(`room ${token}: ${speakerIds.length} phones + host${HOST ? ' (mixed mic)' : ' (monitor)'} connected; ${lines.length} lines, ${(totalMs / 1000).toFixed(0)} s, overlap=${OVERLAP} (${overlaps} overlapping pairs) noise=${!!noise} drive=${DRIVE}`);
+if (!SINGLE) for (const id of speakerIds) socks[id] = await openPhone(id);
+console.log(`room ${token}: ${SINGLE ? 0 : speakerIds.length} phones + host${HOST ? ' (mixed mic)' : ' (monitor)'} connected; ${lines.length} lines, ${(totalMs / 1000).toFixed(0)} s, overlap=${OVERLAP} (${overlaps} overlapping pairs) noise=${!!noise} drive=${DRIVE}`);
 
 // ---------- client simulation (/api/gate per final, /api/state every 8 s, /api/catchup at end) ----------
 const me = { name: 'Bera', aliases: [] };
@@ -374,6 +399,51 @@ if (flags['tone-report']) {
   S.tone.prosodyLoud = loud;
 }
 
+// ---------- voice id (--enroll): does voiceName match the script speaker of each final? ----------
+S.voiceReport = null;
+if (ENROLL) {
+  const rows = [];
+  // Expected speaker = the script line sharing >= half the final's words that overlaps it most in time (host socket and
+  // Deepgram t=0 = the first streamed chunk = script t=0; phone lines are rebased onto the host clock). Timing breaks
+  // ties for one-word fragments ("I'll") that several lines contain.
+  const overlapMs = (v, l) => Math.min(v.tEnd, l.start + l.dur) - Math.max(v.tStart, l.start);
+  for (const v of S.voice ?? []) {
+    if (SINGLE === v.phone) continue; // single-mic: host lines; --bleed: phone lines
+    const cands = lines.filter((l) => frac(v.tokens, toks(l.text)) >= 0.5);
+    const best = cands.sort((a, b) => overlapMs(v, b) - overlapMs(v, a))[0];
+    if (!best) continue; // noise / fragment not traceable to one script line
+    rows.push({ ...v, want: names[best.speaker], got: SINGLE ? v.voiceName : v.name });
+  }
+  const ok = rows.filter((r) => r.got === r.want).length;
+  // Interims, first 1.5 s of each line: runs that START with the line (tStart >= line start - 0.3 s) and end within its
+  // first 1.5 s, sharing >= half their words with it. Did the name show up right with the first words?
+  const early = { lines: 0, firstRight: 0, interims: 0, right: 0 };
+  // Overlapped lines (start before the previous one ended): a final named for the line's speaker holding >= 50% of the
+  // line's words with >= 60% of its own words from that line = split off correctly.
+  const split = { overlapped: 0, right: 0, misses: [] };
+  if (SINGLE) {
+    for (const [k, l] of lines.entries()) {
+      const lt = toks(l.text);
+      const iv = (S.interimsV ?? []).filter((v) => v.tStart >= l.start - 300 && v.tEnd <= l.start + 1500 && v.tEnd > l.start && frac(v.tokens, lt) >= 0.5);
+      if (iv.length) {
+        early.lines++; early.interims += iv.length;
+        if (iv[0].voiceName === names[l.speaker]) early.firstRight++;
+        early.right += iv.filter((v) => v.voiceName === names[l.speaker]).length;
+      }
+      const prev = lines[k - 1];
+      if (!prev || l.start >= prev.start + prev.dur) continue;
+      split.overlapped++;
+      const good = (S.voice ?? []).some((v) => !v.phone && v.voiceName === names[l.speaker] && frac(lt, v.tokens) >= 0.5 && frac(v.tokens, lt) >= 0.6);
+      if (good) split.right++; else split.misses.push(`${names[l.speaker]}: ${l.text}`);
+    }
+  }
+  const health = await fetch(`${http}/api/health`).then((r) => r.json()).catch(() => ({}));
+  S.voiceReport = { mode: SINGLE ? 'single-mic' : 'phones+bleed', finals: rows.length, correct: ok, pct: rows.length ? Math.round((ok / rows.length) * 1000) / 10 : 0,
+    early, split: OVERLAP ? split : null,
+    unnamed: rows.filter((r) => !r.got).length, scored: rows.filter((r) => r.voiceScore != null).length, server: health.room?.voice ?? null,
+    wrong: rows.filter((r) => r.got !== r.want).map((r) => `want ${r.want} got ${r.got ?? '-'}${r.voiceScore != null ? `(${r.voiceScore})` : ''}: ${r.text}`) };
+}
+
 // ---------- summary ----------
 const stats = (arr) => { const v = arr.filter((x) => typeof x === 'number').sort((a, b) => a - b); return v.length ? { n: v.length, p50: v[Math.floor(v.length / 2)], max: v[v.length - 1] } : { n: 0 }; };
 const summary = {
@@ -384,7 +454,7 @@ const summary = {
   http: S.http, gate: stats(S.gate.map((g) => g.ms)), gateSources: S.gate.reduce((a, g) => ({ ...a, [g.source]: (a[g.source] ?? 0) + 1 }), {}),
   state: stats(S.state.map((s) => s.ms)), stateDegraded: S.state.filter((s) => s.degraded || s.status !== 200).length,
   stateMaxWindow: Math.max(0, ...S.state.map((s) => s.win)), catchup: S.catchup, ledgerItems: S.ledgerItems, say: S.say,
-  name: S.name, crossDup: S.crossDup, fragmented: S.fragmented, tone: S.tone, moods: S.moods,
+  name: S.name, voice: S.voiceReport, crossDup: S.crossDup, fragmented: S.fragmented, tone: S.tone, moods: S.moods,
 };
 console.log('\n===== SUMMARY =====');
 console.log(`finals per speaker: ${Object.entries(S.finals).map(([k, v]) => `${k}=${v}`).join(' ')}`);
@@ -403,6 +473,14 @@ if (DRIVE) {
   console.log(`gate ms: ${JSON.stringify(summary.gate)} ${JSON.stringify(summary.gateSources)}`);
   console.log(`state ms: ${JSON.stringify(summary.state)} degraded=${summary.stateDegraded} maxWindow=${summary.stateMaxWindow} ledger=${S.ledgerItems}`);
   console.log(`catchup: ${JSON.stringify(S.catchup)}`);
+}
+if (S.voiceReport) {
+  const v = S.voiceReport;
+  console.log(`voice id (${v.mode}): ${v.correct}/${v.finals} finals named right (${v.pct}%), unnamed=${v.unnamed}, identified-this-line=${v.scored}; server ${JSON.stringify(v.server)}`);
+  if (SINGLE) console.log(`  interims, first 1.5 s of a line: first interim named right ${v.early.firstRight}/${v.early.lines} lines; all early interims ${v.early.right}/${v.early.interims}`);
+  if (v.split) console.log(`  overlapped lines split off with the right name: ${v.split.right}/${v.split.overlapped}${v.split.misses.length ? '\n    miss ' + v.split.misses.join('\n    miss ') : ''}`);
+  if (!SINGLE) console.log(`  phone finals re-named by voice (owner != confident voice): ${v.server?.phoneRenamed ?? '?'}; cross-speaker copies left: ${S.crossDup.length}`);
+  if (v.wrong.length) console.log('  ' + v.wrong.join('\n  '));
 }
 if (S.say) console.log(`say: delivered=${S.say.delivered} received-by=${S.say.got.join(',') || 'none'}`);
 if (flags.json) writeFileSync(flags.json, JSON.stringify(summary, null, 2));

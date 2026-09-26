@@ -39,6 +39,8 @@ function dupOverlap(host: Set<string>, part: Set<string>): number {
   return n / host.size;
 }
 type TranscriptMsg = Extract<AsrMessage, { type: 'transcript' }>;
+/** Client speaker ids for voice-named people (Deepgram ids are 0..n, phones 100+). */
+const VOICE_ID_BASE = 300;
 
 /** Sources may return {stop}, a stop fn, a promise of either, or nothing — normalize. */
 type Stopper = () => void;
@@ -157,6 +159,39 @@ export function useSession() {
   const getSession = useCallback(() => ref.current, []);
   const { gateUtterance, gateLatencyMs, lastGate } = useGate({ getSession, dispatch, nudge: nudgeUtt, coveredT });
 
+  // Single-phone voice id: enrolled name -> the client speaker id that shows it (one id, one color per name).
+  const voiceIds = useRef(new Map<string, number>());
+  const interimOwner = useRef(new Map<string, number>()); // `${dg speaker}:${raw tStart}` -> client speaker of its interim
+  /** Host line stamped with `voiceName`: route it to that name's speaker. First sighting names the Deepgram id's own
+   *  speaker (if still unnamed) or gets a fresh id; a second Deepgram id for a known name is merged into it. */
+  const voiceSpeaker = useCallback((raw: TranscriptMsg): number => {
+    const name = raw.voiceName?.trim();
+    if (!name) return raw.speaker;
+    const s = ref.current;
+    const canon = (id: number) => (id >= 0 ? (s.merged[id] ?? id) : id);
+    const key = name.toLowerCase();
+    const claimed = new Set([...voiceIds.current.values()].map(canon));
+    const own = canon(raw.speaker);
+    const known = voiceIds.current.get(key);
+    if (known != null) {
+      const to = canon(known);
+      // Another Deepgram id for the same person, still unnamed and nobody's voice: fold it in (its interims too).
+      if (own >= 0 && own !== to && !claimed.has(own) && !s.speakers[own]?.name && s.speakers[to]) dispatch({ type: 'mergeSpeaker', from: own, to });
+      return to;
+    }
+    let id: number;
+    const ownName = own >= 0 ? s.speakers[own]?.name?.trim().toLowerCase() : undefined;
+    if (own >= 0 && !claimed.has(own) && (!ownName || ownName === key)) id = own;
+    else {
+      // A named speaker with the same name (typed by the user) wins; else a fresh id outside Deepgram/phone ranges.
+      const same = Object.values(s.speakers).find((sp) => sp.name?.trim().toLowerCase() === key && !claimed.has(canon(sp.id)));
+      id = same ? canon(same.id) : VOICE_ID_BASE + voiceIds.current.size;
+    }
+    voiceIds.current.set(key, id);
+    dispatch({ type: 'seedSpeakers', names: { [id]: name } });
+    return id;
+  }, []);
+
   // ASR times are ms since the *stream* start (reset on reconnect); shift onto the session clock.
   const offset = useRef<number | null>(null);
   const lastRaw = useRef(0);
@@ -183,7 +218,18 @@ export function useSession() {
       if (offset.current == null || raw.tStart < lastRaw.current - 5_000) offset.current = Math.max(0, now - raw.tEnd);
       lastRaw.current = raw.tStart;
     }
-    const msg = { ...raw, tStart: raw.tStart + offset.current, tEnd: raw.tEnd + offset.current };
+    // Host path (no `name`) keeps its duplicate guard below; only the speaker id changes for voice-named lines.
+    const speaker = !raw.name && raw.voiceName ? voiceSpeaker(raw) : raw.speaker;
+    const msg = { ...raw, speaker, tStart: raw.tStart + offset.current, tEnd: raw.tEnd + offset.current };
+    // The server re-named a live interim (the voice windows changed their mind): drop the old name's interim so no
+    // ghost line is left under it. Same name = same speaker id = the interim just updates in place (no flicker).
+    if (!raw.name && !raw.final) {
+      const rk = `${raw.speaker}:${raw.tStart}`;
+      const prev = interimOwner.current.get(rk);
+      if (prev != null && prev !== speaker) dispatch({ type: 'transcript', msg: { ...msg, speaker: prev, text: '' } });
+      interimOwner.current.set(rk, speaker);
+      if (interimOwner.current.size > 50) interimOwner.current.delete(interimOwner.current.keys().next().value!);
+    }
     // Double-caption guard: drop a host-mic final if a phone final with >=60% of its words arrived within ±2.5 s.
     if (msg.final && msg.text.trim()) {
       const at = Date.now();
@@ -213,7 +259,7 @@ export function useSession() {
       }
     }
     commit(msg);
-  }, [fireNudge]);
+  }, [fireNudge, voiceSpeaker]);
 
   const earlyAsk = useRef<string>(''); // interim text that already fired the nudge, so the final doesn't fire twice
   const commit = useCallback((msg: TranscriptMsg) => {

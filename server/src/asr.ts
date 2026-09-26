@@ -5,6 +5,8 @@ import WebSocket from 'ws';
 import { appendFileSync } from 'node:fs';
 import type { AsrMessage } from '../../shared/types';
 import { parseJoin, Vad } from './rooms';
+import { clearTable } from './voiceid.ts';
+import { voiceOf, VoiceTrack } from './voicetrack.ts';
 
 /** DG_DUMP=<path>: append every raw Deepgram Results/UtteranceEnd as JSONL (offline coalescer tuning). */
 const DG_DUMP = process.env.DG_DUMP?.trim();
@@ -26,7 +28,13 @@ export function dgUrl(solo: boolean, lang: string, keyterms: string[]): string {
 const KEYTERM_SWAP_MIN_NEW = 3;
 const SWAP_SILENCE_MS = 1_000;
 
-interface DgWord { word: string; punctuated_word?: string; start: number; end: number; speaker?: number; confidence?: number }
+interface DgWord {
+  word: string; punctuated_word?: string; start: number; end: number; speaker?: number; confidence?: number;
+  /** ours, not Deepgram's: PcmRing position (s) of the t=0 of the Deepgram stream that produced this word */
+  gBase?: number;
+  /** ours: generation of that Deepgram stream (diarization ids restart per stream) */
+  gen?: number;
+}
 interface DgResults {
   type: 'Results';
   is_final?: boolean;
@@ -118,6 +126,9 @@ export class SilenceTrack {
   };
 }
 
+/** Every Deepgram stream in this process gets its own generation: diarization ids are only meaningful within one. */
+let dgStreamSeq = 0;
+
 /**
  * Deepgram sends is_final fragments inside one turn and speech_final at the endpoint. Hold fragments and emit ONE
  * final per turn (speech_final / UtteranceEnd / timeout / stream end); meanwhile show held+new words as an interim
@@ -131,10 +142,14 @@ export class Coalescer {
    *  sentenceFloorS: a sentence end flushes early only once the held run spans this long. A phone waits longer (2.5 s):
    *  at 1.5 s "Alright. Sunday, 1:00." flushed and "Sides and dessert sorted." became its own line.
    *  silence: VAD silence lookup for the punctuation-aware split (see SPLIT_SILENCE_MS). */
-  constructor(private emit: (m: AsrMessage) => void, private maxSpanS = 8, private sentenceFloorS = 1.5, private silence?: SilenceFn) {}
+  /** voiceSplit: cut a word run where the VOICE changes (single-phone mode, voicetrack.ts); interims and finals alike. */
+  constructor(private emit: (m: AsrMessage, src?: { gBase: number; gen: number }) => void, private maxSpanS = 8, private sentenceFloorS = 1.5, private silence?: SilenceFn,
+    private voiceSplit?: (words: DgWord[]) => DgWord[][], private onVoiceSplit?: (n: number) => void) {}
   private out(words: DgWord[], final: boolean) {
-    for (const seg of final ? this.splitAtPauses(words) : [words]) {
-      for (const m of resultsToMessages({ type: 'Results', is_final: final, channel: { alternatives: [{ words: seg }] } })) this.emit(m);
+    const byVoice = this.voiceSplit ? this.voiceSplit(words) : [words];
+    for (const seg of byVoice.flatMap((v) => (final ? this.splitAtPauses(v) : [v]))) {
+      const src = seg[0]?.gBase != null ? { gBase: seg[0].gBase, gen: seg[0].gen ?? 0 } : undefined;
+      for (const m of resultsToMessages({ type: 'Results', is_final: final, channel: { alternatives: [{ words: seg }] } })) this.emit(m, src);
     }
   }
   /** Split at a sentence end (.?!) followed by >= SPLIT_SILENCE_MS of measured silence before the next word. */
@@ -161,6 +176,15 @@ export class Coalescer {
       return;
     }
     this.held.push(...words);
+    // Someone else's voice took over mid-run: the part before the change is a finished line NOW (old speaker's name).
+    if (this.voiceSplit && this.held.length > 1) {
+      const parts = this.voiceSplit(this.held);
+      if (parts.length > 1) {
+        this.onVoiceSplit?.(parts.length - 1);
+        for (const p of parts.slice(0, -1)) this.out(p, true);
+        this.held = parts[parts.length - 1];
+      }
+    }
     const last = this.held[this.held.length - 1];
     const span = this.held.length ? last.end - this.held[0].start : 0;
     // Flush at the endpoint, or at a sentence end once the held text is a real line (>= 1.5 s), or at maxSpanS. Without the
@@ -211,9 +235,16 @@ export function registerAsr(app: FastifyInstance): void {
       const direct = (m: AsrMessage) => {
         if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(m));
       };
+      // Voice id (single-phone mode, voicetrack.ts): the PCM this socket sent to Deepgram on one clock across Deepgram
+      // streams; on the host mic also sliding-window names (interims) and voice-change splits. Sync: ordering is kept.
+      const voice = new VoiceTrack(jroom.token, !participant, jroom.voiceStats);
       // Participant transcripts go to the room's host(s), never back to the phone.
-      const send = (m: AsrMessage) => {
-        if (participant && m.type === 'transcript') { join.room.fromParticipant(participant, m, dgOpenedAt); return; }
+      const send = (m: AsrMessage, src?: { gBase: number; gen: number }) => {
+        if (participant && m.type === 'transcript') {
+          const slice = voice.slicer(src?.gBase);
+          join.room.fromParticipant(participant, m, dgOpenedAt, (t0, t1) => voiceOf(jroom.token, slice, t0, t1, true));
+          return;
+        }
         // Phones on the table: the host device sits in front of the listener, so its mic is THEIR mic.
         // Attribute host transcripts to ME (-2, named) instead of diarization ids; the client's duplicate guard
         // drops the bleed from other people's phones.
@@ -222,6 +253,7 @@ export function registerAsr(app: FastifyInstance): void {
           join.room.fromHost({ ...m, speaker: -2 }, dgOpenedAt, direct);
           return;
         }
+        if (m.type === 'transcript') m = voice.stamp(m, src);
         if (m.type === 'transcript' && m.final) { join.room.fromHost(m, dgOpenedAt, direct); return; }
         direct(m);
       };
@@ -247,7 +279,10 @@ export function registerAsr(app: FastifyInstance): void {
       let keepAlive: NodeJS.Timeout | undefined;
       let reconnectTimer: NodeJS.Timeout | undefined;
       const vad = new Vad();
-      const co = new Coalescer(send, participant ? 8 : 3, participant ? 2.5 : 1.5, sil.longest);
+      voice.silence = sil.longest;
+      const co = participant
+        ? new Coalescer(send, 8, 2.5, sil.longest)
+        : new Coalescer(send, 3, 1.5, sil.longest, (w) => voice.split(w), (n) => voice.countSplit(n));
       // Keyterms: applied on connect; when the room's set gains >= 3 terms this stream doesn't have, re-open Deepgram at
       // the next >= 1 s of silence (no held words, no voiced audio, no words from Deepgram) and swap streams seamlessly.
       let dgTerms: string[] = [];
@@ -294,7 +329,11 @@ export function registerAsr(app: FastifyInstance): void {
         if (closed) return;
         closed = true;
         if (participant) join.room.removeParticipant(client);
-        else join.room.removeHost(client);
+        else {
+          join.room.removeHost(client);
+          // Last listener gone: forget the table's voices (after a grace, so a mic restart / Wi-Fi blip keeps them).
+          jroom.whenNoHosts(() => clearTable(jroom.token));
+        }
         clearInterval(ping);
         offTerms();
         if (keepAlive) clearInterval(keepAlive);
@@ -335,6 +374,7 @@ export function registerAsr(app: FastifyInstance): void {
         const d = new WebSocket(dgUrl(!!participant, jroom.lang, terms), { headers: { Authorization: `Token ${key}` } });
         if (swap) swapDg = d; else dg = d;
         let openedAt = 0;
+        let myBase = 0, myGen = 0; // this stream's t=0 on the voice ring, and its generation (set on open)
         const who = participant?.name ?? 'host';
         /** A failed swap attempt just goes away: the old stream is still live. */
         const abandonSwap = (why: string) => {
@@ -360,8 +400,9 @@ export function registerAsr(app: FastifyInstance): void {
           if (!participant) jroom.hostEpoch = dgOpenedAt;
           send({ type: 'status', state: 'open' });
           sil.reset();
+          myGen = ++dgStreamSeq; voice.newStream(myGen); myBase = voice.base;
           if (pending.length) setEpoch(pending[0].at - pending[0].b.length / 32); else needEpoch = true;
-          for (const p of pending.splice(0)) { d.send(p.b); sil.push(p.b.length / 32, p.v); }
+          for (const p of pending.splice(0)) { d.send(p.b); sil.push(p.b.length / 32, p.v); voice.push(p.b, p.v); }
           keepAlive = setInterval(() => {
             if (d.readyState === WebSocket.OPEN && Date.now() - lastAudioAt > KEEPALIVE_MS) d.send(JSON.stringify({ type: 'KeepAlive' }));
           }, KEEPALIVE_MS);
@@ -380,6 +421,7 @@ export function registerAsr(app: FastifyInstance): void {
               lastFinalAt = now;
               try { d.send(JSON.stringify({ type: 'Finalize' })); } catch { /* closing */ }
             }
+            for (const w of r.channel?.alternatives?.[0]?.words ?? []) { w.gBase = myBase; w.gen = myGen; }
             co.results(r);
           }
           else if (msg.type === 'UtteranceEnd') co.flush();
@@ -422,7 +464,7 @@ export function registerAsr(app: FastifyInstance): void {
         maybeSwap();
         if (dg?.readyState === WebSocket.OPEN) {
           if (needEpoch) setEpoch(lastAudioAt - buf.length / 32);
-          dg.send(buf); sil.push(buf.length / 32, voiced);
+          dg.send(buf); sil.push(buf.length / 32, voiced); voice.push(buf, voiced);
         } else {
           pending.push({ b: buf, v: voiced, at: lastAudioAt });
           if (pending.length > MAX_PENDING) pending.shift();

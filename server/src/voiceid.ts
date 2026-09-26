@@ -114,14 +114,18 @@ export function embed(pcm16: Buffer, sampleRate = 16000): Float32Array {
 }
 
 // ---------- per-table state ----------
-interface Voice { samples: Float32Array[]; centroid: Float32Array }
+/** selfSims: same-person similarities seen at enrollment (half-clip vs half-clip, and sample vs sample). */
+interface Voice { samples: Float32Array[]; centroid: Float32Array; selfSims: number[] }
 interface DgMap { name: string; votes: number; pending: string | null; pendingVotes: number }
-interface Table { voices: Map<string, Voice>; dg: Map<string, DgMap> }
+interface Table { voices: Map<string, Voice>; dg: Map<string, DgMap>; calib: Calibration | null }
+/** Per-table threshold: midway between the least self-similar enrolled voice and the most similar pair of voices. */
+export interface Calibration { threshold: number; self: number | null; cross: number | null }
+export const CALIB_MIN = 0.45, CALIB_MAX = 0.7;
 const tables = new Map<string, Table>();
 
 function table(token: string): Table {
   let t = tables.get(token);
-  if (!t) { t = { voices: new Map(), dg: new Map() }; tables.set(token, t); }
+  if (!t) { t = { voices: new Map(), dg: new Map(), calib: null }; tables.set(token, t); }
   return t;
 }
 
@@ -138,16 +142,45 @@ export function enroll(tableToken: string, name: string, pcm16: Buffer, sampleRa
   const clean = name.trim().slice(0, 40);
   if (!clean) throw new Error('voiceid: name required');
   const e = embed(pcm16, sampleRate);
-  return enrollEmbedding(tableToken, clean, e, pcmMs(pcm16, sampleRate));
+  // Same voice, two halves of the clip: how similar a person is to themself on THIS mic (feeds the table threshold).
+  let half: number | undefined;
+  try {
+    const mid = (pcm16.length >> 2) << 1;
+    half = cosine(embed(pcm16.subarray(0, mid), sampleRate), embed(pcm16.subarray(mid), sampleRate));
+  } catch { /* clip too short to halve */ }
+  return enrollEmbedding(tableToken, clean, e, pcmMs(pcm16, sampleRate), half);
+}
+
+function calibrate(t: Table): void {
+  const vs = [...t.voices.values()];
+  const selfs = vs.map((v) => (v.selfSims.length ? v.selfSims.reduce((a, x) => a + x, 0) / v.selfSims.length : null)).filter((x): x is number => x != null);
+  const self = selfs.length ? Math.min(...selfs) : null;
+  let cross: number | null = null;
+  for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) cross = Math.max(cross ?? -1, cosine(vs[i].centroid, vs[j].centroid));
+  const mid = self != null && cross != null ? (self + cross) / 2 : DEFAULT_THRESHOLD;
+  const r3 = (x: number | null) => (x == null ? null : Math.round(x * 1000) / 1000);
+  t.calib = { threshold: r3(Math.min(CALIB_MAX, Math.max(CALIB_MIN, mid)))!, self: r3(self), cross: r3(cross) };
+}
+
+/** The table's calibrated threshold (DEFAULT_THRESHOLD until 2 voices are enrolled). VOICEID_THRESHOLD env pins it. */
+export function tableThreshold(tableToken: string): number {
+  if (process.env.VOICEID_THRESHOLD) return DEFAULT_THRESHOLD;
+  return tables.get(tableToken)?.calib?.threshold ?? DEFAULT_THRESHOLD;
+}
+export function calibration(tableToken: string): Calibration {
+  const c = tables.get(tableToken)?.calib;
+  return { threshold: tableThreshold(tableToken), self: c?.self ?? null, cross: c?.cross ?? null };
 }
 
 /** Same as enroll() for a precomputed embedding (tests, reuse). */
-export function enrollEmbedding(tableToken: string, name: string, e: Float32Array, ms = 0): EnrollResult {
+export function enrollEmbedding(tableToken: string, name: string, e: Float32Array, ms = 0, halfSelf?: number): EnrollResult {
   const t = table(tableToken);
   const v = t.voices.get(name);
   const selfScore = v ? cosine(e, v.centroid) : null;
   const samples = [...(v?.samples ?? []), e].slice(-MAX_SAMPLES_PER_NAME);
-  t.voices.set(name, { samples, centroid: centroidOf(samples) });
+  const selfSims = [...(v?.selfSims ?? []), ...(halfSelf != null ? [halfSelf] : []), ...(v ? v.samples.slice(-2).map((s) => cosine(s, e)) : [])].slice(-6);
+  t.voices.set(name, { samples, centroid: centroidOf(samples), selfSims });
+  calibrate(t);
   return { name, samples: samples.length, selfScore, ms };
 }
 
@@ -155,7 +188,9 @@ export function removeVoice(tableToken: string, name: string): boolean {
   const t = tables.get(tableToken);
   if (!t) return false;
   for (const [k, m] of t.dg) if (m.name === name) t.dg.delete(k);
-  return t.voices.delete(name);
+  const had = t.voices.delete(name);
+  calibrate(t);
+  return had;
 }
 
 export function roster(tableToken: string): { name: string; samples: number }[] {
@@ -190,7 +225,7 @@ export function identifyEmbedding(tableToken: string, e: Float32Array, opts: Ide
   if (!t || t.voices.size === 0) return { name: null, score: 0, second: null, reason: 'empty' };
   const scored = [...t.voices].map(([name, v]) => ({ name, score: cosine(e, v.centroid) })).sort((a, b) => b.score - a.score);
   const [best, second = null] = scored;
-  const threshold = opts.threshold ?? DEFAULT_THRESHOLD;
+  const threshold = opts.threshold ?? tableThreshold(tableToken);
   const margin = opts.margin ?? DEFAULT_MARGIN;
   const round = (x: number) => Math.round(x * 1000) / 1000;
   const sec = second ? { name: second.name, score: round(second.score) } : null;

@@ -9,6 +9,13 @@ import type { FastifyInstance } from 'fastify';
 import WebSocket from 'ws';
 import type { AsrMessage, Participant, Prosody, RoomInfo } from '../../shared/types';
 import { paceLevel } from '../../shared/types';
+import { roster } from './voiceid.ts';
+
+/** Forget the table's enrolled voices this long after the last host socket closed (a mic restart must not wipe them). */
+const VOICEID_CLEAR_GRACE_MS = Number(process.env.VOICEID_CLEAR_GRACE_MS ?? 60_000);
+/** A phone final's voice: which enrolled person spoke [t0, t1] (ms, that phone's Deepgram clock). */
+const VOICE_OVERRIDE = Number(process.env.VOICEID_OVERRIDE) || 0.65; // a phone final is re-named only at/above this voice score
+export type VoiceLookup = (t0: number, t1: number) => { name: string; score: number; widened?: boolean } | null;
 
 /** Participant speaker ids start here so they never collide with Deepgram diarization ids (0..n). */
 export const PARTICIPANT_ID_BASE = 100;
@@ -53,6 +60,13 @@ const HOST_PHONE_OWNS = 0.5;             // host-mic word: a phone at >= 0.5 of 
 const HOST_OWN_RATIO = 1.6;              // …unless the host mic was >= 1.6x that (ME talking; phones only hear bleed)
 type TranscriptMsg = Extract<AsrMessage, { type: 'transcript' }>;
 const dedupeTokens = (t: string) => new Set(t.toLowerCase().replace(/[^\p{L}\p{N}\s']/gu, ' ').split(/\s+/).filter(Boolean));
+/** Share of `a`'s tokens found in `b`. */
+function tokenOverlapOf(a: Set<string>, b: Set<string>): number {
+  if (!a.size) return 0;
+  let n = 0;
+  for (const w of a) if (b.has(w)) n++;
+  return n / a.size;
+}
 export function tokenOverlap(a: Set<string>, b: Set<string>): number {
   const [s, l] = a.size <= b.size ? [a, b] : [b, a];
   if (!s.size) return 0;
@@ -111,7 +125,22 @@ export class Room {
     return id;
   }
 
+  get hostCount(): number { return this.hosts.size; }
+  private noHostTimer: NodeJS.Timeout | undefined;
+  /** Run fn once no host has been connected for VOICEID_CLEAR_GRACE_MS (cancelled when a host joins). */
+  whenNoHosts(fn: () => void): void {
+    if (this.hosts.size) return;
+    if (this.noHostTimer) clearTimeout(this.noHostTimer);
+    const run = () => { this.noHostTimer = undefined; if (!this.hosts.size) fn(); };
+    if (VOICEID_CLEAR_GRACE_MS <= 0) { run(); return; }
+    this.noHostTimer = setTimeout(run, VOICEID_CLEAR_GRACE_MS);
+    this.noHostTimer.unref?.();
+  }
+  /** Voice id counters: phone finals identified / re-named; host finals checked / identified / named from the remembered mapping. */
+  voiceStats = { phoneIded: 0, phoneRenamed: 0, phoneDupDropped: 0, hostFinals: 0, hostIded: 0, hostRemembered: 0, maxMs: 0, windows: 0, windowMs: 0, changes: 0, splits: 0 };
+
   addHost(ws: WebSocket): void {
+    if (this.noHostTimer) { clearTimeout(this.noHostTimer); this.noHostTimer = undefined; }
     this.hosts.add(ws);
     this.sendTo(ws, { type: 'participants', list: this.list() });
   }
@@ -172,7 +201,7 @@ export class Room {
   }
 
   /** Participant transcript -> every host, rebased onto the host stream clock and tagged. */
-  fromParticipant(p: PSock, m: AsrMessage, participantEpoch: number): void {
+  fromParticipant(p: PSock, m: AsrMessage, participantEpoch: number, voiceOf?: VoiceLookup): void {
     if (m.type !== 'transcript') return;
     if (m.text.trim()) this.touch(p);
     const shift = participantEpoch - (this.hostEpoch ?? participantEpoch);
@@ -185,12 +214,35 @@ export class Room {
     const own = this.stripBleed(p.id, m, participantEpoch);
     if (!own) { clear(); return; }
     const t0 = participantEpoch + own.tStart, t1 = participantEpoch + own.tEnd;
+    // Phones + enrolled voices: a phone that picked up its neighbour (bleed the level filter kept) gets the line re-named
+    // to the voice that actually spoke, when the fingerprint is confident.
+    const hit = voiceOf && roster(this.token).length ? voiceOf(own.tStart, own.tEnd) : null;
+    if (hit) this.voiceStats.phoneIded++;
+    const minScore = hit?.widened ? Math.max(VOICE_OVERRIDE, 0.7) : VOICE_OVERRIDE; // short line read from a wider window: stricter
+    const renamed = hit && hit.score >= minScore && hit.name.trim().toLowerCase() !== p.name.trim().toLowerCase() ? hit.name : null;
+    if (renamed) {
+      this.voiceStats.phoneRenamed++;
+      if (process.env.DEDUPE_LOG !== '0') console.log(`[voiceid] ${p.name}'s phone -> ${renamed} (${hit!.score}): ${own.text.slice(0, 60)}`);
+    }
     this.holdFinal(p.id, own.text, t0, t1, () => {
+      // Re-named to someone whose own phone already has this line: it's leftover bleed, not a new line. Drop it.
+      if (renamed && this.ownPhoneHas(this.idFor(renamed), own.text, t0, t1)) { this.voiceStats.phoneDupDropped++; clear(); return; }
       const out = rebase(own);
+      if (hit && (!hit.widened || renamed)) { out.voiceName = hit.name; out.voiceScore = hit.score; }
+      if (renamed) { out.name = renamed; out.speaker = this.idFor(renamed); }
       out.prosody = this.prosodyFor(p.id, own.text, t0, t1);
       this.recordFinal(p.id, own.text, t0, t1);
       for (const h of this.hosts) this.sendTo(h, out);
     }, clear);
+  }
+
+  /** Did participant `id`'s phone emit (or is it holding) a final within the dedupe window that contains most of `text`? */
+  private ownPhoneHas(id: number, text: string, t0: number, t1: number): boolean {
+    const mine = dedupeTokens(text);
+    if (!mine.size) return false;
+    const need = mine.size <= 2 ? 1 : DEDUPE_OVERLAP;
+    const near = (a: { t0: number; t1: number }) => a.t0 <= t1 + DEDUPE_WINDOW_MS && t0 <= a.t1 + DEDUPE_WINDOW_MS;
+    return [...this.held, ...this.recentEmitted].some((h) => h.src === id && near(h) && tokenOverlapOf(mine, h.tokens) >= need);
   }
 
   /**
@@ -542,7 +594,7 @@ export class Room {
   }
 
   /** Debug/leak check: live sockets and per-id state sizes. */
-  stats() { return { dedupe: this.dedupe, held: this.held.length, hosts: this.hosts.size, parts: this.parts.size, ids: this.ids.size, finals: this.finals.size, voiced: this.voiced.size, rms: this.rmsHist.size, termSubs: this.termSubs.size }; }
+  stats() { return { dedupe: this.dedupe, held: this.held.length, hosts: this.hosts.size, parts: this.parts.size, ids: this.ids.size, finals: this.finals.size, voiced: this.voiced.size, rms: this.rmsHist.size, termSubs: this.termSubs.size, voice: this.voiceStats }; }
 }
 
 /** Rough English syllable count (vowel groups, silent final e, digits as ~1.5): speech rate in syllables is far less
