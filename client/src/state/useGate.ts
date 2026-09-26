@@ -61,6 +61,7 @@ export function useGate({ getSession, dispatch, nudge, coveredT }: Opts) {
         setGateLatencyMs(ms);
         setLastGate({ uttId: utt.id, text: utt.text, res, at: Date.now() });
         const cur = getSession();
+        if (res.tone && res.tone !== 'neutral') dispatch({ type: 'setTone', id: utt.id, tone: res.tone });
         if (cur.me.name && res.addressed_to_me >= GATE_ADDRESSED_P) nudge(utt, name);
         if (res.kind !== 'chatter' && res.kind_p >= GATE_KIND_P && utt.tStart > coveredT.current) {
           dispatch({

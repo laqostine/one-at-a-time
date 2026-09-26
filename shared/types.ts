@@ -11,7 +11,8 @@ export interface Utterance {
   threadId?: string;          // Thread.id this line belongs to (stamped after /api/state)
   replyTo?: string;           // display name of the person this line answered
   words?: WordConf[];         // finals only: per-word ASR confidence (0..1), in text order
-  repeatRequested?: boolean;  // user tapped "please repeat" on this line
+  repeatRequested?: boolean;
+  tone?: Tone;  // user tapped "please repeat" on this line
 }
 /** One ASR word with confidence c (0..1). */
 export interface WordConf { w: string; c: number }
@@ -64,11 +65,15 @@ export interface StateResponse {
 
 // POST /api/gate — fast "System One" decision gate: one tiny Haiku call per FINAL utterance
 export type GateKind = LedgerKind | 'chatter';
+// Tone = the prosody a hearing person gets for free. Text-inferred by the gate; shown as one word by the name.
+export type Tone = 'neutral'|'warm'|'teasing'|'annoyed'|'urgent'|'sad'|'excited';
+export const TONES: readonly Tone[] = ['neutral','warm','teasing','annoyed','urgent','sad','excited'];
 export interface GateRequest { me: Session['me']; speakers: Record<number, Speaker>; recent: TimelineItem[] /* last ~6 finals, context */; target: Utterance }
 export interface GateResponse {
   addressed_to_me: number;   // 0..1
   kind: GateKind; kind_p: number; // 0..1
   urgent: boolean;
+  tone?: Tone;
   latencyMs: number;
   source?: 'model'|'fallback'|'cache';
 }

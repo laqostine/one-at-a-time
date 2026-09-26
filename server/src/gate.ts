@@ -1,7 +1,7 @@
 // Fast decision gate ("System One"): ONE tiny Haiku call per FINAL utterance -> typed verdict, no prose.
 // Output is a forced tool call with 4 enum/boolean fields so generation stays ~a dozen tokens (~0.7 s).
 import type Anthropic from '@anthropic-ai/sdk';
-import type { GateKind, GateRequest, GateResponse, TimelineItem, Utterance } from '../../shared/types.ts';
+import { TONES, type GateKind, type GateRequest, type GateResponse, type TimelineItem, type Tone, type Utterance } from '../../shared/types.ts';
 import { isAddressedToMe, mentionsMe } from '../../shared/addressed.ts';
 import { FAST_MODEL, getClient, hasAnthropic, speakerName, withRetry } from './claude.ts';
 
@@ -12,7 +12,7 @@ const GATE_TIMEOUT_MS = 2_500;
 //  - 'tool' (GATE_MODE=tool): forced tool `gate`. Haiku's tool_use costs ~85 output tokens for these 4 fields
 //    (measured; max_tokens 12/40/60 all truncate), so it runs ~1.1-1.3 s. Kept for A/B.
 export const GATE_MODE: 'text' | 'tool' = process.env.GATE_MODE === 'tool' ? 'tool' : 'text';
-export const GATE_MAX_TOKENS = Number(process.env.GATE_MAX_TOKENS) || (GATE_MODE === 'tool' ? 120 : 16); // text: addressed lines use exactly 12 tokens -> 16 = margin
+export const GATE_MAX_TOKENS = Number(process.env.GATE_MAX_TOKENS) || (GATE_MODE === 'tool' ? 120 : 20); // text: 5 tokens incl. tone -> 20 = margin
 const KINDS = ['decision', 'objection', 'open_question', 'instruction_change', 'assigned_to_me', 'chatter'] as const;
 const CONF_P = { high: 0.9, medium: 0.65, low: 0.4 } as const;
 type Conf = keyof typeof CONF_P;
@@ -37,17 +37,19 @@ const SYSTEM = `Classify the TARGET line of a live meeting for ME (a deaf/hard-o
 addressed=yes if it asks/tells ME something or hands ME a task. Also yes for an open ask to the group ("can someone…", "who wants to…") when CONTEXT links ME to that task (ME did it before, ME's area): kind=assigned_to_me. E.g. CONTEXT "ME ran the retro last month", TARGET "anyone up for running the retro?" => addressed=yes.
 addressed=no for lines to the whole group (decisions, opinions, jokes, announcements) that neither name ME nor leave ME a task.
 kind: decision (group settles something), objection (pushback/disagreement), open_question (unresolved question or unowned task), instruction_change (plan/time/place changed), assigned_to_me (task given to ME), chatter (anything else).
-urgent=true only if ME must respond now.`;
-const TEXT_FORMAT = `\nReply with exactly 4 space-separated tokens and nothing else: addressed(y|n) confidence(h|m|l) kind urgent(0|1). Example: y h assigned_to_me 1`;
+urgent=true only if ME must respond now.
+tone: how the line was said, as a hearing person would feel it from the voice: neutral, warm, teasing, annoyed, urgent, sad, excited. Prefer neutral unless the words clearly carry it (sarcasm=teasing, complaint=annoyed).`;
+const TEXT_FORMAT = `\nReply with exactly 5 space-separated tokens and nothing else: addressed(y|n) confidence(h|m|l) kind urgent(0|1) tone. Example: y h assigned_to_me 1 warm`;
 const ABBR: Record<string, string> = { y: 'yes', n: 'no', h: 'high', m: 'medium', l: 'low' };
 
 /** Strict parse of the text-mode reply; null if any token is off-enum. */
-export function parseGateText(raw: string): { addressed: string; confidence: string; kind: string; urgent: boolean } | null {
+export function parseGateText(raw: string): { addressed: string; confidence: string; kind: string; urgent: boolean; tone?: Tone } | null {
   const t = raw.trim().toLowerCase().replace(/[^a-z_01 ]/g, ' ').split(/\s+/).filter(Boolean);
   if (t.length < 4) return null;
-  const [a, c, k, u] = t;
+  const [a, c, k, u, tn] = t;
   if (!['y', 'n'].includes(a) || !['h', 'm', 'l'].includes(c) || !(KINDS as readonly string[]).includes(k) || !['0', '1'].includes(u)) return null;
-  return { addressed: ABBR[a], confidence: ABBR[c], kind: k, urgent: u === '1' };
+  const tone = (TONES as readonly string[]).includes(tn ?? '') ? (tn as Tone) : undefined;
+  return { addressed: ABBR[a], confidence: ABBR[c], kind: k, urgent: u === '1', tone };
 }
 
 // ---- LRU (dedupe client retries) ----
@@ -107,7 +109,7 @@ export async function gate(req: GateRequest): Promise<GateResponse> {
         { ...base, system: SYSTEM, tools: [gateTool], tool_choice: { type: 'tool', name: 'gate' } },
         { timeout, maxRetries: 0, signal: ac.signal })
       : getClient().messages.create({ ...base, system: SYSTEM + TEXT_FORMAT }, { timeout, maxRetries: 0, signal: ac.signal })));
-    let o: { addressed?: string; confidence?: string; kind?: string; urgent?: boolean } | null;
+    let o: { addressed?: string; confidence?: string; kind?: string; urgent?: boolean; tone?: Tone } | null;
     if (GATE_MODE === 'tool') {
       const block = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
       o = (block?.input ?? null) as typeof o;
@@ -120,7 +122,7 @@ export async function gate(req: GateRequest): Promise<GateResponse> {
     const kind: GateKind = (KINDS as readonly string[]).includes(o.kind) ? (o.kind as GateKind) : 'chatter';
     const out: Omit<GateResponse, 'latencyMs'> = {
       addressed_to_me: o.addressed === 'yes' ? p : +(1 - p).toFixed(2),
-      kind, kind_p: p, urgent: !!o.urgent, source: 'model',
+      kind, kind_p: p, urgent: !!o.urgent, source: 'model', ...(o.tone ? { tone: o.tone } : {}),
     };
     lruSet(key, out);
     const latencyMs = Date.now() - t0;

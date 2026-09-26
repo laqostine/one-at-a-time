@@ -2,8 +2,7 @@
 import {
   SPEAKER_COLORS,
   type AsrMessage, type AudioEvent, type LedgerItem, type Session, type Speaker,
-  type Thread, type TimelineItem, type Utterance, type UtteranceThread,
-} from '../../../shared/types';
+  type Thread, type TimelineItem, type Utterance, type UtteranceThread, type Tone } from '../../../shared/types';
 
 export const RING_MS = 15 * 60 * 1000;
 export const UNKNOWN_COLOR = '#9CA3AF';
@@ -25,6 +24,7 @@ export type SessionAction =
   | { type: 'transcript'; msg: AsrMessage }
   | { type: 'event'; event: AudioEvent }
   | { type: 'renameSpeaker'; id: number; name: string }
+  | { type: 'setTone'; id: string; tone: Tone }
   | { type: 'mergeSpeaker'; from: number; to: number }
   | { type: 'setMe'; name: string; aliases: string[] }
   /** coveredT: max tStart of the finals the /api/state request saw; provisional items at or before it are dropped. */
@@ -145,6 +145,9 @@ export function sessionReducer(s: SessionState, a: SessionAction): SessionState 
     case 'event':
       if (s.timeline.some((i) => i.id === a.event.id)) return s;
       return { ...s, timeline: trimRing(insertSorted(s.timeline, a.event)) };
+    case 'setTone': {
+      return { ...s, timeline: s.timeline.map((i) => (i.type === 'utterance' && i.id === a.id ? { ...i, tone: a.tone } : i)) };
+    }
     case 'renameSpeaker': {
       const sp = s.speakers[a.id];
       if (!sp) return s;
