@@ -2,53 +2,88 @@
 @import "tw-animate-css";
 
 /*
- * Theme tokens. Raw values live on :root so the high-contrast variant can swap them;
- * @theme inline exposes them to Tailwind (bg-card, text-muted, ...) and to shadcn/ui
- * (bg-background, text-foreground, bg-primary, border-border, ring-ring, ...).
- * Every text/background pair below is >= 4.5:1 on --card (WCAG AA), most >= 7:1.
- */
-/*
- * Identity: warm-neutral darks (never pure black), ONE refined blue accent, amber reserved for
- * "addressed to you". Display = Instrument Serif (italic for the big lines), body = Inter,
- * meta/labels/timestamps = JetBrains Mono.
- * Contrast (on --card): fg 15.6:1, muted 8.2:1, accent 8.6:1, warn 10.0:1, good 9.9:1,
- * bad 8.2:1, change 8.8:1, accent-fg on accent 8.9:1 - every pair >= AA, most >= AAA.
+ * Theme tokens: design/BRAND.md. "Lamplight. Linen. Walnut."
+ * The page is the walnut table under a pendant lamp (tex/walnut-top.jpg), the reading surface is
+ * linen (tex/linen-weave.jpg), plans and notes are paper (tex/paper-sheet.jpg).
+ * Dark scope = things on the walnut (cream text). Light scope (.linen/.paper) redefines the same
+ * tokens for ink, so every component re-colors itself by the material it sits on.
+ * Contrast: cream on walnut 9.0:1, cream on card 14.5:1, muted on card 9.0:1, tea-lit on card 5.9:1,
+ * ink on linen 13.3:1, ink-muted on linen 6.0:1, amber-ink on linen 5.0:1 (all >= AA).
+ * Amber (lamplight) means "asked you" and nothing else. Blue rim marks "you" and nothing else.
  */
 :root {
-  --bg: #12110f;          /* warm charcoal, not black */
-  --card: #1b1916;
-  --card-2: #25221e;
-  --line: #36312b;
-  --line-strong: #4f483f;
-  --fg: #f5f1e8;          /* warm paper white */
-  --muted: #b8b0a2;
-  --accent: #8db6ff;      /* refined periwinkle blue - actions, links, focus */
-  --accent-deep: #4f7fd9; /* accent on light / gradients */
-  --accent-fg: #0a1628;   /* text on accent fills (8.9:1) */
-  --warn: #f6b93b;        /* amber - ONLY "addressed to you" / attention, never red */
-  --good: #6fd6a4;
-  --bad: #ff9580;
-  --change: #c8a9ff;
+  /* brand palette, exact */
+  --walnut: #5A3B22;
+  --lamplight: #F1C76A;
+  --linen: #F3EBDD;
+  --ink: #2B2117;
+  --cream: #F7F1E6;
+  --tea: #A8742A;
+  --blue-rim: #6E8FB5;
+  --shadow: #1B1410;
+  --lamp-good: #5D8A5E;
+  --lamp-amber: #D99A3D;
+  --lamp-red: #B8503A;
+  --lamp-light: var(--lamplight);
+
+  /* dark scope: on the walnut */
+  --bg: var(--shadow);
+  --card: #2a1d14;        /* walnut in shadow */
+  --card-2: #3a2819;
+  --line: #4d3826;
+  --line-strong: #6a4f37;
+  --fg: var(--cream);
+  --muted: #cdbfa9;
+  --accent: #C8904A;      /* tea under the lamp: links and quiet actions on walnut */
+  --accent-deep: var(--tea);
+  --accent-fg: var(--shadow);
+  --warn: var(--lamplight);
+  --good: #8DB88E;
+  --bad: #E08F78;
+  --change: #D8C49A;
+  --you: var(--blue-rim);
+  --ring: var(--cream);
   --radius: 1rem;
-  --glow-warn: 0 0 0 1px rgb(246 185 59 / .55), 0 0 28px -4px rgb(246 185 59 / .45);
-  --glow-accent: 0 0 0 1px rgb(141 182 255 / .45), 0 0 26px -6px rgb(141 182 255 / .45);
-  /* The table (physical metaphor): walnut, linen placemat, lamp light. Ink on linen is 13:1. */
-  --wood-hi: #8c4d2d;
-  --wood: #66341f;
-  --wood-lo: #3a1d16;
-  --linen: #f3e9d6;
-  --linen-lo: #e4d4b8;
-  --ink: #2b1f18;
-  --ink-muted: #6b5443;   /* 6.1:1 on --linen */
-  --lamp-light: #ffcf83;
-  /* Table lamp (mirrors the phones' lamp mode). */
-  --lamp-good: #3fcf8e;
-  --lamp-amber: #f6b93b;
-  --lamp-red: #ff5d4d;
+  /* one light, above-left: every shadow falls down and to the right */
+  --shadow-obj: 3px 6px 12px -4px rgb(27 20 16 / .55);
+  --shadow-sheet: 8px 16px 32px -12px rgb(27 20 16 / .75);
+  /* legacy names: now solid rims, never glows */
+  --glow-warn: 0 0 0 2px var(--lamplight), var(--shadow-obj);
+  --glow-accent: 0 0 0 1px rgb(247 241 230 / .22), var(--shadow-obj);
+  --wood-hi: #8a5f3a;
+  --wood: var(--walnut);
+  --wood-lo: #3a2616;
+  --linen-lo: #e4d8c2;
+  --ink-muted: #6b5443;   /* 6.0:1 on linen */
+  --spk-mix: 70%;         /* speaker colors as text: mixed toward --spk-to (see lib/utils readable) */
+  --spk-to: white;
 
   font-size: 18px; /* base; prefs S/M/L/XL overrides this only, everything else is rem */
   color-scheme: dark;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Light scope: printed on linen or paper. Same token names, ink values. */
+.linen { --card: var(--linen); }
+.paper { --card: #f1e8d6; }
+.linen, .paper {
+  --card-2: rgb(43 33 23 / .07);
+  --line: rgb(43 33 23 / .16);
+  --line-strong: rgb(43 33 23 / .34);
+  --fg: var(--ink);
+  --muted: var(--ink-muted);
+  --accent: #7a4f17;      /* tea, inked: 6.0:1 */
+  --accent-fg: var(--cream);
+  --warn: #8a5a10;        /* amber ink: 5.0:1; the fill stays --lamplight */
+  --good: #3f6b40;
+  --bad: #9a3f2a;
+  --change: #6b5443;
+  --you: #3f5f86;         /* blue rim, inked: 5.6:1 */
+  --ring: var(--ink);
+  --spk-mix: 55%;
+  --spk-to: var(--ink);
+  color: var(--ink);
+  color-scheme: light;
 }
 
 /* High contrast: pure black/white, visible borders, saturated semantics. */
@@ -60,15 +95,15 @@
   --line-strong: #ffffff;
   --fg: #ffffff;
   --muted: #e5e5e5;
-  --accent: #9cc8ff;
-  --accent-deep: #9cc8ff;
+  --accent: #ffd9a0;
+  --accent-deep: #ffd9a0;
   --accent-fg: #000000;
   --warn: #ffd23f;
   --good: #4ff0b0;
   --bad: #ff9a8a;
-  --change: #d9c2ff;
+  --change: #f0dcb4;
   --glow-warn: 0 0 0 2px #ffd23f;
-  --glow-accent: 0 0 0 2px #9cc8ff;
+  --glow-accent: 0 0 0 2px #ffffff;
 }
 
 @theme inline {
@@ -90,6 +125,14 @@
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-wood: var(--wood);
+  --color-you: var(--you);
+  --color-tea: var(--tea);
+  --color-lamplight: var(--lamplight);
+  --color-lamp-good: var(--lamp-good);
+  --color-lamp-amber: var(--lamp-amber);
+  --color-lamp-red: var(--lamp-red);
+  --color-cream: var(--cream);
+  --color-dusk: var(--shadow);
 
   /* shadcn/ui semantic tokens mapped onto the app palette */
   --color-background: var(--bg);
@@ -97,8 +140,8 @@
   --color-card-foreground: var(--fg);
   --color-popover: var(--card-2);
   --color-popover-foreground: var(--fg);
-  --color-primary: var(--accent);
-  --color-primary-foreground: var(--accent-fg);
+  --color-primary: var(--tea);
+  --color-primary-foreground: var(--shadow);
   --color-secondary: var(--card-2);
   --color-secondary-foreground: var(--fg);
   --color-muted-foreground: var(--muted);
@@ -106,7 +149,7 @@
   --color-destructive: var(--bad);
   --color-border: var(--line);
   --color-input: var(--line-strong);
-  --color-ring: var(--accent);
+  --color-ring: var(--ring);
 
   --radius-sm: calc(var(--radius) - 8px);
   --radius-md: calc(var(--radius) - 6px);
@@ -114,7 +157,7 @@
   --radius-xl: var(--radius);
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* type scale (rem, so S/M/L/XL scales it) */
@@ -129,7 +172,14 @@
 html, body, #root { height: 100%; }
 body {
   margin: 0;
-  background: var(--bg);
+  background-color: var(--shadow);
+  /* the walnut table: the lamp's pool at the top, the wood falling into shadow toward you */
+  background-image:
+    linear-gradient(180deg, rgb(40 22 10 / .12), rgb(36 20 10 / .3) 45%, rgb(27 16 8 / .55) 100%),
+    url("/tex/walnut-top.jpg");
+  background-size: cover;
+  background-position: 38% top;
+  background-attachment: fixed;
   color: var(--fg);
   font-family: var(--font-sans);
   line-height: 1.4;
@@ -139,7 +189,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
 ::selection { background: color-mix(in oklab, var(--accent) 35%, transparent); color: var(--fg); }
 .tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
 
@@ -154,7 +204,7 @@ body {
   color: var(--muted);
   line-height: 1.2;
 }
-/* The wordmark: display serif italic, lightly tracked. Text only, never an image. */
+/* Text fallback for the wordmark (the calligraphic image /wordmark.png is the real one). */
 @utility wordmark {
   font-family: var(--font-display);
   font-style: italic;
@@ -187,7 +237,7 @@ body {
   text-decoration-style: dotted;
   text-decoration-thickness: 2px;
   text-underline-offset: 0.22em;
-  text-decoration-color: color-mix(in oklab, var(--accent) 75%, transparent);
+  text-decoration-color: color-mix(in oklab, var(--you) 80%, transparent);
 }
 /* Quiet secondary line ("why:", thread names, timestamps). */
 @utility text-meta {
@@ -202,16 +252,17 @@ body {
 @keyframes imt-shimmer { 0% { opacity: .45; } 50% { opacity: .9; } 100% { opacity: .45; } }
 .imt-skeleton { animation: imt-shimmer 1.2s ease-in-out infinite; background: var(--card-2); border-radius: 8px; }
 /* The single proactive interrupt: amber glow that breathes three times, then stays lit. */
-@keyframes imt-flash { 0% { box-shadow: 0 0 0 0 rgb(246 185 59 / .7), var(--glow-warn); } 100% { box-shadow: 0 0 0 14px rgb(246 185 59 / 0), var(--glow-warn); } }
+@keyframes imt-flash { 0% { box-shadow: 0 0 0 0 rgb(241 199 106 / .8), var(--glow-warn); } 100% { box-shadow: 0 0 0 12px rgb(241 199 106 / 0), var(--glow-warn); } }
 .imt-flash { animation: imt-flash 1s ease-out 3; box-shadow: var(--glow-warn); }
 /* New/replaced content: fade in + a brief tint that clears. Opacity/background only, no reflow. */
 @keyframes imt-in { from { opacity: .35; } to { opacity: 1; } }
 .imt-in { animation: imt-in 180ms ease-out; }
-@keyframes imt-highlight { from { background-color: rgb(141 182 255 / .16); } to { background-color: transparent; } }
+@keyframes imt-highlight { from { background-color: rgb(200 144 74 / .16); } to { background-color: transparent; } }
 .imt-highlight { animation: imt-highlight 700ms ease-out; }
 /* "Catch me up" invites a press only after an away span ended. */
-@keyframes imt-invite { 0%, 100% { box-shadow: 0 0 0 0 rgb(141 182 255 / 0); } 50% { box-shadow: 0 0 0 6px rgb(141 182 255 / .28); } }
-.imt-invite { animation: imt-invite 1.8s ease-in-out infinite; }
+/* a small nudge on the table (translate), never a glow */
+@keyframes imt-invite { 0%, 70%, 100% { transform: none; } 78% { transform: translateX(-3px); } 86% { transform: translateX(3px); } 94% { transform: translateX(-1px); } }
+.imt-invite { animation: imt-invite 2.4s ease-in-out infinite; }
 
 /* Presence halo: soft radial glow tinted by state; amber flare when something is aimed at you. */
 @keyframes imt-flare { 0% { opacity: 0; transform: scale(.7); } 18% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0; transform: scale(1.35); } }
@@ -219,24 +270,21 @@ body {
 @keyframes imt-breathe { 0%, 100% { opacity: .75; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
 .imt-breathe { animation: imt-breathe 4.8s ease-in-out infinite; }
 
-/* ---------- Surfaces: three elevations, hairline borders, restrained glow ----------
- * 0 = page (--bg + grain) · 1 = cell (--card, hairline, top highlight) · 2 = raised (--card-2 + soft drop). */
+/* ---------- Surfaces: things on the table, lit from above-left ---------- */
 @utility surface-1 {
-  background: var(--card);
-  border: 1px solid color-mix(in oklab, var(--line) 85%, transparent);
-  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / .04);
+  background: rgb(42 29 20 / .82);
+  border: 1px solid rgb(247 241 230 / .08);
+  box-shadow: var(--shadow-obj);
 }
 @utility surface-2 {
   background: var(--card-2);
   border: 1px solid var(--line);
-  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / .05), 0 12px 32px -18px rgb(0 0 0 / .7);
+  box-shadow: var(--shadow-obj);
 }
 @utility surface-hero {
-  background:
-    radial-gradient(120% 80% at 50% 38%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 60%),
-    linear-gradient(180deg, color-mix(in oklab, var(--card) 100%, white 2%), var(--card));
-  border: 1px solid color-mix(in oklab, var(--line) 85%, transparent);
-  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / .05), 0 24px 48px -28px rgb(0 0 0 / .8);
+  background: rgb(42 29 20 / .78);
+  border: 1px solid rgb(247 241 230 / .08);
+  box-shadow: var(--shadow-sheet);
 }
 /* Micro-interaction: hover lift <= 2px, 150 ms. */
 @utility lift {
@@ -244,46 +292,84 @@ body {
   &:hover { transform: translateY(-2px); }
   &:active { transform: none; }
 }
-/* Grain: 3% noise over the page so the dark reads as material, not a flat fill. */
+/* Grain: 5% noise over everything, so no surface is ever a flat fill. */
 body::after {
-  content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .03;
+  content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .05; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 :root[data-contrast="high"] body::after { display: none; }
 
-/* ---------- The table: room light, walnut top, linen placemat (ideas from v0 sVRM3anYDGB / j3Vmfa0IsRr) ---------- */
-/* The room: a warm pool of lamp light from above, vignette toward the walls. */
+/* ---------- Materials ---------- */
+/* The room: only a vignette (the lamp's pool is in the walnut photo itself). */
 @utility room-light {
-  background:
-    radial-gradient(70rem 42rem at 50% 30%, rgb(255 207 131 / .075), transparent 62%),
-    radial-gradient(120% 90% at 50% 40%, transparent 55%, rgb(0 0 0 / .35));
+  background: radial-gradient(120% 90% at 50% 30%, transparent 55%, rgb(27 20 16 / .35));
 }
-/* Walnut top: lamp hot-spot + fine grain + a warm radial body, with a rim and a drop shadow. */
+/* Walnut: the real wood, a thin bevel, one shadow down-right. */
 @utility wood {
-  background:
-    radial-gradient(ellipse at 45% 32%, rgb(255 207 131 / .26), transparent 42%),
-    repeating-linear-gradient(96deg, rgb(60 28 17 / .16) 0px, rgb(109 54 29 / .12) 4px, rgb(42 18 12 / .18) 9px, transparent 16px),
-    repeating-linear-gradient(88deg, transparent 0 38px, rgb(30 12 8 / .14) 39px, transparent 41px),
-    radial-gradient(ellipse at 50% 38%, var(--wood-hi), var(--wood) 55%, var(--wood-lo) 100%);
-  box-shadow: inset 0 0 0 10px rgb(40 19 13 / .38), inset 0 0 40px 14px rgb(25 11 8 / .55), 0 28px 60px -12px rgb(0 0 0 / .75);
+  background-color: var(--walnut);
+  background-image: linear-gradient(180deg, rgb(27 20 16 / .05), rgb(27 20 16 / .35)), url("/tex/walnut-top.jpg");
+  background-size: cover;
+  background-position: 40% 10%;
+  box-shadow: inset 0 0 0 1px rgb(247 241 230 / .08), inset 0 0 36px 8px rgb(27 20 16 / .45), var(--shadow-sheet);
 }
-/* Linen: woven lines on warm off-white. Text on it uses --ink / --ink-muted. */
+/* Linen: the woven placemat, washed toward --linen so ink stays >= 8:1 on its darkest thread. */
 @utility linen {
-  color: var(--ink);
-  background:
-    repeating-linear-gradient(0deg, rgb(90 70 49 / .035) 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(90deg, rgb(90 70 49 / .03) 0 1px, transparent 1px 5px),
-    radial-gradient(ellipse at 40% 18%, #fffaf0, var(--linen) 55%, var(--linen-lo));
-  box-shadow: 0 8px 18px -6px rgb(28 13 8 / .55), inset 0 0 18px rgb(139 105 67 / .14);
+  background-color: var(--linen);
+  background-image: linear-gradient(180deg, rgb(243 235 221 / .15), rgb(243 235 221 / .15)), url("/tex/linen-weave.jpg");
+  background-blend-mode: normal, multiply;
+  background-size: auto, 460px auto;
+  box-shadow: var(--shadow-obj), inset 0 0 0 1px rgb(255 255 255 / .25), inset -10px -14px 30px -18px rgb(90 59 34 / .35);
 }
-/* A dish: a warm card resting on the table edge. */
+/* Paper: a hand-torn note. */
+@utility paper {
+  background-color: #f1e8d6;
+  background-image: linear-gradient(180deg, rgb(247 241 230 / .25), rgb(239 229 211 / .25)), url("/tex/paper-sheet.jpg");
+  background-blend-mode: normal, multiply;
+  background-size: auto, 260px auto;
+  box-shadow: var(--shadow-obj), inset 0 0 0 1px rgb(255 255 255 / .3);
+}
+/* Desktop dishes are notes on the table too. */
 @utility dish {
-  background: linear-gradient(180deg, color-mix(in oklab, #41271c 70%, var(--card)), var(--card));
-  border: 1px solid rgb(221 179 127 / .22);
-  box-shadow: inset 0 1px 0 0 rgb(255 230 190 / .06), 0 14px 30px -18px rgb(0 0 0 / .8);
+  background-color: #f1e8d6;
+  background-image: linear-gradient(180deg, rgb(247 241 230 / .25), rgb(239 229 211 / .25)), url("/tex/paper-sheet.jpg");
+  background-blend-mode: normal, multiply;
+  background-size: auto, 260px auto;
+  border: 0;
+  box-shadow: var(--shadow-sheet);
 }
-:root[data-contrast="high"] .wood, :root[data-contrast="high"] .dish { background: var(--card); box-shadow: none; border: 2px solid var(--line-strong); }
+.dish {
+  --card: #f1e8d6; --card-2: rgb(43 33 23 / .07); --line: rgb(43 33 23 / .16); --line-strong: rgb(43 33 23 / .34);
+  --fg: var(--ink); --muted: var(--ink-muted); --accent: #7a4f17; --accent-fg: var(--cream); --warn: #8a5a10;
+  --good: #3f6b40; --bad: #9a3f2a; --change: #6b5443; --you: #3f5f86; --ring: var(--ink); --spk-mix: 55%; --spk-to: var(--ink);
+  color: var(--ink); color-scheme: light;
+}
+/* A hand-torn paper edge. clip-path clips box-shadow, so the parent carries a drop-shadow filter (.lay). */
+@utility deckle {
+  clip-path: polygon(0.00% 0.36%, 4.55% 0.17%, 9.09% 0.72%, 13.64% 0.08%, 18.18% 0.59%, 22.73% 0.40%, 27.27% 0.06%, 31.82% 0.56%, 36.36% 0.04%, 40.91% 0.48%, 45.45% 0.08%, 50.00% 0.10%, 54.55% 0.47%, 59.09% 0.91%, 63.64% 0.14%, 68.18% 0.25%, 72.73% 0.69%, 77.27% 1.04%, 81.82% 0.63%, 86.36% 0.44%, 90.91% 1.07%, 95.45% 0.05%, 100.00% 0.94%, 99.74% 4.55%, 99.87% 9.09%, 99.89% 13.64%, 99.72% 18.18%, 99.27% 22.73%, 99.84% 27.27%, 99.48% 31.82%, 99.42% 36.36%, 99.66% 40.91%, 99.51% 45.45%, 99.94% 50.00%, 99.95% 54.55%, 99.81% 59.09%, 99.39% 63.64%, 99.62% 68.18%, 99.72% 72.73%, 99.47% 77.27%, 99.59% 81.82%, 99.73% 86.36%, 99.29% 90.91%, 99.37% 95.45%, 99.78% 100.00%, 95.45% 99.37%, 90.91% 99.42%, 86.36% 99.04%, 81.82% 99.20%, 77.27% 99.68%, 72.73% 98.92%, 68.18% 99.87%, 63.64% 99.54%, 59.09% 99.17%, 54.55% 99.83%, 50.00% 99.46%, 45.45% 99.96%, 40.91% 99.26%, 36.36% 99.16%, 31.82% 99.37%, 27.27% 99.04%, 22.73% 99.65%, 18.18% 99.24%, 13.64% 99.35%, 9.09% 99.36%, 4.55% 99.50%, 0.00% 99.08%, 0.85% 95.45%, 0.43% 90.91%, 0.60% 86.36%, 0.05% 81.82%, 0.63% 77.27%, 0.58% 72.73%, 0.89% 68.18%, 0.74% 63.64%, 0.26% 59.09%, 0.35% 54.55%, 0.60% 50.00%, 0.02% 45.45%, 0.42% 40.91%, 0.15% 36.36%, 0.11% 31.82%, 0.05% 27.27%, 0.69% 22.73%, 0.12% 18.18%, 0.22% 13.64%, 0.35% 9.09%, 0.78% 4.55%);
+}
+@utility lay {
+  filter: drop-shadow(3px 6px 5px rgb(27 20 16 / .45));
+}
+:root[data-contrast="high"] .deckle { clip-path: none; }
+/* Brass: the table bell, the lamp's ring. */
+@utility brass {
+  background: linear-gradient(135deg, #e3c07a 0%, #b8893f 38%, #7a5424 72%, #4a3114 100%);
+  box-shadow: var(--shadow-obj), inset 1px 1px 0 rgb(255 240 200 / .5);
+}
+:root[data-contrast="high"] .wood, :root[data-contrast="high"] .dish, :root[data-contrast="high"] .paper { background: #fff; color: #000; box-shadow: none; border: 2px solid #000; }
 :root[data-contrast="high"] .linen { background: #ffffff; color: #000; box-shadow: none; }
+
+/* Things slide on the table (translate), they do not pop. 200 ms. */
+@keyframes imt-slide-in-r { from { transform: translateX(42px); opacity: .0; } to { transform: none; opacity: 1; } }
+@keyframes imt-slide-in-l { from { transform: translateX(-42px); opacity: .0; } to { transform: none; opacity: 1; } }
+@keyframes imt-slide-down { from { transform: translate(18px, -28px) rotate(2deg); opacity: 0; } to { transform: rotate(-0.8deg); opacity: 1; } }
+.imt-slide-r { animation: imt-slide-in-r 220ms var(--ease-out-soft) both; }
+.imt-slide-l { animation: imt-slide-in-l 220ms var(--ease-out-soft) both; }
+.imt-note-in { animation: imt-slide-down 240ms var(--ease-out-soft) both; }
+/* The bell rings: a short swing, three times. */
+@keyframes imt-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-12deg); } 40% { transform: rotate(10deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(3deg); } }
+.imt-ring { animation: imt-ring 700ms ease-in-out 3; transform-origin: 50% 15%; }
+
 /* Table lamp halo breathes slowly under the table in the lamp color. */
 @keyframes imt-lamp { 0%, 100% { opacity: .55; } 50% { opacity: .85; } }
 .imt-lamp { animation: imt-lamp 5s ease-in-out infinite; }
@@ -302,7 +388,7 @@ html.io .reveal { opacity: 0; transform: translateY(18px); transition: opacity 7
 html.io .reveal.is-in { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .imt-pulse, .imt-skeleton, .imt-flash, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .imt-lamp, .animate-spin { animation: none !important; }
+  .imt-pulse, .imt-skeleton, .imt-flash, .imt-slide-r, .imt-slide-l, .imt-note-in, .imt-ring, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .imt-lamp, .animate-spin { animation: none !important; }
   html.io .reveal { opacity: 1; transform: none; }
   *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }
@@ -310,8 +396,5 @@ html.io .reveal.is-in { opacity: 1; transform: none; }
 .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
-/* Things printed on linen use ink, not the dark-theme text colors. */
-.linen .doubt { color: color-mix(in oklab, var(--ink) 70%, var(--linen)); text-decoration-color: #2f5bb0; }
-.linen .text-accent { color: #2f5bb0; }
-.linen .border-accent\/35, .linen .border-accent\/40 { border-color: rgb(47 91 176 / .45); }
-.linen :focus-visible { outline-color: #2f5bb0; }
+/* Things printed on linen/paper: doubt words stay readable in ink. */
+.linen .doubt, .paper .doubt, .dish .doubt { color: color-mix(in oklab, var(--ink) 72%, var(--linen)); }

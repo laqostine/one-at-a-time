@@ -89,7 +89,7 @@ export function LaughCard({ items, catchup, nameOf, colorOf, colorFor, getNow, o
 
   return (
     <section aria-label="Why they laughed" className={cn('dish flex min-h-0 flex-col overflow-hidden rounded-3xl p-4 sm:p-5', className)}>
-      <h2 className="flex items-center gap-2 card-label text-[#efd6b5]!">
+      <h2 className="flex items-center gap-2 card-label">
         <ObjIcon name="popper" fallback={IconLaugh} size={52} className="-my-3" />
         Why they laughed
         {jokes.length > 1 && <span className="ml-auto font-mono text-[0.7rem] text-muted tabular-nums">{jokes.length} laughs</span>}
@@ -98,7 +98,7 @@ export function LaughCard({ items, catchup, nameOf, colorOf, colorFor, getNow, o
         {last ? (
           <button key={last.key} type="button" onClick={() => onOpen(last.t)}
             aria-label={`The table laughed at ${last.speaker ? `${last.speaker}: ` : ''}${last.text}. Show what was said.`}
-            className="imt-in block w-full cursor-pointer rounded-2xl px-1 py-1 text-left transition-colors duration-150 hover:bg-white/[0.04]">
+            className="imt-in block w-full cursor-pointer rounded-2xl px-1 py-1 text-left transition-colors duration-150 hover:bg-card-2">
             <span className="block text-meta">The table laughed at{last.speaker ? <> <strong style={{ color: readable(last.color) }}>{last.speaker}</strong></> : null}, {ago(last.t)}:</span>
             <q className="mt-1 line-clamp-3 block font-display text-[1.45rem] leading-[1.15] text-fg">{last.text}</q>
           </button>

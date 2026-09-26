@@ -3,7 +3,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { GateKind, GateRequest, GateResponse, TimelineItem, Utterance } from '../../shared/types.ts';
 import { isAddressedToMe, mentionsMe } from '../../shared/addressed.ts';
-import { FAST_MODEL, getClient, hasAnthropic, speakerName } from './claude.ts';
+import { FAST_MODEL, getClient, hasAnthropic, speakerName, withRetry } from './claude.ts';
 
 const GATE_TIMEOUT_MS = 2_500;
 // Two wire modes, same typed result:
@@ -101,11 +101,12 @@ export async function gate(req: GateRequest): Promise<GateResponse> {
       model: FAST_MODEL, max_tokens: GATE_MAX_TOKENS, temperature: 0,
       messages: [{ role: 'user' as const, content: buildUser(req) }],
     };
-    const res = GATE_MODE === 'tool'
-      ? await getClient().messages.create(
+    // One retry after 300 ms on 429/5xx/connection errors, only if the 2.5 s budget still allows it.
+    const res = await withRetry('gate', GATE_TIMEOUT_MS, (timeout) => (GATE_MODE === 'tool'
+      ? getClient().messages.create(
         { ...base, system: SYSTEM, tools: [gateTool], tool_choice: { type: 'tool', name: 'gate' } },
-        { timeout: GATE_TIMEOUT_MS, signal: ac.signal })
-      : await getClient().messages.create({ ...base, system: SYSTEM + TEXT_FORMAT }, { timeout: GATE_TIMEOUT_MS, signal: ac.signal });
+        { timeout, maxRetries: 0, signal: ac.signal })
+      : getClient().messages.create({ ...base, system: SYSTEM + TEXT_FORMAT }, { timeout, maxRetries: 0, signal: ac.signal })));
     let o: { addressed?: string; confidence?: string; kind?: string; urgent?: boolean } | null;
     if (GATE_MODE === 'tool') {
       const block = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');

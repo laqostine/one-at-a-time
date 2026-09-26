@@ -7,12 +7,12 @@ export interface PresenceMeaning { key: PresenceState | 'flare'; hex: string; wo
 
 export const PRESENCE_HEX: Record<PresenceState, string> = {
   idle: '#a39a8c',         // warm stone
-  listening: '#8db6ff',    // brand blue
-  transcribing: '#7fd8ff', // light cyan
-  thinking: '#b99dff',     // violet
-  speaking: '#6fd6a4',     // green
+  listening: '#8db88e',    // sage (calm green, lifted for the dark table)
+  transcribing: '#f3ebdd', // linen: words are landing
+  thinking: '#c8904a',     // tea under lamplight
+  speaking: '#6e8fb5',     // blue rim: it is saying YOUR line
 };
-export const FLARE_HEX = '#f6b93b';
+export const FLARE_HEX = '#f1c76a'; // lamplight: 'asked you' only
 
 export const PRESENCE_WORD: Record<PresenceState, string> = {
   idle: 'Waiting',

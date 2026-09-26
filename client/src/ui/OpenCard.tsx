@@ -1,7 +1,6 @@
 import type { LedgerItem, Thread } from '../../../shared/types';
 import { matchThread, normalizeLabel } from '../../../shared/threads';
 import { Card, CardAction, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { cn, readable } from '@/lib/utils';
 import { LedgerRow } from './LedgerRow';
 import { IconDecision, IconThread } from './icons';
@@ -71,9 +70,8 @@ export function OpenCard({ items, threads = [], colorFor, onOpen, tall = false, 
     <Card role="region" aria-label="Plans: what is open on the table" className={cn('dish min-h-0 flex-1 overflow-hidden px-3 sm:px-4', className)}>
       <CardHeader className="px-1">
         <ObjIcon name="note" fallback={IconDecision} size={52} className="-my-3" />
-        <CardTitle className="text-[#efd6b5]!">Plans</CardTitle>
+        <CardTitle>Plans</CardTitle>
         <CardAction>
-          {unresolved.length > 0 && <Badge variant="secondary" className="font-mono tabular-nums">{unresolved.length} open</Badge>}
           {hidden > 0 && <span className="text-meta">+{hidden} more</span>}
         </CardAction>
       </CardHeader>
@@ -101,7 +99,7 @@ function LaneView({ lane, max, colorFor, onOpen, wide, compact }: { lane: Lane; 
   const more = lane.participants.length - people.length;
   return (
     <section aria-label={`Conversation: ${lane.label}${lane.participants.length ? `, with ${lane.participants.join(', ')}` : ''}`}
-      className={cn(compact ? 'min-w-0 border-t border-white/8 pt-2.5 first:border-t-0 first:pt-0' : 'surface-2 min-w-0 rounded-2xl py-2.5 pr-1.5 pl-2.5', wide && 'md:last:col-span-2')}>
+      className={cn(compact ? 'min-w-0 border-t border-line pt-2.5 first:border-t-0 first:pt-0' : 'surface-2 min-w-0 rounded-2xl py-2.5 pr-1.5 pl-2.5', wide && 'md:last:col-span-2')}>
       <header className="flex min-w-0 items-center gap-2 px-1 pb-1">
         <IconThread size={16} strokeWidth={2} className="shrink-0 text-accent" />
         <h3 className="min-w-0 truncate text-[0.92rem] font-semibold text-fg">{lane.label}</h3>

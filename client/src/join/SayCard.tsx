@@ -18,8 +18,8 @@ export function SayCard({ say, onDismiss }: { say: SayMsg; onDismiss: () => void
   return (
     <button type="button" onClick={onDismiss} data-testid="say-card"
       aria-label={`${say.name} wants to say: ${say.text}. Tap to dismiss.`}
-      className="fixed inset-0 z-40 flex cursor-pointer items-center justify-center bg-[#12110f]/92 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] text-left backdrop-blur-sm">
-      <span className="imt-rise relative flex w-full max-w-md flex-col rounded-[1.75rem] border-2 border-accent bg-card p-6 shadow-[var(--glow-accent),0_40px_80px_-30px_rgb(0_0_0/.9)]">
+      className="fixed inset-0 z-40 flex cursor-pointer items-center justify-center bg-dusk/85 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] text-left backdrop-blur-sm">
+      <span className="paper imt-note-in relative flex w-full max-w-md flex-col rounded-[6px_12px_8px_10px] p-6 shadow-[var(--shadow-sheet)]">
         <span className="flex items-start gap-3">
           <span className="flex min-w-0 flex-1 items-center gap-2 font-mono text-[0.85rem] font-semibold tracking-[0.12em] text-accent uppercase">
             <IconSpeakForMe size={22} className="shrink-0" />
@@ -28,11 +28,11 @@ export function SayCard({ say, onDismiss }: { say: SayMsg; onDismiss: () => void
           {/* 10 s countdown ring */}
           <svg key={say.t} viewBox="0 0 56 56" width="48" height="48" aria-hidden className="-mt-2 -mr-2 shrink-0 -rotate-90">
             <circle cx="28" cy="28" r={R} fill="none" stroke="var(--line)" strokeWidth="4" />
-            <circle cx="28" cy="28" r={R} fill="none" stroke="var(--accent)" strokeWidth="4" strokeLinecap="round"
+            <circle cx="28" cy="28" r={R} fill="none" stroke="var(--tea)" strokeWidth="4" strokeLinecap="round"
               strokeDasharray={LEN} className="imt-countdown" style={{ ['--ring-len' as string]: `${LEN}`, ['--ring-ms' as string]: `${SAY_MS}ms` }} />
           </svg>
         </span>
-        <span className="mt-5 text-[2.2rem] leading-[1.15] font-semibold text-fg">{say.text}</span>
+        <span className="mt-5 font-display text-[2.3rem] leading-[1.12] text-ink italic">{say.text}</span>
         <span className="mt-6 font-mono text-[0.72rem] tracking-[0.14em] text-muted uppercase">Tap to dismiss</span>
       </span>
     </button>

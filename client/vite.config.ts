@@ -18,7 +18,7 @@ export default defineConfig({
   server: {
     port: 5174,
     strictPort: true,
-    allowedHosts: ['.trycloudflare.com'], // bin/tunnel.sh
+    allowedHosts: ['.trycloudflare.com', 'table.akilion.ai'], // bin/tunnel.sh
     proxy: {
       '/api': 'http://localhost:8787',
       '/ws/audio': { target: 'ws://localhost:8787', ws: true },

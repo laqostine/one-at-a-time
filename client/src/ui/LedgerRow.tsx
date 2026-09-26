@@ -38,7 +38,7 @@ export function LedgerRow({ item, color, replyColor, onOpen, compact = false }: 
     return (
       <li className={cn('imt-highlight rounded-xl transition-opacity duration-200', faded && 'opacity-45')}>
         <button type="button" onClick={onOpen} aria-label={aria}
-          className="flex w-full cursor-pointer items-start gap-3 rounded-xl px-1.5 py-2 text-left transition-colors duration-150 hover:bg-white/[0.045]">
+          className="flex w-full cursor-pointer items-start gap-3 rounded-xl px-1.5 py-2 text-left transition-colors duration-150 hover:bg-card-2">
           {OBJ[item.kind] ? <ObjIcon name={OBJ[item.kind]!} fallback={k.Icon} size={36} className="-mt-0.5" />
             : <span className="flex size-9 shrink-0 items-center justify-center"><k.Icon size={24} strokeWidth={2} className={k.tint} /></span>}
           <span className="min-w-0 flex-1">
@@ -59,7 +59,7 @@ export function LedgerRow({ item, color, replyColor, onOpen, compact = false }: 
     // key={item.id} upstream: a new row mounts with a brief tint; edits replace text in place.
     <li className={cn('imt-highlight rounded-xl transition-opacity duration-200', item.resolved && 'opacity-45')}>
       <button type="button" onClick={onOpen}
-        className="group flex w-full cursor-pointer items-stretch gap-3 rounded-xl py-1.5 pr-2 pl-1 text-left transition-colors duration-150 hover:bg-white/[0.045]"
+        className="group flex w-full cursor-pointer items-stretch gap-3 rounded-xl py-1.5 pr-2 pl-1 text-left transition-colors duration-150 hover:bg-card-2"
         aria-label={aria}>
         <span aria-hidden className="w-1 shrink-0 rounded-full" style={{ background: item.speaker ? color : 'var(--line-strong)' }} />
         <span className="min-w-0 flex-1">

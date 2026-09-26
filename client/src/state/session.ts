@@ -7,6 +7,8 @@ import {
 
 export const RING_MS = 15 * 60 * 1000;
 export const UNKNOWN_COLOR = '#9CA3AF';
+const MAX_PROVISIONAL = 4;
+const PROVISIONAL_TTL_MS = 2 * 60_000;
 
 /** Session plus client-only bookkeeping (merged diarization ids). Structurally a Session. */
 export interface SessionState extends Session {
@@ -167,9 +169,14 @@ export function sessionReducer(s: SessionState, a: SessionAction): SessionState 
       const prov = s.ledger.filter((i) => i.provisional && i.t > cov);
       return { ...s, ledger: [...mergeLedger(s.ledger.filter((i) => !i.provisional), a.items), ...prov] };
     }
-    case 'addProvisional':
+    case 'addProvisional': {
       if (s.ledger.some((i) => i.id === a.item.id)) return s;
-      return { ...s, ledger: [...s.ledger, { ...a.item, provisional: true }] };
+      // Provisionals are normally swept by the next /api/state; if that keeps failing, don't let them pile up:
+      // keep the newest MAX_PROVISIONAL from the last PROVISIONAL_TTL_MS.
+      const prov = [...s.ledger.filter((i) => i.provisional && a.item.t - i.t <= PROVISIONAL_TTL_MS), { ...a.item, provisional: true }]
+        .sort((x, y) => x.t - y.t).slice(-MAX_PROVISIONAL);
+      return { ...s, ledger: [...s.ledger.filter((i) => !i.provisional), ...prov] };
+    }
     case 'markSeen':
       return { ...s, lastSeenAt: Math.max(s.lastSeenAt, a.t) };
     case 'seedSpeakers': {

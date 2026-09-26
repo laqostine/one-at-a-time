@@ -6,7 +6,7 @@ import { useSession } from './state/useSession';
 import { around, colorForName, currentUtterance, lastMinutes, speakerColor, speakerName } from './state/session';
 import { useInterject, useLastActivity } from './state/useInterject';
 import { applyPrefs, loadPrefs, type Prefs } from './ui/prefs';
-import { DesktopTop, Header, LG, TableHead, TableLegend, useMedia } from './ui/Header';
+import { DesktopTop, LG, TableHead, TableLegend, Wordmark, useMedia } from './ui/Header';
 import { TableTop, LampPill } from './ui/TableTop';
 import { tableLamp } from './ui/tableLamp';
 import { LaughCard } from './ui/LaughCard';
@@ -23,6 +23,7 @@ import { Onboarding } from './ui/Onboarding';
 import { JoinQr } from './ui/JoinQr';
 import { SpeakCard } from './ui/SpeakCard';
 import { useAway, type AwayInterval } from './state/useAway';
+import { CardDeck, CatchUpObject, PhonePlacemat, PhoneTable, SpeakObject } from './ui/PhoneTable';
 import { AwayIndicator } from './ui/AwayIndicator';
 import type { Seat } from './ui/TableRing';
 import { IconCatchUp } from './ui/icons';
@@ -32,14 +33,14 @@ import { Mic } from 'lucide-react';
 /** Click gate: the mic's AudioContext needs a user gesture, so a saved name shows one big button instead of auto-starting. */
 function StartGate({ name, onStart }: { name: string; onStart: () => void }) {
   return (
-    <div className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-6 bg-bg px-6 text-center" role="dialog" aria-modal="true" aria-labelledby="start-gate-title">
-      <div className="wordmark text-[1.6rem]">I Missed That</div>
-      <h1 id="start-gate-title" className="font-display-italic text-[3rem] leading-none">Hi {name}.</h1>
+    <div className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-6 px-6 text-center" role="dialog" aria-modal="true" aria-labelledby="start-gate-title">
+      <Wordmark height={40} />
+      <h1 id="start-gate-title" className="font-display-italic text-[3rem] leading-none [text-shadow:2px_3px_6px_rgb(27_20_16/.6)]">Hi {name}.</h1>
       <Button type="button" size="lg" onClick={onStart} autoFocus data-testid="start-listening"
         className="h-18 w-full max-w-sm text-[1.4rem] font-bold">
         <Mic aria-hidden /> Start listening
       </Button>
-      <p className="max-w-sm text-body text-muted">Audio is transcribed live for this table only. Nothing is stored.</p>
+      <p className="max-w-sm text-body text-cream/85">Audio is transcribed live for this table only. Nothing is stored.</p>
     </div>
   );
 }
@@ -145,8 +146,8 @@ export default function App() {
       onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat} className={cls} />
   );
   const openCard = (tall: boolean, cls?: string) => <OpenCard items={session.ledger} threads={s.threads} colorFor={colorFor} onOpen={setJumpT} tall={tall} className={cls ?? (tall ? 'h-full rounded-3xl' : 'flex-none')} />;
-  const forYou = (cls?: string) => (
-    <ForYouCard items={session.ledger} nudge={s.nudge}
+  const forYou = (cls?: string, bare = false) => (
+    <ForYouCard items={session.ledger} nudge={s.nudge} bare={bare}
       nudgeColor={s.nudge?.speakerId != null ? colorOf(s.nudge.speakerId) : colorFor(s.nudge?.speaker)}
       colorFor={colorFor} onDismiss={s.dismissNudge} onOpen={setJumpT} className={cls} />
   );
@@ -165,7 +166,7 @@ export default function App() {
   const captions = <CaptionsStrip items={session.timeline} nameOf={nameOf} colorOf={colorOf} onSpeaker={setRenaming} onAskRepeat={onAskRepeat} />;
 
   return (
-    <div className={desktop ? 'mx-auto flex h-dvh max-w-[90rem] flex-col px-6 pb-5' : 'mx-auto flex min-h-dvh max-w-4xl flex-col'}>
+    <div className={desktop ? 'mx-auto flex h-dvh max-w-[90rem] flex-col px-6 pb-5' : ''}>
       {desktop ? (
         <>
           <DesktopTop {...headerProps} />
@@ -205,26 +206,28 @@ export default function App() {
           </main>
         </>
       ) : (
-        <>
-          <Header {...headerProps} />
-          {/* Phones/tablets scroll like a page: the placemat first, then the one question, plans, the laugh.
-              "Catch me up" stays pinned to the bottom edge so it is one thumb away wherever you are. */}
-          <main className="flex flex-1 flex-col gap-3 px-3 pb-3 sm:px-4">
-            {nowCard()}
-            {s.nudge && forYou()}
-            <div className="relative flex flex-col gap-3">
-              {openCard(false)}
-              {catchup}
-            </div>
-            {!s.nudge && session.ledger.some((i) => i.kind === 'assigned_to_me') && forYou()}
-            <LaughCard variant="strip" items={session.timeline} catchup={s.catchup} nameOf={nameOf} colorOf={colorOf} colorFor={colorFor} getNow={s.nowT} onOpen={setJumpT} />
-            <SpeakCard api={interject} say={sayLine} voice={prefs.voice} />
-            {captions}
-          </main>
-          <div className="sticky bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
-            {catchUpBtn}
-          </div>
-        </>
+        // Phones/tablets: a place setting on the walnut. One thing at a time; nothing scrolls.
+        <PhoneTable header={headerProps} lamp={lamp}
+          placemat={
+            <PhonePlacemat utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
+              onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat} presence={headerProps}
+              empty={<HouseRules host={host} variant="mat" className="mt-1" />}
+              note={<CatchupCard variant="note" state={s.catchup} title={awayTitle ?? undefined} colorFor={colorFor} onBullet={setJumpT} onDismiss={s.dismissCatchup} />} />
+          }
+          deck={
+            <CardDeck ringing={!!s.nudge} nudgeId={s.nudge?.id} cards={{
+              asked: forYou('min-h-0 flex-1 overflow-hidden rounded-[8px_12px_10px_6px]', true),
+              plans: openCard(false, 'deckle min-h-0 flex-1 rounded-none shadow-none'),
+              laugh: laughs('deckle min-h-0 flex-1 rounded-none shadow-none'),
+            }} />
+          }
+          objects={
+            <>
+              <SpeakCard api={interject} say={sayLine} voice={prefs.voice} sheet
+                renderTrigger={({ onClick, ref }) => <SpeakObject onClick={onClick} btnRef={ref} />} />
+              <CatchUpObject onClick={manualCatchUp} busy={loading} invite={awayPending} />
+            </>
+          } />
       )}
 
       {jumpT != null && (

@@ -94,7 +94,7 @@ export async function draftInterjections(req: InterjectRequest): Promise<Interje
       intent && intent !== 'custom' ? `INTENT: ${intent}` : '',
       custom ? `CUSTOM (polish this, keep meaning): ${custom}` : '',
     ].filter(Boolean).join('\n\n');
-    const out = await callTool<{ options?: unknown }>(FAST_MODEL, SYSTEM, user, interjectTool);
+    const out = await callTool<{ options?: unknown }>(FAST_MODEL, SYSTEM, user, interjectTool, undefined, { budgetMs: 7_000, label: 'interject' });
     const options = cleanOptions(out.options, intent);
     if (custom) return { options: options.slice(0, 1).map((o) => ({ ...o, kind: 'custom' })) };
     return { options: options.length ? options : mockInterject(req, intent, custom) };

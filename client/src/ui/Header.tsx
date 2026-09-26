@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { LevelDots } from './LevelDots';
 import { ObjIcon } from './ObjIcon';
 
-interface Props {
+export interface HeaderProps {
   asr: SessionApi['asr'];
   latency: SessionApi['latency'];
   listening: boolean;
@@ -40,7 +40,7 @@ interface Props {
   lamp?: ReactNode;
 }
 
-function statusText(asr: Props['asr'], listening: boolean): { text: string; tone: string } {
+function statusText(asr: HeaderProps['asr'], listening: boolean): { text: string; tone: string } {
   if (!listening || asr.state === 'paused') return { text: 'Paused', tone: 'bg-muted' };
   const src = asr.source === 'replay' ? 'Replay' : asr.source === 'webspeech' ? 'Captions only' : 'Live mic';
   switch (asr.state) {
@@ -61,7 +61,7 @@ const FLARE_LABEL_MS = 2200;
 /** State derivation: pending request wins (assistant is thinking), then an explicit
  * speaking flag (future useInterject hook), then ASR status + transcript recency. */
 function derivePresenceState(
-  asr: Props['asr'],
+  asr: HeaderProps['asr'],
   listening: boolean,
   lastTranscriptAt: number,
   requestPending: boolean,
@@ -77,7 +77,7 @@ function derivePresenceState(
   return 'idle'; // connecting / idle
 }
 
-function deriveLevel(asr: Props['asr'], lastTranscriptAt: number, micLevel: number, now: number): number {
+function deriveLevel(asr: HeaderProps['asr'], lastTranscriptAt: number, micLevel: number, now: number): number {
   if (asr.source === 'replay') return now - lastTranscriptAt < REPLAY_LEVEL_WINDOW_MS ? 1 : 0;
   if (asr.source === 'mic') return micLevel;
   return 0; // webspeech fallback carries no level signal
@@ -94,7 +94,7 @@ export const LG = '(min-width: 1024px)';
 
 /** Presence state, level and the "asked you" flare window; ticks every 300 ms because the
  * transcribing/listening split and the replay "fake level" decay with wall-clock time. */
-function usePresenceModel({ asr, listening, lastTranscriptAt, requestPending, micLevel, speaking, flare = 0 }: Props) {
+export function usePresenceModel({ asr, listening, lastTranscriptAt, requestPending, micLevel, speaking, flare = 0 }: HeaderProps) {
   const [, tick] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     const id = window.setInterval(tick, 300);
@@ -114,7 +114,7 @@ function usePresenceModel({ asr, listening, lastTranscriptAt, requestPending, mi
 
 const iconBtn = 'relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-muted transition-colors duration-150 hover:bg-card-2 hover:text-fg';
 
-function Controls({ listening, onToggleListening, onSettings, onEveryoneJoins, participantCount = 0, badge }: Props) {
+function Controls({ listening, onToggleListening, onSettings, onEveryoneJoins, participantCount = 0, badge }: HeaderProps) {
   return (
     <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
       {badge}
@@ -152,8 +152,8 @@ function Controls({ listening, onToggleListening, onSettings, onEveryoneJoins, p
   );
 }
 
-const Wordmark = ({ className }: { className?: string }) =>
-  <a href="/landing.html" className={cn('wordmark block w-fit rounded-sm text-[1.35rem] sm:text-[1.45rem]', className)}>I Missed That</a>;
+export { Wordmark } from './Wordmark';
+import { Wordmark } from './Wordmark';
 
 function StateWord({ state, flaring, className }: { state: PresenceState; flaring: boolean; className?: string }) {
   return (
@@ -164,7 +164,7 @@ function StateWord({ state, flaring, className }: { state: PresenceState; flarin
   );
 }
 
-function StatusLine({ p, latency, asr, listening, quiet = false }: { p: ReturnType<typeof usePresenceModel>; latency: Props['latency']; asr: Props['asr']; listening: boolean; quiet?: boolean }) {
+function StatusLine({ p, latency, asr, listening, quiet = false }: { p: ReturnType<typeof usePresenceModel>; latency: HeaderProps['latency']; asr: HeaderProps['asr']; listening: boolean; quiet?: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${p.status.tone} ${p.live ? 'imt-pulse' : ''}`} />
@@ -185,7 +185,7 @@ function StatusLine({ p, latency, asr, listening, quiet = false }: { p: ReturnTy
  * Phones + tablets (<1024px): the presence bar. The mascot is the hero of the screen
  * (112px phone / 140px tablet) with its state as a word, a legend of its colors and the table ring.
  */
-export function Header(props: Props) {
+export function Header(props: HeaderProps) {
   const { seats = [], seatSource = 'voices', flare = 0 } = props;
   const p = usePresenceModel(props);
   const wide = useMedia('(min-width: 640px)');
@@ -233,12 +233,12 @@ export function Header(props: Props) {
 }
 
 /** Desktop (>=1024px) top bar: wordmark, connection status + latency, controls. */
-export function DesktopTop(props: Props) {
+export function DesktopTop(props: HeaderProps) {
   const p = usePresenceModel(props);
   return (
     <TooltipProvider delayDuration={300}>
       <header className="flex h-16 shrink-0 items-center gap-5 px-1" aria-label="I Missed That: status">
-        <Wordmark className="text-[1.6rem]!" />
+        <Wordmark height={34} />
         <span aria-hidden className="h-5 w-px bg-line" />
         {/* the table view keeps the bar quiet: latency chips only on very wide screens (always in Settings) */}
         <div className="min-w-0 flex-1"><StatusLine p={p} latency={props.latency} asr={props.asr} listening={props.listening} quiet /></div>
@@ -251,7 +251,7 @@ export function DesktopTop(props: Props) {
 
 /** Desktop bento hero cell: the mascot large, its state word, the dotted listening waveform,
  * the color legend and the table ring. */
-export function PresenceCell(props: Props & { className?: string }) {
+export function PresenceCell(props: HeaderProps & { className?: string }) {
   const { seats = [], seatSource = 'voices', flare = 0, className } = props;
   const p = usePresenceModel(props);
   const hex = p.flaring ? 'var(--warn)' : PRESENCE_HEX[p.state];
@@ -272,7 +272,7 @@ export function PresenceCell(props: Props & { className?: string }) {
 }
 
 /** Desktop table: the mascot sitting at the head of the table, with its state word. */
-export function TableHead(props: Props & { size?: number }) {
+export function TableHead(props: HeaderProps & { size?: number }) {
   const p = usePresenceModel(props);
   return (
     <div className="flex flex-col items-center" aria-label={`The clerk: ${p.flaring ? 'asked you' : PRESENCE_WORD[p.state]}`} role="status">
@@ -283,7 +283,7 @@ export function TableHead(props: Props & { size?: number }) {
 }
 
 /** Desktop: the mascot's color legend, under the table. */
-export function TableLegend(props: Props & { className?: string }) {
+export function TableLegend(props: HeaderProps & { className?: string }) {
   const p = usePresenceModel(props);
   return <ColorLegend current={p.state} flaring={p.flaring} className={props.className} />;
 }

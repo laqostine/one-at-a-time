@@ -45,7 +45,7 @@ export function Modal({ title, onClose, children, variant = 'center', dismissabl
     return (
       <Dialog open onOpenChange={onOpenChange}>
         <DialogContent showCloseButton={false} {...guards}
-          className="flex max-h-[90dvh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-fg shadow-2xl sm:max-w-md">
+          className="flex max-h-[90dvh] w-full max-w-md flex-col gap-0 overflow-hidden linen rounded-[8px_12px_10px_6px] border-0 p-0 shadow-[var(--shadow-sheet)] sm:max-w-md">
           {header(DialogTitle)}
           {body}
         </DialogContent>
@@ -55,7 +55,7 @@ export function Modal({ title, onClose, children, variant = 'center', dismissabl
   return (
     <Sheet open onOpenChange={onOpenChange}>
       <SheetContent side={variant === 'sheet' ? 'bottom' : 'right'} showCloseButton={false} {...guards}
-        className={cn('flex-col gap-0 border-border bg-card p-0 text-fg',
+        className={cn('linen flex-col gap-0 border-0 p-0',
           variant === 'sheet' ? 'mx-auto max-h-[80dvh] w-full max-w-3xl rounded-t-2xl border-x' : 'h-full w-full max-w-sm sm:max-w-sm')}>
         {header(SheetTitle)}
         {body}

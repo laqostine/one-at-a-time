@@ -6,9 +6,10 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Speaker colors are saturated mid-tones (good for borders/dots). For *text* on the dark card,
- * lift them toward white so every palette entry clears WCAG AA (>= 4.5:1).
+ * Speaker colors are saturated mid-tones (good for borders/dots). For *text*, mix them toward the
+ * material's text color (white on walnut, ink on linen/paper) so every palette entry clears WCAG AA (>= 4.5:1).
  */
 export function readable(color: string): string {
-  return color ? `color-mix(in oklab, ${color} 70%, white)` : 'var(--fg)';
+  // --spk-mix / --spk-to come from the material: toward white on the walnut, toward ink on linen/paper.
+  return color ? `color-mix(in oklab, ${color} var(--spk-mix, 70%), var(--spk-to, white))` : 'var(--fg)';
 }

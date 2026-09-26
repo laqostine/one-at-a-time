@@ -12,6 +12,9 @@ export const CATCHUP_MODEL = 'claude-sonnet-5';
 export const FAST_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 600;
 const TIMEOUT_MS = 12_000;
+/** Per-route budgets (all attempts incl. the one retry). The client polls /api/state every 8 s. */
+export const STATE_BUDGET_MS = 6_500;
+export const CATCHUP_BUDGET_MS = 10_000;
 const RESOLVED_TTL_MS = 3 * 60_000;
 
 let client: Anthropic | null = null;
@@ -34,7 +37,8 @@ export const speakerName = (id: number, speakers: Record<number, Speaker>) =>
 const isUtt = (i: TimelineItem): i is Utterance => i.type === 'utterance';
 const itemT = (i: TimelineItem) => (isUtt(i) ? i.tStart : i.t);
 
-export function formatTimeline(window: TimelineItem[], speakers: Record<number, Speaker>, me: Session['me'] | null): string {
+/** threadLabel: when given (ledger calls), lines already stamped with a lane show it as «label»; unstamped lines get a leading "*". */
+export function formatTimeline(window: TimelineItem[], speakers: Record<number, Speaker>, me: Session['me'] | null, threadLabel?: (id: string) => string | undefined): string {
   const header: string[] = [];
   if (me) header.push(`ME: ${me.name}${me.aliases.length ? ` (aliases: ${me.aliases.join(', ')})` : ''}`);
   const ids = new Set<number>(Object.keys(speakers).map(Number));
@@ -44,7 +48,9 @@ export function formatTimeline(window: TimelineItem[], speakers: Record<number, 
     .filter((i) => !isUtt(i) || (i.final !== false && i.text.trim()))
     .sort((a, b) => itemT(a) - itemT(b))
     .map((i) => (isUtt(i)
-      ? `[${fmtT(i.tStart)}] ${speakerName(i.speaker, speakers)}: ${i.text.trim()}`
+      ? threadLabel
+        ? (() => { const l = i.threadId ? threadLabel(i.threadId) : undefined; return l ? `[${fmtT(i.tStart)}] ${speakerName(i.speaker, speakers)}: ${i.text.trim()} «${l}»` : `*[${fmtT(i.tStart)}] ${speakerName(i.speaker, speakers)}: ${i.text.trim()}`; })()
+        : `[${fmtT(i.tStart)}] ${speakerName(i.speaker, speakers)}: ${i.text.trim()}`
       : `[${fmtT(i.t)}] EVENT ${i.kind}`));
   return [...header, '', ...lines].join('\n');
 }
@@ -52,8 +58,37 @@ export function formatTimeline(window: TimelineItem[], speakers: Record<number, 
 // ---------- shared call helper ----------
 const PROMPT_CORE = `Do NOT summarize the whole conversation. Extract only what the person needs to rejoin RIGHT NOW. Name who said what, never "someone". Preserve disagreements and open questions, do not resolve them. A question directed at the user is always first. If people laughed, say what at, in one clause. <=18 words per bullet, <=3 bullets, no preamble. Empty/unintelligible -> empty list, confidence low.`;
 
-export async function callTool<T>(model: string, system: string, user: string, tool: Anthropic.Tool, maxTokens = MAX_TOKENS): Promise<T> {
-  const res = await getClient().messages.create(
+/** Retry once after 300 ms on transient failures (429/5xx/529 overloaded, connection resets), inside the route's budget. */
+const MAX_RETRIES = 1;
+const RETRY_DELAY_MS = 300;
+export function isRetryable(e: unknown): boolean {
+  const status = (e as { status?: number })?.status;
+  if (typeof status === 'number') return status === 408 || status === 409 || status === 429 || status >= 500;
+  const name = (e as Error)?.name ?? '';
+  return /APIConnectionError|APIConnectionTimeoutError|FetchError|ECONNRESET|socket hang up/i.test(`${name} ${(e as Error)?.message ?? ''}`);
+}
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export interface CallOpts { budgetMs?: number; label?: string }
+/** Runs `attempt(timeoutMs)` with up to MAX_RETRIES retries, never exceeding budgetMs in total. */
+export async function withRetry<T>(label: string, budgetMs: number, attempt: (timeoutMs: number) => Promise<T>): Promise<T> {
+  const deadline = Date.now() + budgetMs;
+  for (let n = 0; ; n++) {
+    try {
+      return await attempt(Math.max(500, deadline - Date.now()));
+    } catch (e) {
+      const left = deadline - Date.now();
+      if (n >= MAX_RETRIES || !isRetryable(e) || left < RETRY_DELAY_MS + 800) throw e;
+      console.warn(`[claude] ${label} retry ${n + 1} after ${(e as Error)?.message ?? e} (${left}ms left)`);
+      await sleep(RETRY_DELAY_MS);
+    }
+  }
+}
+
+export async function callTool<T>(model: string, system: string, user: string, tool: Anthropic.Tool, maxTokens = MAX_TOKENS, opts: CallOpts = {}): Promise<T> {
+  const label = opts.label ?? tool.name;
+  const t0 = Date.now();
+  const res = await withRetry(label, opts.budgetMs ?? TIMEOUT_MS, (timeout) => getClient().messages.create(
     {
       model,
       max_tokens: maxTokens,
@@ -62,10 +97,12 @@ export async function callTool<T>(model: string, system: string, user: string, t
       tool_choice: { type: 'tool', name: tool.name },
       messages: [{ role: 'user', content: user }],
     },
-    { timeout: TIMEOUT_MS },
-  );
+    { timeout, maxRetries: 0 },
+  ));
+  console.log(`[claude] ${label} ${Date.now() - t0}ms in=${res.usage?.input_tokens} out=${res.usage?.output_tokens} stop=${res.stop_reason}`);
   const block = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === tool.name);
   if (!block) throw new Error(`no tool_use block (stop_reason=${res.stop_reason})`);
+  if (res.stop_reason === 'max_tokens') throw new Error(`${label}: output truncated at max_tokens=${maxTokens}`);
   return block.input as T;
 }
 
@@ -139,7 +176,7 @@ export async function catchUp(req: CatchupRequest): Promise<CatchupResponse> {
   if (!hasAnthropic()) return mockCatchup(req);
   try {
     const user = `Window ${fmtT(req.sinceT)}–${fmtT(req.nowT)} (what I missed):\n\n${formatTimeline(window, req.speakers ?? {}, req.me)}`;
-    const out = await callTool<Partial<CatchupResponse>>(CATCHUP_MODEL, CATCHUP_SYSTEM, user, catchupTool);
+    const out = await callTool<Partial<CatchupResponse>>(CATCHUP_MODEL, CATCHUP_SYSTEM, user, catchupTool, MAX_TOKENS, { budgetMs: CATCHUP_BUDGET_MS, label: 'catchup' });
     const bullets: CatchupBullet[] = (Array.isArray(out.bullets) ? out.bullets : []).slice(0, 3)
       .filter((b) => b && typeof b.text === 'string' && b.text.trim())
       .map((b) => ({
@@ -158,24 +195,24 @@ export async function catchUp(req: CatchupRequest): Promise<CatchupResponse> {
     };
   } catch (err) {
     console.error('[catchUp] error:', (err as Error).message);
-    return emptyCatchup();
+    return { ...emptyCatchup(), degraded: true };
   }
 }
 
 // ---------- state extraction ----------
-const MAX_UTT_THREADS = 14; // only the newest lines get lane labels per call; older ones keep their stamp client-side
+const MAX_UTT_THREADS = 10; // only the newest lines get lane labels per call; older ones keep their stamp client-side
 const STATE_MAX_TOKENS = 1000;
 const LEDGER_KINDS = ['decision', 'objection', 'open_question', 'assigned_to_me', 'instruction_change'] as const;
 
 const stateTool: Anthropic.Tool = {
   name: 'update_ledger',
-  description: 'Return the full UPDATED ledger of what is open on the table, plus any question to ME in the last utterance(s).',
+  description: 'Return only NEW or CHANGED ledger items (unchanged existing items are kept automatically), plus any question to ME in the last utterance(s).',
   input_schema: {
     type: 'object',
     additionalProperties: false,
     properties: {
       ledger: {
-        type: 'array', maxItems: 8,
+        type: 'array', maxItems: 5, // new/changed items only (see mergeLedger); bounds output tokens -> latency
         items: {
           type: 'object', additionalProperties: false,
           properties: {
@@ -192,10 +229,11 @@ const stateTool: Anthropic.Tool = {
           required: ['id', 'kind', 'text', 't', 'resolved'],
         },
       },
+      drop: { type: 'array', items: { type: 'string' }, description: 'Existing ids that are duplicates or no longer true (rare)' },
       addressed_to_me_now: addressedSchema,
       utterance_threads: {
         type: 'array', maxItems: MAX_UTT_THREADS,
-        description: 'One entry per transcript line (most recent lines first if you must drop some): which thread it belongs to and who it replied to',
+        description: 'One entry per transcript line marked * (not yet labeled), newest first if you must drop some: which thread it belongs to and who it replied to',
         items: {
           type: 'object', additionalProperties: false,
           properties: {
@@ -215,16 +253,21 @@ const STATE_SYSTEM = `You maintain a live ledger of what is "open on the table" 
 Ledger kinds: decision (a decision forming or made — ALWAYS capture the reason given), objection (someone pushing back), open_question (unanswered question to the group), assigned_to_me (a task/ask given to ME), instruction_change (a plan, time, place or instruction that changed from what was said before).
 Threads: several conversations can run at once. Give each item a short thread label (2-4 words) so parallel threads are distinguishable, and set replyTo when the item was a response to a specific person.
 Rules:
-- Return the FULL updated ledger (max 8 items), merging with EXISTING.
-- If an item is the same as an existing one (even if reworded), reuse its id and keep its wording unless it materially changed.
-- If the conversation resolved an item (answered, agreed, withdrawn), keep it with resolved:true.
+- Return ONLY new items and existing items that changed (kind, text, resolved or reason), reusing the existing id. Unchanged EXISTING items are kept automatically: do NOT repeat them. Put an existing id in drop only if it is a duplicate or no longer true.
+- If an item is the same as an existing one (even if reworded), it is not new: reuse its id, and only return it if it materially changed.
+- If the conversation resolved an item (answered, agreed, withdrawn), return it with resolved:true.
 - New items get id "new".
 - speaker = the person's name as shown in the transcript. t = ms since session start (mm*60000 + ss*1000).
 - Do not resolve disagreements yourself; an objection stays open until the people resolve it.
-- utterance_threads: for the NEWEST transcript lines only (up to 14) give t, its thread label and replyTo. Use the SAME label for the same conversation; reuse EXISTING THREADS labels verbatim when they still apply. Side conversations get their own label.
+- utterance_threads: ONLY for transcript lines starting with "*" (not yet labeled; newest first if more than 10): give t, its thread label and replyTo. Lines ending in «label» are already labeled: do not repeat them. Use the SAME label for the same conversation; reuse EXISTING THREADS / «label» labels verbatim when they still apply. Side conversations get their own label.
+- Keep it short: ledger text <=12 words, reason <=10 words, omit optional fields you don't need.
 - addressed_to_me_now: only if the LAST utterance(s) put a question/ask to ME (by name/alias or clear second-person address) that is not yet answered; else null.`;
 
-function mergeLedger(raw: unknown[], existing: LedgerItem[], nowT: number): LedgerItem[] {
+/**
+ * The model returns only new/changed items (+ drop ids); unchanged EXISTING items carry over. Returning the full ledger
+ * every 8 s was ~60% of the output tokens and the main reason /api/state ran 5.5-6.5 s.
+ */
+function mergeLedger(raw: unknown[], existing: LedgerItem[], nowT: number, drop: unknown[] = []): LedgerItem[] {
   const byId = new Map(existing.map((e) => [e.id, e]));
   const stamp = Date.now();
   const out: LedgerItem[] = [];
@@ -249,11 +292,21 @@ function mergeLedger(raw: unknown[], existing: LedgerItem[], nowT: number): Ledg
     }
     out.push(item);
   });
+  const dropped = new Set(drop.filter((d): d is string => typeof d === 'string'));
+  const changed = new Set(out.map((o) => o.id));
+  for (const e of existing) if (!changed.has(e.id) && !dropped.has(e.id)) out.push(e);
   const seen = new Set<string>();
-  return out
+  let items = out
     .filter((it) => (seen.has(it.id) ? false : (seen.add(it.id), true)))
+    .filter((it) => !dropped.has(it.id))
     .filter((it) => !(it.resolved && nowT - it.t > RESOLVED_TTL_MS))
-    .slice(0, 8);
+    .sort((a, b) => a.t - b.t);
+  // Cap at 8: shed the oldest resolved items first, then the oldest open ones.
+  while (items.length > 8) {
+    const i = items.findIndex((it) => it.resolved);
+    items = items.filter((_, k) => k !== (i >= 0 ? i : 0));
+  }
+  return items;
 }
 
 export async function extractState(req: StateRequest): Promise<StateResponse> {
@@ -267,17 +320,18 @@ export async function extractState(req: StateRequest): Promise<StateResponse> {
       ? existing.map((e) => `- id=${e.id} kind=${e.kind} speaker=${e.speaker ?? '?'} t=${e.t} resolved=${!!e.resolved}: ${e.text}`).join('\n')
       : '(empty)';
     const th = (req.existing_threads ?? []).map((t) => `- ${t.label}`).join('\n') || '(none)';
-    const user = `EXISTING LEDGER:\n${ex}\n\nEXISTING THREADS:\n${th}\n\nNOW: ${fmtT(req.nowT)}\n\nTRANSCRIPT:\n${formatTimeline(window, req.speakers ?? {}, req.me)}`;
-    const out = await callTool<{ ledger?: unknown[]; addressed_to_me_now?: unknown; utterance_threads?: unknown[] }>(
-      FAST_MODEL, STATE_SYSTEM, user, stateTool, STATE_MAX_TOKENS);
-    const ledger = mergeLedger(Array.isArray(out.ledger) ? out.ledger : [], existing, req.nowT);
+    const labels = new Map((req.existing_threads ?? []).map((t) => [t.id, t.label]));
+    const user = `EXISTING LEDGER:\n${ex}\n\nEXISTING THREADS:\n${th}\n\nNOW: ${fmtT(req.nowT)}\n\nTRANSCRIPT:\n${formatTimeline(window, req.speakers ?? {}, req.me, (id) => labels.get(id))}`;
+    const out = await callTool<{ ledger?: unknown[]; drop?: unknown[]; addressed_to_me_now?: unknown; utterance_threads?: unknown[] }>(
+      FAST_MODEL, STATE_SYSTEM, user, stateTool, STATE_MAX_TOKENS, { budgetMs: STATE_BUDGET_MS, label: 'state' });
+    const ledger = mergeLedger(Array.isArray(out.ledger) ? out.ledger : [], existing, req.nowT, Array.isArray(out.drop) ? out.drop : []);
     return {
       ...assignThreads(req, Array.isArray(out.utterance_threads) ? out.utterance_threads : [], ledger),
       addressed_to_me_now: cleanAddressed(out.addressed_to_me_now),
     };
   } catch (err) {
     console.error('[extractState] error:', (err as Error).message);
-    return safe;
+    return { ...safe, degraded: true };
   }
 }
 
@@ -315,7 +369,11 @@ export function assignThreads(req: StateRequest, raw: unknown[], ledgerIn: Ledge
     th.lastT = Math.max(th.lastT, t);
   };
 
-  const finals = finalsOf(req.window ?? []).slice(-MAX_UTT_THREADS);
+  // Only lines not yet stamped with a known lane are labeled (see the "*" marker in formatTimeline): the old way re-labeled
+  // the newest 14 lines on every call, ~350 of the ~1000 output tokens, and pushed /api/state past 6 s.
+  const all = finalsOf(req.window ?? []);
+  const unlabeled = all.filter((u) => !(u.threadId && byId.has(u.threadId)));
+  const finals = (unlabeled.length ? unlabeled : all).slice(-MAX_UTT_THREADS);
   const used = new Set<Utterance>();
   const utteranceThreads: UtteranceThread[] = [];
   for (const r of raw) {
@@ -382,7 +440,7 @@ export async function explainLaugh(req: LaughRequest): Promise<LaughResponse> {
   if (!hasAnthropic()) return mockLaugh(req);
   try {
     const user = `Laughter at ${fmtT(req.t)}.\n\n${formatTimeline(window.slice(-12), req.speakers ?? {}, null)}`;
-    const out = await callTool<{ line?: unknown }>(FAST_MODEL, LAUGH_SYSTEM, user, laughTool);
+    const out = await callTool<{ line?: unknown }>(FAST_MODEL, LAUGH_SYSTEM, user, laughTool, MAX_TOKENS, { budgetMs: 5_000, label: 'laugh' });
     const line = typeof out.line === 'string' && out.line.trim() ? out.line.trim() : null;
     return { line };
   } catch (err) {

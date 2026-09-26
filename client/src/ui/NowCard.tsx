@@ -28,7 +28,7 @@ export function NowCard({ utt, name, color, onSpeaker, onAskRepeat, variant = 'c
   const repeatBtn = doubt && onAskRepeat && !utt.repeatRequested && (
     <button type="button" onClick={() => onAskRepeat(utt)}
       aria-label={`Didn't catch part of that. Ask ${name} to repeat at the next pause.`}
-      className="ml-auto flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-accent/40 px-3 text-[0.85rem] font-semibold text-accent transition-colors duration-150 hover:bg-accent/10">
+      className="ml-auto flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-accent/40 px-3 text-[0.85rem] font-semibold text-accent transition-colors duration-150 hover:bg-accent/10">
       <IconRepeat size={16} strokeWidth={2} /> Repeat?
     </button>
   );
@@ -51,7 +51,7 @@ export function NowCard({ utt, name, color, onSpeaker, onAskRepeat, variant = 'c
           {repeatBtn}
         </div>
         {utt ? (
-          <p key={utt.id} className={cn('imt-in mt-1 line-clamp-3 font-display text-[1.75rem] leading-[1.12] sm:text-[2.1rem] lg:line-clamp-4 lg:text-[clamp(1.35rem,5.2cqw,2.5rem)] lg:leading-[1.1]', utt.final ? 'text-ink' : 'text-ink/75')}>
+          <p key={utt.id} className={cn('imt-in mt-1 line-clamp-3 font-display text-[1.75rem] italic leading-[1.12] sm:text-[2.1rem] lg:line-clamp-4 lg:text-[clamp(1.35rem,5.2cqw,2.5rem)] lg:leading-[1.1]', utt.final ? 'text-ink' : 'text-ink/75')}>
             <UttText utt={utt} speaker={name} onAskRepeat={onAskRepeat} />
           </p>
         ) : empty ?? <p className="mt-1 font-display text-[1.6rem] leading-tight text-ink-muted">Waiting for someone to speak…</p>}

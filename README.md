@@ -24,3 +24,7 @@ Wire details: `WS /ws/audio?role=participant&name=Alex&token=…` opens a per-ph
 
 **Phones only.** Once a phone joins, the host mic stops sending audio by default (toggle in the Everyone joins modal) so lines aren't captioned twice. With the host mic on, a host-mic final is dropped if a phone final sharing ≥60% of its words arrives within ±2.5 s. A host with a saved name sees a **Start listening** button first (browsers need a click before the mic's AudioContext can run); `?replay=` auto-starts.
 
+### Phones on a network that blocks trycloudflare.com
+Some venue Wi-Fi refuses to resolve `*.trycloudflare.com`, so the quick tunnel "works" but no phone can load it (and the mic never prompts).
+Use the named tunnel instead: `bin/tunnel-named.sh` serves the app at **https://table.akilion.ai** (Cloudflare tunnel `imt-table`).
+Set `PUBLIC_URL=https://table.akilion.ai` in `.env` so the Everyone-joins QR uses it. Phones on mobile data also bypass the block.

@@ -27,6 +27,7 @@ const CATCHUP_MAX_MS = 5 * 60_000;
 // Double-caption guard: the host mic also hears people talking into their phones.
 const DUP_WINDOW_MS = 2_500;
 const DUP_OVERLAP = 0.6;
+const DUP_KEEP_MS = 15_000;
 const dupTokens = (t: string) => new Set(t.toLowerCase().replace(/[^\p{L}\p{N}\s']/gu, ' ').split(/\s+/).filter(Boolean));
 /** Fraction of the host line's tokens that also appear in the participant line. */
 function dupOverlap(host: Set<string>, part: Set<string>): number {
@@ -75,7 +76,14 @@ export function useSession() {
   const hostMutedRef = useRef(false);
   const participantsRef = useRef<Participant[]>([]);
   const partFinals = useRef<{ at: number; tokens: Set<string> }[]>([]);
-  const heldHost = useRef(new Map<string, { msg: TranscriptMsg; tokens: Set<string>; timer: number }>());
+  /** Union of phone-final tokens that arrived in [from, to] (wall clock). The host mic merges 2-3 phone lines into
+   *  one final during crosstalk, so matching against any single phone line missed half the duplicates (9 of 18). */
+  const phoneTokensIn = (from: number, to: number) => {
+    const u = new Set<string>();
+    for (const f of partFinals.current) if (f.at >= from && f.at <= to) for (const w of f.tokens) u.add(w);
+    return u;
+  };
+  const heldHost = useRef(new Map<string, { msg: TranscriptMsg; tokens: Set<string>; timer: number; at: number }>());
   const [asr, setAsr] = useState<{ state: AsrState; detail?: string; source: Source }>({
     state: 'idle', source: replayName() ? 'replay' : 'mic',
   });
@@ -141,25 +149,27 @@ export function useSession() {
     if (msg.final && msg.text.trim()) {
       const at = Date.now();
       const tokens = dupTokens(msg.text);
+      const hostSpan = (m: TranscriptMsg) => Math.max(0, m.tEnd - m.tStart);
       if (raw.name) {
-        partFinals.current = partFinals.current.filter((f) => at - f.at <= DUP_WINDOW_MS);
+        partFinals.current = partFinals.current.filter((f) => at - f.at <= DUP_KEEP_MS);
         partFinals.current.push({ at, tokens });
         for (const [k, h] of heldHost.current) {
-          if (dupOverlap(h.tokens, tokens) >= DUP_OVERLAP) {
+          const heldAt = h.at;
+          if (dupOverlap(h.tokens, phoneTokensIn(heldAt - hostSpan(h.msg) - DUP_WINDOW_MS, at)) >= DUP_OVERLAP) {
             window.clearTimeout(h.timer);
             heldHost.current.delete(k);
             dispatch({ type: 'transcript', msg: { ...h.msg, text: '' } }); // clears that speaker's interim
           }
         }
       } else if (participantsRef.current.length > 0 && !hostMutedRef.current) {
-        if (partFinals.current.some((f) => at - f.at <= DUP_WINDOW_MS && dupOverlap(tokens, f.tokens) >= DUP_OVERLAP)) {
+        if (dupOverlap(tokens, phoneTokensIn(at - hostSpan(msg) - DUP_WINDOW_MS, at)) >= DUP_OVERLAP) {
           dispatch({ type: 'transcript', msg: { ...msg, text: '' } });
           return;
         }
         // A phone's copy may still be on its way: hold the host line for the window, then commit.
         const k = `${msg.speaker}-${msg.tStart}`;
         const timer = window.setTimeout(() => { heldHost.current.delete(k); commit(msg); }, DUP_WINDOW_MS);
-        heldHost.current.set(k, { msg, tokens, timer });
+        heldHost.current.set(k, { msg, tokens, timer, at });
         return;
       }
     }
@@ -292,6 +302,9 @@ export function useSession() {
         const win = lastMinutes(s, 1.5, nowT()); // 90 s keeps the ledger call ~4 s live; older items persist via `existing`
         const covered = win.reduce((m, i) => (isUtt(i) && i.final ? Math.max(m, i.tStart) : m), -1);
         const res = await postState({ me: s.me, speakers: s.speakers, window: win, nowT: nowT(), existing: s.ledger.filter((i) => !i.provisional), existing_threads: s.threads });
+        // Server fallback (model failed/timed out): it only echoes `existing`, so don't let it sweep the gate's
+        // provisional cards or advance coveredT; retry on the next tick.
+        if (res.degraded) throw new Error('ledger update degraded');
         const ms = Math.round(performance.now() - t0);
         setLatency((l) => ({ ...l, stateMs: res.latencyMs ?? ms, stateError: undefined }));
         coveredT.current = Math.max(coveredT.current, covered);
@@ -326,6 +339,7 @@ export function useSession() {
     const t0 = performance.now();
     try {
       const raw = await postCatchup({ me: s.me, speakers: s.speakers, window: windowSince(s, sinceT), sinceT, nowT: now });
+      if (raw.degraded) throw new Error('Catch-up is slow right now. Try again.');
       // Lanes: resolve each bullet's thread label to a known Thread.id (same fuzzy match as the server).
       const lanes = ref.current.threads;
       const data = { ...raw, bullets: (raw.bullets ?? []).map((b) => {

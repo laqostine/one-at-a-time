@@ -11,6 +11,7 @@ import { HouseRules } from '../ui/HouseRules';
 import { ObjIcon } from '../ui/ObjIcon';
 import { SayCard, type SayMsg } from './SayCard';
 import { Toggle } from '@/components/ui/toggle';
+import { Wordmark } from '../ui/Wordmark';
 
 type Phase = 'form' | 'starting' | 'live' | 'error';
 type Link = 'connecting' | 'open' | 'reconnecting' | 'lost';
@@ -36,7 +37,7 @@ function PaceBar({ pace }: { pace: Pace | null }) {
   const who = pace?.listenerName || 'the table';
   if (!pace) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-5" data-testid="pace">
+      <div className="paper rounded-[6px_10px_8px_12px] p-5" data-testid="pace">
         <div className="flex items-center gap-1.5 card-label"><IconPace size={16} strokeWidth={2} />Your pace</div>
         <div className="mt-2 text-[3.5rem] leading-none font-bold text-muted tabular-nums">–</div>
         <p className="mt-2 text-body text-muted">Start talking — your speed shows here.</p>
@@ -54,7 +55,7 @@ function PaceBar({ pace }: { pace: Pace | null }) {
   const pct = Math.min(100, Math.round((wpm / PACE_MAX_WPM) * 100));
   const mark = (w: number) => `${(w / PACE_MAX_WPM) * 100}%`;
   return (
-    <div className={`rounded-2xl border-2 ${border} bg-card p-5 transition-colors duration-200`} data-testid="pace" data-level={level} data-overlap={overlap}>
+    <div className={`paper rounded-[6px_10px_8px_12px] border-2 ${border} p-5 transition-colors duration-200`} data-testid="pace" data-level={level} data-overlap={overlap}>
       <div className="flex items-center gap-1.5 card-label"><IconPace size={16} strokeWidth={2} />Your pace</div>
       <div className="mt-1 flex items-baseline gap-2">
         <span className={`text-[4.5rem] leading-none font-bold tracking-tight tabular-nums ${tone === 'bad' ? 'text-bad' : tone === 'warn' ? 'text-warn' : 'text-fg'}`} data-testid="pace-wpm">{wpm || '–'}</span>
@@ -228,29 +229,29 @@ export default function JoinPage() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <header>
-        <div className="flex items-center justify-between"><a href="/landing.html" className="wordmark text-[1.35rem]">I Missed That</a><ObjIcon name="table" fallback={IconPace} size={56} className="-my-2" /></div>
-        <h1 className="mt-4 font-display-italic text-[2.6rem] leading-none">{phase === 'live' ? name.trim() : 'Join the table'}</h1>
-        <p className="mt-2 text-body text-muted">
-          Your phone is your mic. <span className="text-fg">{host}</span> sees your name, not your voice. One at a time helps.
+        <div className="flex items-center justify-between"><Wordmark height={30} /><ObjIcon name="table" fallback={IconPace} size={56} className="-my-2" /></div>
+        <h1 className="mt-4 font-display-italic text-[2.6rem] leading-none [text-shadow:2px_3px_6px_rgb(27_20_16/.6)]">{phase === 'live' ? name.trim() : 'Join the table'}</h1>
+        <p className="mt-2 text-body text-cream/90">
+          Your phone is your mic. <span className="font-semibold text-cream">{host}</span> sees your name, not your voice. One at a time helps.
         </p>
       </header>
 
       {phase === 'error' && (
-        <div role="alert" className="rounded-2xl border border-warn/50 bg-card p-5 text-body">{error}
+        <div role="alert" className="paper rounded-[6px_10px_8px_12px] p-5 text-body">{error}
           {token && <button type="button" onClick={() => setPhase('form')} className="mt-4 h-12 w-full cursor-pointer rounded-xl border border-border bg-card-2 font-semibold">Try again</button>}
         </div>
       )}
 
       {(phase === 'form' || phase === 'starting') && (
-        <form className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5" onSubmit={(e) => { e.preventDefault(); void join(); }}>
+        <form className="linen flex -rotate-[0.4deg] flex-col gap-4 rounded-[8px_12px_10px_6px] p-5" onSubmit={(e) => { e.preventDefault(); void join(); }}>
           <label className="flex flex-col gap-2">
             <span className="card-label">Your name</span>
             <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" maxLength={40}
               placeholder="e.g. Joyce" enterKeyHint="go"
-              className="h-14 rounded-xl border border-input bg-card-2 px-4 text-[1.2rem] text-fg outline-none transition-colors duration-150 focus:border-accent" />
+              className="h-14 rounded-xl border border-input bg-cream/80 px-4 text-[1.2rem] text-ink outline-none transition-colors duration-150 focus:border-accent" />
           </label>
           <button type="submit" disabled={!name.trim() || phase === 'starting'}
-            className="h-16 cursor-pointer rounded-2xl bg-accent text-[1.3rem] font-bold text-accent-fg shadow-[var(--glow-accent)] transition-[filter] duration-150 hover:brightness-110 disabled:cursor-default disabled:opacity-50">
+            className="h-16 cursor-pointer rounded-2xl bg-accent text-[1.3rem] font-bold text-accent-fg shadow-[var(--shadow-obj)] transition-[filter] duration-150 hover:brightness-110 disabled:cursor-default disabled:opacity-50">
             {phase === 'starting' ? 'Starting mic…' : 'Join'}
           </button>
         </form>
@@ -259,7 +260,7 @@ export default function JoinPage() {
         <HouseRules host={host === 'The host' ? 'the host' : host} className="mx-1" />
       )}
       {(phase === 'form' || phase === 'starting') && (
-        <ul className="flex flex-col gap-1 rounded-2xl border border-border/70 p-2" aria-label="What happens after you join">
+        <ul className="paper flex rotate-[0.4deg] flex-col gap-1 rounded-[4px] p-2" aria-label="What happens after you join">
           {[
             { Icon: IconPace, title: 'Screen up, it becomes a lamp', body: `Green: easy for ${host === 'The host' ? 'the host' : host} to follow. Amber: two talking. Red: too fast.` },
             { Icon: IconSpeakForMe, title: `${host} can answer you here`, body: 'Their typed line fills your screen for 10 seconds.' },
@@ -275,7 +276,7 @@ export default function JoinPage() {
       {phase === 'live' && (
         <section className="flex flex-col gap-4" aria-live="polite">
           <PaceBar pace={muted ? null : pace} />
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="linen rounded-[8px_12px_10px_6px] p-4">
             <div className="flex items-center gap-3">
               <PresenceAuto size={96} state={muted ? 'idle' : link === 'open' ? (heard ? 'speaking' : 'listening') : 'idle'} level={level} />
               <div className="min-w-0 flex-1">
@@ -293,7 +294,7 @@ export default function JoinPage() {
             </div>
             <div className="mt-4 grid grid-cols-[1fr_auto_auto] gap-2">
               <Toggle pressed={muted} onPressedChange={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}
-                className={`h-14 cursor-pointer rounded-xl border text-[1.15rem] font-bold [&_svg:not([class*='size-'])]:size-6 ${muted ? 'border-bad bg-bad text-black hover:bg-bad hover:text-black data-[state=on]:bg-bad data-[state=on]:text-black' : 'border-border bg-card-2 text-fg'}`}>
+                className={`h-14 cursor-pointer rounded-xl border text-[1.15rem] font-bold [&_svg:not([class*='size-'])]:size-6 ${muted ? 'border-bad bg-bad text-cream hover:bg-bad hover:text-cream data-[state=on]:bg-bad data-[state=on]:text-cream' : 'border-border bg-card-2 text-fg'}`}>
                 {muted ? <MicOff aria-hidden /> : <Mic aria-hidden />}
                 {muted ? 'Unmute' : 'Mute'}
               </Toggle>
@@ -308,14 +309,14 @@ export default function JoinPage() {
         </section>
       )}
 
-      <p className="mt-auto text-meta">Your voice is transcribed with your name for this table only. Nothing is stored.</p>
+      <p className="mt-auto text-meta text-cream/80">Your voice is transcribed with your name for this table only. Nothing is stored.</p>
 
       {phase === 'live' && lamp && !revealUntil && (
         <Lamp pace={pace} muted={muted} host={host} name={name.trim()} heard={heard} level={level}
           onReveal={() => setRevealUntil(Date.now() + 8_000)} />
       )}
       {phase === 'live' && lamp && revealUntil > 0 && (
-        <p role="status" className="fixed inset-x-0 bottom-0 z-20 bg-card-2/95 py-2 text-center font-mono text-[0.72rem] tracking-wider text-muted uppercase">Lamp returns in a few seconds</p>
+        <p role="status" className="fixed inset-x-0 bottom-0 z-20 bg-dusk/90 py-2 text-center font-mono text-[0.72rem] tracking-wider text-muted uppercase">Lamp returns in a few seconds</p>
       )}
       {say && <SayCard say={say} onDismiss={dismissSay} />}
       <div aria-live="assertive" aria-atomic="true" className="sr-only">{say ? `${say.name} wants to say: ${say.text}` : ''}</div>

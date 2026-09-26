@@ -49,11 +49,11 @@ export function TableTop({ seats, me, lamp, head, placemat, className }: Props) 
       {/* the table keeps its oval (5:4) at any size: as wide as fits, never wider than 1.25x the height */}
       <div className="relative aspect-[5/4] [container-type:inline-size]" style={{ width: 'min(100cqw, 125cqh)' }}>
       {/* lamp halo: the table's light, mirrored from the phones */}
-      <div aria-hidden className="imt-lamp pointer-events-none absolute inset-[4%_2%] rounded-[50%] blur-3xl transition-[background] duration-700"
-        style={{ background: `radial-gradient(closest-side, color-mix(in oklab, ${lamp.hex} 38%, transparent), transparent)` }} />
+      <div aria-hidden className="pointer-events-none absolute inset-[2%_0%] rounded-[50%] transition-[background] duration-700"
+        style={{ background: `radial-gradient(closest-side, color-mix(in oklab, ${lamp.hex} 22%, transparent) 60%, transparent)` }} />
       {/* the walnut top */}
       <div aria-hidden className="wood absolute inset-[9%_6%] rounded-[50%]">
-        <div className="absolute inset-[3.5%] rounded-[50%] border border-[#e8aa67]/25" />
+        <div className="absolute inset-[3.5%] rounded-[50%] border border-cream/10" />
       </div>
 
       {/* the placemat */}
@@ -77,12 +77,12 @@ export function TableTop({ seats, me, lamp, head, placemat, className }: Props) 
         }
         return (
           <div key={s.id} className="absolute z-[3] -translate-x-1/2 -translate-y-1/2" style={pos}>
-            <div className={cn('flex max-w-[14rem] items-center gap-2 whitespace-nowrap rounded-2xl border px-3.5 py-2 text-[1.05rem] font-semibold shadow-[0_10px_20px_-8px_rgb(0_0_0/.7)] transition-[box-shadow,background-color,border-color,opacity] duration-300',
-              s.active ? 'bg-[#45291f] text-fg' : 'border-white/12 bg-[#231915]/92 text-muted', active && !s.active && 'opacity-80')}
-              style={s.active ? { borderColor: s.color, boxShadow: `0 0 0 4px color-mix(in oklab, ${s.color} 20%, transparent), 0 0 28px color-mix(in oklab, ${s.color} 55%, transparent)` } : undefined}>
+            <div className={cn('flex max-w-[14rem] items-center gap-2 whitespace-nowrap rounded-2xl border px-3.5 py-2 text-[1.05rem] font-semibold shadow-[var(--shadow-obj)] transition-[box-shadow,background-color,border-color,opacity] duration-300',
+              s.active ? 'bg-[#3a2819] text-fg' : 'border-cream/12 bg-[#2a1d14]/92 text-muted', active && !s.active && 'opacity-80')}
+              style={s.active ? { borderColor: s.color, boxShadow: `0 0 0 3px color-mix(in oklab, ${s.color} 30%, transparent), var(--shadow-obj)` } : undefined}>
               <span className="relative -my-2 -ml-2 shrink-0">
                 <ObjIcon name="phone" fallback={IconPhoneMic} size={40} />
-                <span aria-hidden className={cn('absolute right-0.5 bottom-1 size-3 rounded-full ring-2 ring-[#231915]', s.active && 'imt-pulse')} style={{ background: s.color, boxShadow: s.active ? `0 0 10px ${s.color}` : undefined }} />
+                <span aria-hidden className={cn('absolute right-0.5 bottom-1 size-3 rounded-full ring-2 ring-[#2a1d14]', s.active && 'imt-pulse')} style={{ background: s.color }} />
               </span>
               <span className="truncate" style={s.active ? { color: readable(s.color) } : undefined}>{s.name}</span>
               {s.active && <span className="sr-only"> is talking and has the mug</span>}
@@ -93,7 +93,7 @@ export function TableTop({ seats, me, lamp, head, placemat, className }: Props) 
 
       {/* you */}
       <div className="absolute z-[3] -translate-x-1/2 -translate-y-1/2" style={at(angle(0))}>
-        <div className="flex items-center gap-2 rounded-2xl border border-accent/55 bg-[#1b1916]/95 px-3.5 py-2 text-[1.05rem] font-semibold text-accent shadow-[var(--glow-accent)]">
+        <div className="flex items-center gap-2 rounded-2xl border-2 border-you bg-[#2a1d14]/95 px-3.5 py-2 text-[1.05rem] font-semibold text-fg shadow-[var(--shadow-obj)]">
           <ObjIcon name="plate" fallback={IconPlate} size={40} className="-my-2 -ml-2" />{me || 'You'}<span className="font-mono text-[0.66rem] tracking-[0.14em] text-muted uppercase">you</span>
         </div>
       </div>
@@ -120,7 +120,7 @@ export function LampPill({ lamp, className }: { lamp: TableLampState; className?
       style={{ borderColor: `color-mix(in oklab, ${lamp.hex} 50%, transparent)`, background: `color-mix(in oklab, ${lamp.hex} 12%, var(--card))` }}>
       <span className="relative -my-2 -ml-2">
         <ObjIcon name="lamp" fallback={IconLamp} size={38} />
-        <span aria-hidden className="absolute bottom-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full" style={{ background: lamp.hex, boxShadow: `0 0 12px 3px ${lamp.hex}` }} />
+        <span aria-hidden className="absolute bottom-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full ring-1 ring-dusk/40" style={{ background: lamp.hex }} />
       </span>
       <span className="text-fg">{lamp.word}</span>
     </div>

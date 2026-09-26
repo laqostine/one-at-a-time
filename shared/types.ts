@@ -50,6 +50,7 @@ export interface CatchupResponse {
   open_threads: string[];        // <=3
   confidence: 'low'|'medium'|'high';
   latencyMs?: number;
+  degraded?: boolean;            // model call failed/timed out: this is a fallback, not an answer
 }
 
 // POST /api/state
@@ -58,6 +59,7 @@ export interface StateResponse {
   ledger: LedgerItem[]; addressed_to_me_now: { speaker: string; question: string; t: number } | null; latencyMs?: number;
   threads?: Thread[];                    // all known lanes, lastT desc
   utteranceThreads?: UtteranceThread[];  // t = exact tStart of a FINAL utterance in the request window
+  degraded?: boolean;                    // model call failed/timed out: ledger is just `existing` echoed back; don't treat as fresh
 }
 
 // POST /api/gate — fast "System One" decision gate: one tiny Haiku call per FINAL utterance

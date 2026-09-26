@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Loader2, Square, Volume2, X } from 'lucide-react';
 import { IconSpeakForMe } from './icons';
 import type { InterjectIntent } from '../../../shared/types';
@@ -14,6 +14,10 @@ interface Props {
   voice?: boolean;
   /** Desktop: the open panel rises over the grid from the actions row instead of pushing it. */
   floating?: boolean;
+  /** Phone: the closed state is an object on the table (the mug), rendered by the caller. */
+  renderTrigger?: (p: { onClick: () => void; ref: Ref<HTMLButtonElement> }) => ReactNode;
+  /** Phone: the open panel is a paper note that slides up over the bottom of the table. */
+  sheet?: boolean;
   className?: string;
 }
 
@@ -28,7 +32,7 @@ const isTyping = (el: Element | null) =>
   !!el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el as HTMLElement).isContentEditable);
 
 /** "Speak for me": one tap drafts re-entry lines; tapping one says it aloud at the next pause. */
-export function SpeakCard({ api, say, voice = true, floating = false, className }: Props) {
+export function SpeakCard({ api, say, voice = true, floating = false, renderTrigger, sheet = false, className }: Props) {
   const [sent, setSent] = useState<{ line: string; delivered: number | null } | null>(null);
   // Always: the line goes to the phones first. Voice: only if the user opted in.
   const send = (text: string) => {
@@ -80,6 +84,7 @@ export function SpeakCard({ api, say, voice = true, floating = false, className 
     : '';
 
   if (!open) {
+    if (renderTrigger) return <>{renderTrigger({ onClick: openAndDraft, ref: openBtn })}</>;
     return (
       <Button ref={openBtn} type="button" variant="outline" size="lg" onClick={openAndDraft} aria-keyshortcuts="S"
         className={cn('w-full shrink-0 border-accent/45 text-accent hover:border-accent hover:bg-accent/10', className)}>
@@ -90,8 +95,9 @@ export function SpeakCard({ api, say, voice = true, floating = false, className 
   }
 
   return (
-    <section aria-label="Speak for me" className={cn('imt-in shrink-0 rounded-2xl border border-accent/60 bg-card p-4 shadow-[var(--glow-accent)] sm:p-5',
-      floating && 'absolute right-0 bottom-0 z-30 max-h-[min(34rem,70dvh)] w-[34rem] max-w-[calc(100vw-2rem)] overflow-y-auto shadow-[var(--glow-accent),0_32px_64px_-24px_rgb(0_0_0/.85)]', className)}>
+    <section aria-label="Speak for me" className={cn('paper imt-in shrink-0 rounded-2xl p-4 sm:p-5',
+      floating && 'absolute right-0 bottom-0 z-30 max-h-[min(34rem,70dvh)] w-[34rem] max-w-[calc(100vw-2rem)] overflow-y-auto shadow-[var(--shadow-sheet)]',
+      sheet && 'imt-note-in fixed inset-x-2 bottom-2 z-40 max-h-[82dvh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-sheet)]', className)}>
       <div className="flex min-h-8 items-center gap-2 pb-3">
         <h2 className="card-label text-accent!">Speak for me</h2>
         <p role="status" aria-live="polite" aria-atomic="true"
@@ -100,7 +106,7 @@ export function SpeakCard({ api, say, voice = true, floating = false, className 
           {status === 'speaking' && <Volume2 size={16} aria-hidden />}
           {statusText}
         </p>
-        <button type="button" onClick={close} aria-label="Close Speak for me" className="-mr-2 flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-muted transition-colors duration-150 hover:bg-card-2 hover:text-fg">
+        <button type="button" onClick={close} aria-label="Close Speak for me" className="-mr-2 flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl text-muted transition-colors duration-150 hover:bg-card-2 hover:text-fg">
           <X size={20} aria-hidden />
         </button>
       </div>
@@ -120,7 +126,7 @@ export function SpeakCard({ api, say, voice = true, floating = false, className 
         <div className="mb-2 flex items-center gap-3 rounded-xl border border-warn/70 bg-warn/10 px-4 py-2.5">
           <q className="min-w-0 flex-1 text-body-lg font-semibold">{line}</q>
           <button type="button" onClick={api.stop} aria-label="Stop speaking"
-            className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-bad px-4 text-[1rem] font-bold text-black transition-[filter] duration-150 hover:brightness-110">
+            className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-bad px-4 text-[1rem] font-bold text-cream transition-[filter] duration-150 hover:brightness-110">
             <Square size={16} aria-hidden /> Stop
           </button>
         </div>

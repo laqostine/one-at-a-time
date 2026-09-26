@@ -5,10 +5,21 @@ import type {
 
 export interface HealthResponse { ok: boolean; hasAnthropic: boolean; hasDeepgram: boolean; latencyMs?: number }
 
+/** Client-side backstop so a hung request can never freeze a spinner (server routes answer in <= ~11 s). */
+const CLIENT_TIMEOUT_MS = 15_000;
 async function post<Req, Res>(path: string, body: Req, signal?: AbortSignal): Promise<Res> {
-  const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal });
-  if (!res.ok) throw new Error(`${path} ${res.status}`);
-  return res.json() as Promise<Res>;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(new Error(`${path} timed out`)), CLIENT_TIMEOUT_MS);
+  const onAbort = () => ac.abort(signal?.reason);
+  if (signal) { if (signal.aborted) onAbort(); else signal.addEventListener('abort', onAbort, { once: true }); }
+  try {
+    const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: ac.signal });
+    if (!res.ok) throw new Error(`${path} ${res.status}`);
+    return await (res.json() as Promise<Res>);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
 }
 
 export const postCatchup = (req: CatchupRequest, signal?: AbortSignal) => post<CatchupRequest, CatchupResponse>('/api/catchup', req, signal);

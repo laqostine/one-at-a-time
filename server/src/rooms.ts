@@ -22,11 +22,14 @@ interface PSock { name: string; id: number; speakingUntil: number }
 // ---- pace + overlap (see research: DHH caption comprehension drops above ~170 wpm; crosstalk is the top failure) ----
 const PACE_WINDOW_MS = 20_000;   // rolling window of final transcripts
 const PACE_MIN_SPEECH_MS = 2_000; // below this much speech in the window, report 0 (no reading yet)
-const OVERLAP_WINDOW_MS = 1_500;  // two sources voiced inside the same 1.5 s => overlap
-const OVERLAP_MIN_VOICED_MS = 300; // per source, so a cough or one bled chunk doesn't count
+const OVERLAP_WINDOW_MS = 1_500;  // look-back window for overlap
+const OVERLAP_MIN_VOICED_MS = 300; // >= 300 ms of *simultaneous* voice (two phones in the same 100 ms slots), so a quick turn change doesn't count
+const OVERLAP_SLOT_MS = 100;
+const PACE_SPAN_PAD_MS = 350;     // Deepgram word spans skip each turn's onset/offset: measured 240 wpm for 204 wpm TTS without it
+const PACE_BRIDGE_MS = 1_000;     // gaps shorter than this between one speaker's finals count as speaking time (commas, breaths)
 const PACE_EVERY_MS = 2_000;
 const HOST_SOURCE = 'host';
-interface FinalRec { at: number; words: number; durMs: number }
+interface FinalRec { at: number; words: number; t0: number; t1: number } // t0/t1: absolute ms (stream epoch + Deepgram word times)
 
 export class Room {
   readonly token: string;
@@ -62,6 +65,11 @@ export class Room {
 
   addParticipant(ws: WebSocket, name: string): PSock {
     const p: PSock = { name, id: this.idFor(name), speakingUntil: 0 };
+    // A phone that reconnects (flaky Wi-Fi, iOS backgrounding) often leaves its old socket half-open: the server never
+    // sees a close, so `say` and pace would keep going to a dead socket. Same name => same person => supersede it.
+    for (const [old, q] of this.parts) {
+      if (q.id === p.id && old !== ws) { this.parts.delete(old); try { old.terminate(); } catch { /* ignore */ } }
+    }
     this.parts.set(ws, p);
     this.ensureTick();
     this.ensurePaceTick();
@@ -88,7 +96,7 @@ export class Room {
       ...(m.words ? { words: m.words.map((w) => ({ ...w, t0: Math.max(0, w.t0 + shift), t1: Math.max(0, w.t1 + shift) })) } : {}),
     };
     if (m.text.trim()) this.touch(p);
-    if (m.final) this.recordFinal(p.id, m.text, m.tEnd - m.tStart);
+    if (m.final) this.recordFinal(p.id, m.text, participantEpoch + m.tStart, participantEpoch + m.tEnd);
     for (const h of this.hosts) this.sendTo(h, out);
   }
 
@@ -102,42 +110,66 @@ export class Room {
   }
   hostVoice(ms: number): void { this.voice(HOST_SOURCE, ms); }
 
-  recordFinal(id: number, text: string, durMs: number): void {
+  /** t0/t1 = absolute start/end of the final's words (ms). */
+  recordFinal(id: number, text: string, t0: number, t1: number): void {
     const words = text.trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
     if (!words) return;
     const now = Date.now();
     const arr = (this.finals.get(id) ?? []).filter((f) => now - f.at <= PACE_WINDOW_MS);
-    // Deepgram word timings; floor at ~0.2 s/word so a mistimed one-word final can't read as 600 wpm.
-    arr.push({ at: now, words, durMs: Math.max(durMs, words * 200) });
+    arr.push({ at: now, words, t0, t1: Math.max(t1, t0) });
     this.finals.set(id, arr);
   }
 
-  /** Speaking rate over the rolling window: words / minutes of speech (Deepgram word timings), 0 if too little speech. */
+  /**
+   * Speaking rate over the rolling window: words / minutes of speaking time, 0 if too little speech.
+   * Speaking time = union of the finals' word spans with gaps < 1 s bridged. Summing each final's own span (the old
+   * way) dropped the pauses between Deepgram's fragments and read ~30% fast: TTS measured at 204 wpm read as 260.
+   * Each span is floored at 0.25 s/word so a mistimed one-word final can't read as 600 wpm.
+   */
   wpmOf(id: number, now = Date.now()): number {
-    const arr = (this.finals.get(id) ?? []).filter((f) => now - f.at <= PACE_WINDOW_MS);
-    const words = arr.reduce((a, f) => a + f.words, 0);
-    const ms = arr.reduce((a, f) => a + f.durMs, 0);
+    const arr = (this.finals.get(id) ?? []).filter((f) => now - f.at <= PACE_WINDOW_MS)
+      .map((f) => ({ ...f, t1: Math.max(f.t1, f.t0 + f.words * 250) })).sort((a, b) => a.t0 - b.t0);
+    let words = 0, ms = 0, s0 = -1, s1 = -1;
+    for (const f of arr) {
+      words += f.words;
+      if (s0 < 0) { s0 = f.t0; s1 = f.t1; continue; }
+      if (f.t0 - s1 < PACE_BRIDGE_MS) s1 = Math.max(s1, f.t1);
+      else { ms += s1 - s0 + PACE_SPAN_PAD_MS; s0 = f.t0; s1 = f.t1; }
+    }
+    if (s0 >= 0) ms += s1 - s0 + PACE_SPAN_PAD_MS;
     if (ms < PACE_MIN_SPEECH_MS) return 0;
     return Math.round(words / (ms / 60_000));
   }
 
-  /** >= 2 sources each voiced >= 300 ms inside the last 1.5 s. */
+  /**
+   * >= 300 ms in the last 1.5 s where two or more PHONES were voiced in the same 100 ms slots. The old rule (each source
+   * voiced >= 300 ms anywhere in the window) fired on every quick turn change: 24 false overlap flags in a clean
+   * sequential run. The host mic is excluded: it hears everyone, so host + the talking phone is not crosstalk.
+   */
   overlap(now = Date.now()): boolean {
-    let n = 0;
-    for (const arr of this.voiced.values()) {
-      const ms = arr.reduce((a, v) => a + (now - v.at <= OVERLAP_WINDOW_MS ? v.ms : 0), 0);
-      if (ms >= OVERLAP_MIN_VOICED_MS && ++n >= 2) return true;
+    const slots = new Map<number, number>();
+    for (const [k, arr] of this.voiced) {
+      if (k === HOST_SOURCE) continue;
+      const mine = new Set<number>();
+      for (const v of arr) {
+        if (now - v.at > OVERLAP_WINDOW_MS) continue;
+        for (let t = v.at - v.ms; t < v.at; t += OVERLAP_SLOT_MS) mine.add(Math.floor(t / OVERLAP_SLOT_MS));
+      }
+      for (const sl of mine) slots.set(sl, (slots.get(sl) ?? 0) + 1);
     }
-    return false;
+    let both = 0;
+    for (const n of slots.values()) if (n >= 2) both++;
+    return both * OVERLAP_SLOT_MS >= OVERLAP_MIN_VOICED_MS;
   }
 
   /** Show the host user's words on every participant phone (text-first Speak for me). */
   say(text: string): number {
     const name = this.meName.trim() || 'They';
     const m = { type: 'say' as const, name, text, t: Date.now() };
-    let n = 0;
-    for (const ws of this.parts.keys()) { this.sendTo(ws, m); n++; }
-    return n;
+    // Count phones (people) that actually got it: open sockets only, one per participant id.
+    const got = new Set<number>();
+    for (const [ws, p] of this.parts) if (this.sendTo(ws, m)) got.add(p.id);
+    return got.size;
   }
 
   private pushPace(): void {
@@ -200,9 +232,14 @@ export class Room {
     this.tick.unref();
   }
 
-  private sendTo(ws: WebSocket, m: AsrMessage): void {
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m));
+  private sendTo(ws: WebSocket, m: AsrMessage): boolean {
+    if (ws.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify(m));
+    return true;
   }
+
+  /** Debug/leak check: live sockets and per-id state sizes. */
+  stats() { return { hosts: this.hosts.size, parts: this.parts.size, ids: this.ids.size, finals: this.finals.size, voiced: this.voiced.size }; }
 }
 
 /** RMS of a PCM16 LE buffer, 0..1. */
@@ -214,6 +251,22 @@ export function pcmRms(buf: Buffer): number {
   return Math.sqrt(sum / n);
 }
 export const isVoice = (buf: Buffer) => pcmRms(buf) > SPEAKING_RMS;
+
+/**
+ * Per-socket voice detector with an adaptive noise floor: voiced = RMS above max(0.02, 3 x floor), floor = 10th
+ * percentile of the last ~64 chunks. A fixed 0.02 gate called a phone in a noisy room "speaking" all the time,
+ * which lit its dot and made every other speaker read as overlap.
+ */
+export class Vad {
+  private hist: number[] = [];
+  isVoice(buf: Buffer): boolean {
+    const rms = pcmRms(buf);
+    this.hist.push(rms);
+    if (this.hist.length > 64) this.hist.shift();
+    const floor = this.hist.length >= 10 ? [...this.hist].sort((a, b) => a - b)[Math.floor(this.hist.length * 0.1)] : 0;
+    return rms > Math.max(SPEAKING_RMS, floor * 3);
+  }
+}
 
 // ---- the (single) room ----
 /** ROOM_TOKEN env, else a random token persisted in the OS temp dir so `tsx watch` restarts don't break joined phones. */

@@ -7,11 +7,11 @@ import { useEffect, useRef } from 'react';
 export type PresenceState = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking';
 
 const COLOR: Record<PresenceState, string> = {
-  idle: '#6B7280', // gray-500
-  listening: '#60A5FA', // blue-400
-  transcribing: '#FBBF24', // amber-400
-  thinking: '#A78BFA', // violet-400
-  speaking: '#34D399', // emerald-400
+  idle: '#a39a8c', // warm stone
+  listening: '#8db88e', // sage
+  transcribing: '#f3ebdd', // linen
+  thinking: '#c8904a', // tea
+  speaking: '#6e8fb5', // blue rim (your line)
 };
 
 const LABEL: Record<PresenceState, string> = {

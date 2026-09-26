@@ -12,12 +12,14 @@ interface Props {
   colorFor: (name?: string) => string;
   onBullet: (t: number) => void;
   onDismiss: () => void;
+  /** 'note' (phone): a paper note sliding onto the placemat. Default: paper over the middle dishes. */
+  variant?: 'overlay' | 'note';
 }
 
 const FADE_MS = 15_000;
 
 /** Static ≤3-bullet card overlaying the middle cards (no layout shift). */
-export function CatchupCard({ state, colorFor, onBullet, onDismiss, title }: Props) {
+export function CatchupCard({ state, colorFor, onBullet, onDismiss, title, variant = 'overlay' }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [paused, setPaused] = useState(false);
   useEffect(() => {
@@ -41,7 +43,7 @@ export function CatchupCard({ state, colorFor, onBullet, onDismiss, title }: Pro
   return (
     <section aria-label="Catch-up" aria-live="polite"
       onClick={onDismiss} onFocus={() => setPaused(true)} onMouseEnter={() => setPaused(true)}
-      className={`imt-in absolute inset-0 z-10 flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-accent/70 bg-card p-4 shadow-[var(--glow-accent),0_24px_48px_-12px_rgb(0_0_0/0.7)] transition-opacity duration-200 sm:p-5 ${fading ? 'opacity-40' : 'opacity-100'}`}>
+      className={`paper absolute z-10 flex cursor-pointer flex-col overflow-hidden rounded-[6px_10px_8px_12px] p-4 shadow-[var(--shadow-sheet)] transition-opacity duration-200 sm:p-5 ${variant === 'note' ? 'imt-note-in deckle inset-x-1 top-2 bottom-1 rounded-none' : 'imt-in inset-0'} ${fading ? 'opacity-40' : 'opacity-100'}`}>
       <div className="flex min-h-8 items-center gap-2 pb-3">
         <h2 className="card-label flex items-center gap-1.5 text-accent!"><IconCatchUp size={16} strokeWidth={2} />{title ?? 'You missed'}</h2>
         {state.status === 'ready' && (
@@ -72,9 +74,9 @@ export function CatchupCard({ state, colorFor, onBullet, onDismiss, title }: Pro
         return (
           <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
             {a && (
-              <p className="flex items-start gap-3 rounded-xl border border-warn/70 bg-warn/10 px-4 py-3 text-body-lg shadow-[var(--glow-warn)]">
-                <IconForYou size={24} className="mt-0.5 shrink-0 text-warn" />
-                <span><strong style={{ color: readable(colorFor(a.speaker)) }}>{a.speaker}</strong> asked you: <q>{a.question}</q></span>
+              <p className="flex items-start gap-3 rounded-xl bg-lamplight px-4 py-3 text-body-lg text-ink shadow-[var(--shadow-obj)]">
+                <IconForYou size={24} className="mt-0.5 shrink-0 text-ink" />
+                <span><strong>{a.speaker}</strong> asked <span className="underline decoration-you decoration-2 underline-offset-4">you</span>: <q>{a.question}</q></span>
               </p>
             )}
             {bullets.length ? (
