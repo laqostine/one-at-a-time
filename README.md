@@ -1,4 +1,17 @@
-# I Missed That
+# One at a time
+**The first accessibility tool for the hearing side of the table.** BAINSA hackathon 2026, topic "I Missed That".
+
+Every accessibility tool gives the hard-of-hearing person more to read. We built the other side. Everyone's phone goes on the table. When two people talk at once, or too fast, *their* phones turn amber. The hard-of-hearing person reads one sentence at a time, with the speaker's name and how it was said, and taps once to speak.
+
+- **Listener** (`/?me=Name`): one sentence · name · tone word · "Say something" · "What did I miss?" (instant) · swipe up for Plans with reasons · swipe left for the Map of where the conversation went.
+- **Speakers** (`/join.html?token=…`): teach the table your voice (5 s), then your phone is a lamp: Go ahead / One at a time / Slower. The listener's words appear on your phone.
+- **Two modes**: phones as mics (big table) or one phone in the middle with voice fingerprints naming each speaker (small table).
+- Deepgram Nova-3 (en/it/tr) · Claude (structured calls only) · sherpa-onnx TitaNet voice ID on-device · nothing stored.
+
+Live: https://table.akilion.ai · Deck: `pitch/I-Missed-That-BAINSA.pptx` · Script: `pitch/script.md` · Design: `design/DESIGN.md` · Research: `research/`
+
+---
+
 Live decision & commitment ledger for deaf and hard-of-hearing users at the table. Transcription tells you what was said. We tell you what you missed.
 
 ## Run
