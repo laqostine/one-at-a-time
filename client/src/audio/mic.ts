@@ -1,4 +1,5 @@
 // Mic capture -> 16k PCM16 over WS /ws/audio -> AsrMessage callbacks.
+import { MIC_CONSTRAINTS, cleanChain } from './clean';
 import type { AsrMessage } from '../../../shared/types';
 import { workletSource, WORKLET_NAME } from './worklet';
 
@@ -25,9 +26,7 @@ export async function startMic(
   opts?: MicOpts,
 ): Promise<MicHandle> {
   const maxReconnects = opts?.maxReconnects ?? MAX_RECONNECTS;
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-  });
+  const stream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS);
   const ctx = new AudioContext();
   const blobUrl = URL.createObjectURL(new Blob([workletSource], { type: 'application/javascript' }));
   try {
@@ -41,7 +40,7 @@ export async function startMic(
   const node = new AudioWorkletNode(ctx, WORKLET_NAME, { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
   const sink = ctx.createGain();
   sink.gain.value = 0; // keep graph pulling without audible output
-  src.connect(node).connect(sink).connect(ctx.destination);
+  cleanChain(ctx, src).connect(node).connect(sink).connect(ctx.destination);
 
   let stopped = false;
   let ws: WebSocket | null = null;
