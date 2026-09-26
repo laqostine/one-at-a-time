@@ -15,6 +15,15 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 5174,
+    strictPort: true,
+    allowedHosts: ['.trycloudflare.com', 'table.akilion.ai'],
+    proxy: {
+      '/api': 'http://localhost:8787',
+      '/ws/audio': { target: 'ws://localhost:8787', ws: true },
+    },
+  },
   server: {
     port: 5174,
     strictPort: true,

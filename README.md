@@ -20,11 +20,28 @@ Each person at the table opens a link on their own phone and speaks into their o
 
 Wire details: `WS /ws/audio?role=participant&name=Alex&token=…` opens a per-phone Deepgram stream (`diarize=false`); transcripts go to the room's host socket(s) as `{type:'transcript', speaker: 100+n, name:'Alex', …}` (times rebased to the host stream). Hosts also get `{type:'participants', list:[{id,name,speaking}]}` on join/leave/speaking change. `GET /api/room` → `{token, joinUrl}`; `GET /api/room/verify?token=` → 200/401. Wrong token → HTTP 401 on the upgrade. Set `PUBLIC_URL` to make the server's printed/guessed join URL use your tunnel.
 
-**Pace + crosstalk (participant phones).** Every 2 s each phone gets `{type:'pace', wpm, level:'ok'|'fast'|'too_fast', overlap, listenerName}`: wpm = words / minutes of speech over that person's final transcripts in the last 20 s (ok <150, fast 150–170, too_fast >170 — DHH caption comprehension drops above ~170 wpm); overlap = two or more sources (phones or the host mic) each voiced ≥300 ms in the same 1.5 s. Phones show a big green/amber/red bar ("Good pace for Bera" / "A bit fast for Bera, slow down" / "Too fast for Bera to follow", "Two people talking, one at a time helps Bera") and buzz once (max every 10 s). Hosts get `{type:'table', overlap, avgWpm}`. The host posts its name with `POST /api/room/me {name}` (else phones say "the table").
+**Pace + crosstalk (participant phones).** Every 2 s each phone gets `{type:'pace', wpm, level:'ok'|'fast'|'too_fast', overlap, listenerName}`: wpm = words / minutes of speaking time over that person's final transcripts in the last 20 s (word spans merged, gaps <1 s bridged, +0.35 s per turn) (ok <150, fast 150–170, too_fast >170 — DHH caption comprehension drops above ~170 wpm); overlap = ≥300 ms in the last 1.5 s where two or more phones were voiced in the same 100 ms slots (the host mic hears everyone, so it doesn't count; voice = RMS over an adaptive noise floor). Phones show a big green/amber/red bar ("Good pace for Bera" / "A bit fast for Bera, slow down" / "Too fast for Bera to follow", "Two people talking, one at a time helps Bera") and buzz once (max every 10 s). Hosts get `{type:'table', overlap, avgWpm}`. The host posts its name with `POST /api/room/me {name}` (else phones say "the table").
 
-**Phones only.** Once a phone joins, the host mic stops sending audio by default (toggle in the Everyone joins modal) so lines aren't captioned twice. With the host mic on, a host-mic final is dropped if a phone final sharing ≥60% of its words arrives within ±2.5 s. A host with a saved name sees a **Start listening** button first (browsers need a click before the mic's AudioContext can run); `?replay=` auto-starts.
+**Phones only.** Once a phone joins, the host mic stops sending audio by default (toggle in the Everyone joins modal) so lines aren't captioned twice. With the host mic on, a host-mic final is dropped if ≥60% of its words appear in the phone finals that arrived from its start −2.5 s to +2.5 s after it (the host mic merges crosstalk from several phones into one line). A host with a saved name sees a **Start listening** button first (browsers need a click before the mic's AudioContext can run); `?replay=` auto-starts.
 
 ### Phones on a network that blocks trycloudflare.com
 Some venue Wi-Fi refuses to resolve `*.trycloudflare.com`, so the quick tunnel "works" but no phone can load it (and the mic never prompts).
 Use the named tunnel instead: `bin/tunnel-named.sh` serves the app at **https://table.akilion.ai** (Cloudflare tunnel `imt-table`).
 Set `PUBLIC_URL=https://table.akilion.ai` in `.env` so the Everyone-joins QR uses it. Phones on mobile data also bypass the block.
+
+## Live test without humans
+Three synthesized phones (macOS `say`: Samantha=Mom, Daniel=Dad, Karen=Joyce) stream the demo2 family lunch through Deepgram in real time, and the host client's `/api/gate` (per final), `/api/state` (every 8 s, 90 s window) and `/api/catchup` calls are simulated. Needs `.env` keys, `say` and `ffmpeg`.
+```
+server/test-live.sh                      # starts its own server on :8797 (room "livetest"), asserts, exits non-zero on failure
+server/test-live.sh --overlap --host     # extra flags go to tools/fake-phones.mjs
+BASE=ws://localhost:8787 server/test-live.sh   # against the running dev server (its room will show 3 fake phones)
+```
+Pass = every speaker has ≥5 finals, at least one `too_fast` or overlap pace message, no status errors, no 5xx. The summary also prints pace by level, overlap counts, merged/missed lines vs the script, host-mic duplicates, and gate/state/catch-up latency (p50/max).
+
+`tools/fake-phones.mjs [wsBase] --scenario demo2 --voices Samantha,Daniel,Karen` plus: `--overlap` (next line starts 40% before the previous ends), `--noise <wav>` (looped at −18 dB into every phone and the host mix), `--host` (also streams the mixed room into a `role=host` socket: the double-caption case), `--drop 1@13.5` (phone 1 drops at 13.5 s, reconnects 1.5 s later), `--say "text"` (checks `/api/room/say` delivery), `--repeat 2` (longer run, full 90 s ledger windows), `--rate 150`, `--no-drive`, `--json out.json`. Server logs one line per call: `[state] <ms> win=… -> ledger=…`, `[catchup] …`, `[claude] <label> <ms> in=… out=… stop=…`, `[gate] …`; `GET /api/health` includes room socket counts.
+
+### Deploy (demo): table.akilion.ai
+1. `cd server && npm run dev` (port 8787)
+2. `cd client && npm run build && ../bin/serve.sh` (production bundle on 5174, proxies /api and /ws)
+3. `bin/tunnel-named.sh` (Cloudflare named tunnel → https://table.akilion.ai)
+Rebuild after any client change: `cd client && npm run build` (preview serves the new dist immediately).

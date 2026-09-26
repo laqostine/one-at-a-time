@@ -13,7 +13,7 @@ export const FAST_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 600;
 const TIMEOUT_MS = 12_000;
 /** Per-route budgets (all attempts incl. the one retry). The client polls /api/state every 8 s. */
-export const STATE_BUDGET_MS = 6_500;
+export const STATE_BUDGET_MS = 8_000; // steady state is ~2-4 s; a cold full window (no lanes yet) can take ~6 s
 export const CATCHUP_BUDGET_MS = 10_000;
 const RESOLVED_TTL_MS = 3 * 60_000;
 
