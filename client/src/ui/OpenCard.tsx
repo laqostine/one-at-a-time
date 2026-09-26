@@ -63,8 +63,8 @@ export function OpenCard({ items, threads = [], colorFor, onOpen, tall = false, 
   const lanes = buildLanes(open, threads);
   // Conversation lanes need room: the tall desktop dish shows them; phones/tablets get one calm list.
   const lanesView = tall && (lanes.length > 1 || (lanes.length === 1 && lanes[0].key !== GENERAL));
-  const perLane = (lanes.length <= 1 ? 4 : lanes.length === 2 ? 3 : 2) + (tall ? 1 : 0);
-  const shownOpen = (lanesView ? lanes.flatMap((l) => pick(l.items, perLane)) : pick(open, tall ? 5 : 3)).filter((i) => !i.resolved).length;
+  const perLane = lanes.length <= 1 ? 4 : lanes.length === 2 ? 2 : 1;
+  const shownOpen = (lanesView ? lanes.flatMap((l) => pick(l.items, perLane)) : pick(open, tall ? 4 : 3)).filter((i) => !i.resolved).length;
   const hidden = Math.max(0, unresolved.length - shownOpen);
 
   return (
@@ -81,10 +81,10 @@ export function OpenCard({ items, threads = [], colorFor, onOpen, tall = false, 
         <p className="px-1 text-body text-muted">Nothing on the table yet. Plans (with the why), pushback and questions land here, one lane per conversation.</p>
       ) : !lanesView ? (
         <ul className="min-h-0 flex-1 space-y-0.5 overflow-hidden">
-          {pick(open, tall ? 5 : 3).map((i) => <LedgerRow key={i.id} item={i} color={colorFor(i.speaker)} replyColor={colorFor(i.replyTo)} onOpen={() => onOpen(i.t)} compact />)}
+          {pick(open, tall ? 4 : 3).map((i) => <LedgerRow key={i.id} item={i} color={colorFor(i.speaker)} replyColor={colorFor(i.replyTo)} onOpen={() => onOpen(i.t)} compact />)}
         </ul>
       ) : (
-        <div className={cn('grid min-h-0 flex-1 content-start gap-2.5 overflow-hidden', lanes.length > 1 && !tall && 'md:grid-cols-2')}>
+        <div className={cn('grid min-h-0 flex-1 content-start gap-2.5 overflow-hidden [mask-image:linear-gradient(to_bottom,black_85%,transparent)]', lanes.length > 1 && !tall && 'md:grid-cols-2')}>
           {lanes.map((l) => (
             <LaneView key={l.key} lane={l} max={perLane} colorFor={colorFor} onOpen={onOpen} wide={false} compact />
           ))}

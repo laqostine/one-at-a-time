@@ -39,8 +39,9 @@ export function LedgerRow({ item, color, replyColor, onOpen, compact = false }: 
           <span className="min-w-0 flex-1">
             <span className={cn('line-clamp-2 text-body', faded && 'line-clamp-1 line-through decoration-muted')}>{item.text}</span>
             <span className="mt-0.5 block truncate text-meta">
-              <span className={k.tint}>{k.label}</span>
-              {item.speaker && <> · <span style={{ color: readable(color) }}>{item.speaker}</span></>}
+              {/* the dish is already called Plans: only the other kinds say what they are */}
+              {item.kind !== 'decision' && <span className={k.tint}>{k.label} · </span>}
+              {item.speaker && <span style={{ color: readable(color) }}>{item.speaker}</span>}
               {item.replyTo && <> to <span style={{ color: readable(replyColor ?? '') }}>{item.replyTo}</span></>}
               {showWhy && <span className="italic"> · because {item.reason}</span>}
             </span>
