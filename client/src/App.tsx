@@ -14,7 +14,7 @@ import { MapPage } from './ui/MapPage';
 import { speakerMood, tableMood } from './lib/mood';
 import type { CatchupResponse } from '../../shared/types';
 import type { CatchupState } from './state/useSession';
-import { Asked, CaptionList, FirstRun, Missed, Sentence, StartGate, TopLine, stateWord, useTick } from './ui/Listener';
+import { Asked, CaptionList, FirstRun, Missed, Sentence, StartGate, VoiceGate, TopLine, stateWord, useTick } from './ui/Listener';
 
 const LAUGH_MS = 6_000;
 
@@ -27,6 +27,8 @@ export default function App() {
   const { session } = s;
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Joining = name, then "Teach the table your voice", then Start listening.
+  const [voiceDone, setVoiceDone] = useState(false);
   const [renaming, setRenaming] = useState<number | null>(null);
   // The second page ("The table"): opened by swipe up or the PLANS label, never on its own.
   const [tableOpen, setTableOpen] = useState(false);
@@ -234,8 +236,9 @@ export default function App() {
           participantCount={s.participants.length}
           captionsOnly={s.asr.source === 'webspeech' && s.listening} />
       )}
-      {!session.me.name && <FirstRun onDone={(n) => { s.setMe(n, []); s.start(); }} />}
-      {session.me.name && !s.started && <StartGate name={session.me.name} onStart={s.start} />}
+      {!session.me.name && <FirstRun onDone={(n) => { s.setMe(n, []); }} />}
+      {session.me.name && !s.started && !voiceDone && <VoiceGate name={session.me.name} onDone={() => setVoiceDone(true)} />}
+      {session.me.name && !s.started && voiceDone && <StartGate name={session.me.name} onStart={s.start} />}
     </div>
   );
 }

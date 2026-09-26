@@ -7,6 +7,7 @@ import type { CatchupState, Nudge, SessionApi } from '../state/useSession';
 import { isUtt } from '../state/session';
 import { UttText } from './UttText';
 import { cn } from '@/lib/utils';
+import { VoiceStep, voiceAlreadyKnown } from '../enroll/VoiceStep';
 
 /* ---------- top line: wordmark as text + the state word ---------- */
 
@@ -220,6 +221,30 @@ export function StartGate({ name, onStart }: { name: string; onStart: () => void
         <button type="button" onClick={onStart} autoFocus data-testid="start-listening"
           className="h-16 w-full cursor-pointer rounded-full bg-amber text-[1.176rem] font-bold text-ink">Start listening</button>
       </div>
+    </FullPage>
+  );
+}
+
+/** After the name, before "Start listening": teach the table this voice (skipped when already known). */
+export function VoiceGate({ name, onDone }: { name: string; onDone: () => void }) {
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    let dead = false;
+    void (async () => {
+      let t = '';
+      try {
+        const r = await fetch('/api/room');
+        if (r.ok) t = ((await r.json()) as { token?: string }).token ?? '';
+      } catch { /* offline: the POST will fail and we continue */ }
+      if (dead) return;
+      if (await voiceAlreadyKnown(t, name)) { if (!dead) onDone(); return; }
+      if (!dead) setToken(t);
+    })();
+    return () => { dead = true; };
+  }, [name]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <FullPage label="Teach the table your voice">
+      {token != null && <VoiceStep name={name} token={token} onDone={onDone} />}
     </FullPage>
   );
 }

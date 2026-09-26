@@ -5,9 +5,10 @@ import type { AsrMessage, PaceLevel } from '../../../shared/types';
 import { startMic, type MicHandle } from '../audio/mic';
 import { Lamp, lampTone, type LampMood } from './Lamp';
 import { SayCard, type SayMsg } from './SayCard';
+import { VoiceStep, voiceAlreadyKnown } from '../enroll/VoiceStep';
 import { adoptTableVoiceParams, oneAtATime, playMp3, primeSpeech, speakLine, tableVoiceName, tableVoiceOn, unlockAudio } from '@/lib/clerkVoice';
 
-type Phase = 'form' | 'starting' | 'live' | 'error';
+type Phase = 'form' | 'checking' | 'voice' | 'starting' | 'live' | 'error';
 type Link = 'connecting' | 'open' | 'reconnecting' | 'lost';
 
 const NAME_KEY = 'imt.joinName';
@@ -174,6 +175,19 @@ export default function JoinPage() {
     }
   }, [name, token, onMessage, onPcm, keepAwake]);
 
+  // Step 2 of joining: teach the table this voice first (skipped when the roster already knows the name).
+  const begin = useCallback(async () => {
+    const n = name.trim();
+    if (!n) return;
+    try { localStorage.setItem(NAME_KEY, n); } catch { /* ignore */ }
+    unlockAudio();
+    primeSpeech();
+    setError('');
+    setPhase('checking');
+    if (await voiceAlreadyKnown(token, n)) void join();
+    else setPhase('voice');
+  }, [name, token, join]);
+
   const leave = useCallback(() => {
     mic.current?.stop();
     mic.current = null;
@@ -208,20 +222,24 @@ export default function JoinPage() {
         </div>
       )}
 
-      {(phase === 'form' || phase === 'starting') && (
-        <form className="my-auto flex flex-col gap-4 py-10" onSubmit={(e) => { e.preventDefault(); void join(); }}>
+      {(phase === 'form' || phase === 'checking' || phase === 'starting') && (
+        <form className="my-auto flex flex-col gap-4 py-10" onSubmit={(e) => { e.preventDefault(); void begin(); }}>
           <label className="block">
             <span className="mb-2 block text-[1.176rem] font-bold">Your name</span>
             <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" maxLength={40}
               placeholder="e.g. Joyce" enterKeyHint="go"
               className="h-16 w-full rounded-xl border border-rule bg-cream px-4 text-[1.176rem] text-ink placeholder:text-ink-2" />
           </label>
-          <button type="submit" disabled={!name.trim() || phase === 'starting'}
+          <button type="submit" disabled={!name.trim() || phase !== 'form'}
             className="h-16 w-full cursor-pointer rounded-full bg-amber text-[1.176rem] font-bold text-ink disabled:cursor-default disabled:opacity-40">
-            {phase === 'starting' ? 'Starting the mic…' : 'Put me on the table'}
+            {phase === 'starting' ? 'Starting the mic…' : phase === 'checking' ? 'One moment…' : 'Put me on the table'}
           </button>
           <p className="text-[1rem] leading-snug text-ink-2">Your phone is your mic. It changes color when it’s your turn to slow down.</p>
         </form>
+      )}
+
+      {phase === 'voice' && (
+        <VoiceStep name={name.trim()} token={token} onGesture={() => { unlockAudio(); primeSpeech(); }} onDone={() => void join()} />
       )}
 
       {phase === 'live' && (

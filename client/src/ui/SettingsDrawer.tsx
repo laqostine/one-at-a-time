@@ -43,6 +43,12 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
     return () => window.speechSynthesis.removeEventListener?.('voiceschanged', on);
   }, []);
   const voices = voicesFor(lang);
+  const [roomToken, setRoomToken] = useState('');
+  useEffect(() => {
+    let dead = false;
+    fetch('/api/room').then((r) => (r.ok ? r.json() : null)).then((j: { token?: string } | null) => { if (!dead && j?.token) setRoomToken(j.token); }).catch(() => {});
+    return () => { dead = true; };
+  }, []);
   return (
     <Modal title="Settings" onClose={() => { save(); onClose(); }} variant="sheet">
       <div className="space-y-6">
@@ -106,6 +112,14 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
           )}
         </div>
 
+        <a href={`/enroll.html${roomToken ? `?token=${encodeURIComponent(roomToken)}` : ''}`} target="_blank" rel="noreferrer"
+          className="flex min-h-16 items-center justify-between gap-4 border-b border-rule py-3 text-left">
+          <span className="min-w-0">
+            <span className="block text-[1.06rem] font-bold text-ink">Teach the table your voices</span>
+            <span className="block text-[0.94rem] leading-snug text-ink-2">One phone for everyone: each person talks 5 s, lines get their name by voice.</span>
+          </span>
+          <span aria-hidden className="text-ink-2">›</span>
+        </a>
         <JoinLink hostName={me.name} clerkSpeaks={prefs.clerkSpeaks} clerkVoice={prefs.clerkVoice} count={participantCount} />
         {captionsOnly && <p className="oat-label">Browser captions only · speakers not told apart</p>}
         <p className="oat-label">Nothing is stored · audio stays in memory 15 min</p>
