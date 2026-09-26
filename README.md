@@ -8,6 +8,7 @@ cd server && npm run dev      # :8787
 cd client && npm run dev      # :5174 (proxies /api and /ws to :8787)
 ```
 Replay mode (no mic/keys for ASR): open `http://localhost:5174/?replay=demo2` (Sunday lunch: the family table, the primary demo; add `&speed=2` to hurry it). The work standup is still at `?replay=demo1`.
+Audible replay: `/?replay=demo2&sound=1` (click the page once to unlock audio) — plays the recorded family lines aloud in three distinct voices (Mom/Dad/Joyce), timed to overlap exactly like the on-screen captions. Regenerate the per-line clips with `node tools/render-replay-audio.mjs demo2 demo1` (needs macOS `say` + `ffmpeg`/`ffprobe`).
 Plan: ~/.claude/plans/hidden-moseying-wind.md · Research: research/
 
 ## "Everyone joins" mode (no diarization guessing)

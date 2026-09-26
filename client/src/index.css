@@ -324,3 +324,8 @@ html.io .reveal.is-in { opacity: 1; transform: none; }
 
 /* Things printed on linen/paper: doubt words stay readable in ink. */
 .linen .doubt, .paper .doubt, .dish .doubt { color: color-mix(in oklab, var(--ink) 72%, var(--linen)); }
+
+/* The map: the current topic breathes (1.2 s). Reduced motion: static. */
+@keyframes oat-pulse { 0% { transform: scale(1); opacity: .55; } 100% { transform: scale(1.6); opacity: 0; } }
+.oat-pulse { transform-box: fill-box; transform-origin: center; animation: oat-pulse 1.2s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .oat-pulse { animation: none; opacity: 0; } }

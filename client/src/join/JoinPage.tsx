@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AsrMessage, PaceLevel } from '../../../shared/types';
 import { startMic, type MicHandle } from '../audio/mic';
-import { Lamp, lampTone } from './Lamp';
+import { Lamp, lampTone, type LampMood } from './Lamp';
 import { SayCard, type SayMsg } from './SayCard';
 import { adoptTableVoiceParams, oneAtATime, playMp3, primeSpeech, speakLine, tableVoiceName, tableVoiceOn, unlockAudio } from '@/lib/clerkVoice';
 
@@ -45,6 +45,7 @@ export default function JoinPage() {
   const wake = useRef<WakeLockLike | null>(null);
   const mutedRef = useRef(false);
   const [pace, setPace] = useState<Pace | null>(null);
+  const [mood, setMood] = useState<LampMood | null>(null);
   const lastBuzz = useRef(0);
   const lastTone = useRef<string>('');
   // The lamp is the screen; a tap shows Mute / Leave for 6 s.
@@ -83,7 +84,7 @@ export default function JoinPage() {
       setPace({ wpm: m.wpm, level: m.level, overlap: m.overlap, listenerName: m.listenerName });
       // Vibrate on every color change, max once per 10 s.
       const tone = lampTone({ wpm: m.wpm, level: m.level, overlap: m.overlap }, mutedRef.current);
-      if (tone !== lastTone.current && lastTone.current !== '' && Date.now() - lastBuzz.current > BUZZ_EVERY_MS) {
+      if (tone === 'amber' && lastTone.current === 'good' && Date.now() - lastBuzz.current > BUZZ_EVERY_MS) {
         lastBuzz.current = Date.now();
         try { navigator.vibrate?.(120); } catch { /* unsupported */ }
       }
@@ -104,6 +105,7 @@ export default function JoinPage() {
       }
       return;
     }
+    if (m.type === 'mood') { setMood({ table: m.table, mine: m.mine }); return; }
     if (m.type === 'say') {
       setSay({ name: m.name, text: m.text, t: m.t });
       try { navigator.vibrate?.(200); } catch { /* unsupported */ }
@@ -223,7 +225,7 @@ export default function JoinPage() {
       )}
 
       {phase === 'live' && (
-        <Lamp pace={muted ? null : pace} muted={muted} host={host} name={name.trim()} status={status}
+        <Lamp pace={muted ? null : pace} muted={muted} host={host} name={name.trim()} status={status} mood={mood}
           onTap={() => setRevealUntil(Date.now() + 8_000)} />
       )}
       {phase === 'live' && revealUntil > 0 && (

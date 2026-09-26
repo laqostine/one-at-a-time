@@ -4,7 +4,7 @@ import { Fragment, useEffect } from 'react';
 const NUMBERS = [
   '50M in the EU report trouble hearing',
   'Family table is the #1 place they want to hear, 56%',
-  'Only 4% of non-speech info reaches captions',
+  'Only 4% of sampled videos caption non-speech sound',
 ];
 
 export default function Landing() {

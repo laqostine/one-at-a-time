@@ -49,14 +49,30 @@ const sentenceCls = (len: number) => cn('font-display-italic text-ink',
   len > 90 ? 'text-[1.882rem] leading-[1.15] lg:text-[2.6rem]' : 'text-[2.353rem] leading-[1.1] lg:text-[3.294rem]');
 const nameCls = 'flex min-h-11 items-center gap-2.5 text-[1.176rem] leading-[1.2] font-bold text-ink';
 
-export function Sentence({ utt, name, color, onSpeaker, onAskRepeat }: {
+/** The previous final line, faint, above the sentence: Fraunces italic at 55% of the sentence size. */
+function PrevLine({ prev, big }: { prev?: { utt: Utterance; name: string }; big: boolean }) {
+  if (!prev) return null;
+  return (
+    <p key={prev.utt.id} className="oat-in mb-3 flex min-w-0 items-baseline gap-2 opacity-60" aria-label={`Before: ${prev.name}: ${prev.utt.text}`}>
+      <span className="shrink-0 font-mono text-[11px] tracking-[.14em] text-ink-2 uppercase">{prev.name}</span>
+      <span className={cn('min-w-0 truncate font-display-italic leading-[1.2] text-ink-2', big ? 'text-[1.294rem] lg:text-[1.812rem]' : 'text-[1.035rem] lg:text-[1.43rem]')}>
+        {prev.utt.text}
+      </span>
+    </p>
+  );
+}
+
+export function Sentence({ utt, name, color, onSpeaker, onAskRepeat, prev }: {
   utt?: Utterance; name: string; color: string; onSpeaker: () => void; onAskRepeat: (u: Utterance) => void;
+  prev?: { utt: Utterance; name: string };
 }) {
   if (!utt) {
     return <p className={cn(sentenceCls(0), 'oat-in text-ink-2')}>Nobody is talking yet.</p>;
   }
   return (
-    <div key={utt.id} className="oat-in" aria-live="polite">
+    <div key={utt.id} className="oat-in">
+      <PrevLine prev={prev} big={utt.text.length <= 90} />
+      <div aria-live="polite">
       <button type="button" onClick={utt.speaker >= 0 ? onSpeaker : undefined} disabled={utt.speaker < 0}
         aria-label={utt.speaker >= 0 ? `${name}. Tap to rename.` : name}
         className={cn(nameCls, 'mb-1 cursor-pointer disabled:cursor-default')}>
@@ -67,6 +83,7 @@ export function Sentence({ utt, name, color, onSpeaker, onAskRepeat }: {
       <p className={cn(sentenceCls(utt.text.length), 'line-clamp-[7]', !utt.final && 'text-ink/70')}>
         <UttText utt={utt} speaker={name} onAskRepeat={onAskRepeat} />
       </p>
+      </div>
     </div>
   );
 }

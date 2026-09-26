@@ -13,7 +13,7 @@ Three phones on a table. Two belong to hearing people and are lamps. One belongs
 --rule     #D9D0C0   hairline (1px) where a separation is unavoidable
 --amber    #E4A73A   the only accent: "asked you", "one at a time", the button
 --go       #4C8C5C   lamp: go ahead
---stop     #B8402E   lamp: too fast
+--stop     #B8402E   (unused: the lamp has no red state)
 --night    #17130F   lamp text on colored screens is cream; on cream screens ink
 ```
 No gradients. No shadows. No borders except `--rule`. No rounded corners above 12px except the one button (999px pill).
@@ -67,16 +67,17 @@ After joining, the screen is a single color with a single word:
 │                              │
 │                              │
 │                              │
-│ one at a time helps Bera     │  body 17 cream/80 (only on amber/red)
+│ one at a time helps Bera     │  body 17 (only on amber, ink)
 └──────────────────────────────┘
 ```
-- `--go` "Go ahead" · `--amber` "One at a time" (overlap) · `--amber` "Slower" (fast) · `--stop` "Too fast".
+- Two states, two colors: `--go` "Go ahead" · `--amber` "One at a time" (overlap) or "Slower" (fast and too fast). There is no red state.
+- Mood: under the big word, Space Mono 12 at 80%: `the table feels warm` (omitted when quiet) and, only for positive tones, `you sound warm`.
 - Say card: screen turns cream, label BERA SAYS, the sentence in display italic 36 ink, tap anywhere to dismiss; if audio is attached it plays; otherwise the browser voice speaks only if the table's voice is on.
 - Tap anywhere: shows Mute / Leave for 8 s in the bottom corner, then hides.
-- Screen stays awake. Vibrate on color change, max once per 10 s.
+- Screen stays awake. Vibrate only on green → amber (never amber → amber), max once per 10 s.
 
 ### 3. Landing (`/landing.html`)
-Cream. Headline *One at a time.* at 64. One paragraph, body 22, max 34ch: *Every accessibility tool puts the burden on the deaf person. We built the other side. Everyone's phone goes on the table. When two people talk at once, their phones turn amber. The hard-of-hearing person reads one sentence at a time, and taps once to speak.* Two pills: "Open the listener" (amber) · "Put my phone on the table" (outline, ink). One line of three numbers in label style with hairline rules between: 50M IN THE EU REPORT TROUBLE HEARING · FAMILY TABLE IS THE #1 PLACE THEY WANT TO HEAR, 56% · ONLY 4% OF NON-SPEECH INFO REACHES CAPTIONS. Footer label: NOTHING IS STORED · ENGLISH ITALIAN TURKISH. No image.
+Cream. Headline *One at a time.* at 64. One paragraph, body 22, max 34ch: *Every accessibility tool puts the burden on the deaf person. We built the other side. Everyone's phone goes on the table. When two people talk at once, their phones turn amber. The hard-of-hearing person reads one sentence at a time, and taps once to speak.* Two pills: "Open the listener" (amber) · "Put my phone on the table" (outline, ink). One line of three numbers in label style with hairline rules between: 50M IN THE EU REPORT TROUBLE HEARING · FAMILY TABLE IS THE #1 PLACE THEY WANT TO HEAR, 56% · ONLY 4% OF SAMPLED VIDEOS CAPTION NON-SPEECH SOUND. Footer label: NOTHING IS STORED · ENGLISH ITALIAN TURKISH. No image.
 
 ### Desktop
 The listener page centered at 640px on cream, same layout, sentence 56. Nothing else. The old table view stays unmounted.
@@ -87,7 +88,7 @@ The listener page centered at 640px on cream, same layout, sentence 56. Nothing 
 - Sheets: slide up 200 ms. Reduced motion: no movement, instant swaps.
 
 ## Accessibility
-Ink on cream 15:1; cream on go 4.9:1, on amber 4.5:1 (use ink on amber for text ≤24px), on stop 6.2:1. Body ≥17, sentence ≥32. Targets ≥56px. `aria-live="polite"` on the sentence, `assertive` on the ask. Focus ring: 3px ink offset 2px. All controls reachable by keyboard.
+Ink on cream 15:1; cream on go 4.9:1, on amber 4.5:1 (use ink on amber for text ≤24px). Body ≥17, sentence ≥32. Targets ≥56px. `aria-live="polite"` on the sentence, `assertive` on the ask. Focus ring: 3px ink offset 2px. All controls reachable by keyboard.
 
 ## Don't
 Icons. Cards. Shadows. Textures. Mascot. Counters. Badges. A second accent. A second font family in one screen. Anything the listener has to read while someone is talking that is not the sentence.

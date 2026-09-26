@@ -10,6 +10,8 @@ import { RenameDialog } from './ui/RenameDialog';
 import { SettingsDrawer } from './ui/SettingsDrawer';
 import { SpeakCard } from './ui/SpeakCard';
 import { TablePage, openPlans } from './ui/TablePage';
+import { MapPage } from './ui/MapPage';
+import { speakerMood, tableMood } from './lib/mood';
 import type { CatchupResponse } from '../../shared/types';
 import { Asked, CaptionList, FirstRun, Missed, Sentence, StartGate, TopLine, stateWord, useTick } from './ui/Listener';
 
@@ -28,7 +30,9 @@ export default function App() {
   // The second page ("The table"): opened by swipe up or the PLANS label, never on its own.
   const [tableOpen, setTableOpen] = useState(false);
   const [lastCatchup, setLastCatchup] = useState<{ data: CatchupResponse; title?: string } | null>(null);
-  const swipeY = useRef<number | null>(null);
+  // The third page ("The map"): swipe left or tap MAP.
+  const [mapOpen, setMapOpen] = useState(false);
+  const swipeY = useRef<{ x: number; y: number } | null>(null);
   useTick();
 
   // "Notice when I look away" (camera, on-device): coming back after >=4s opens "What did I miss?".
@@ -86,6 +90,14 @@ export default function App() {
   useEffect(() => { document.title = 'One at a time'; }, []);
 
   const now = currentUtterance(session);
+  // The previous final line (faint, above the sentence) so a second missed line isn't gone.
+  const prevUtt = useMemo(() => {
+    for (let k = session.timeline.length - 1; k >= 0; k--) {
+      const i = session.timeline[k];
+      if (i.type === 'utterance' && i.final && i.text.trim() && i.id !== now?.id && (!now || i.tStart <= now.tStart)) return i;
+    }
+    return undefined;
+  }, [session.timeline, now?.id, now?.tStart]); // eslint-disable-line react-hooks/exhaustive-deps
   const loading = s.catchup.status === 'loading';
   const renameSp = renaming != null ? session.speakers[renaming] : undefined;
   const word = stateWord(s.asr, s.listening, s.lastTranscriptAt, s.requestPending, interject.status === 'speaking', Date.now());
@@ -104,18 +116,45 @@ export default function App() {
   const laughAt = Math.max((s as { laughAt?: number }).laughAt ?? 0, lastLaughEv ? session.startedAt + lastLaughEv.t : 0);
   const laughed = Date.now() - laughAt < LAUGH_MS;
   // The ask always takes over the home: close the second page when a new question arrives.
-  useEffect(() => { if (nudge?.id) setTableOpen(false); }, [nudge?.id]);
+  useEffect(() => { if (nudge?.id) { setTableOpen(false); setMapOpen(false); } }, [nudge?.id]);
+
+  // Mood: the table's mood after the state word, and each speaker's recent tone sent to the phones.
+  const finals = useMemo(() => session.timeline.filter((i): i is Utterance => i.type === 'utterance' && i.final), [session.timeline]);
+  const mood = tableMood(finals);
+  const moodKey = useMemo(() => {
+    const byName: Record<string, string> = {};
+    const tones = new Map<number, Utterance['tone'][]>();
+    for (const u of finals) if (u.speaker >= 0) (tones.get(u.speaker) ?? tones.set(u.speaker, []).get(u.speaker)!).push(u.tone);
+    for (const [id, ts] of tones) { const m = speakerMood(ts); if (m !== 'neutral') byName[speakerName(session, id)] = m; }
+    return JSON.stringify({ table: mood, speakers: byName });
+  }, [finals, mood, session]);
+  const moodSent = useRef({ key: '', at: 0 });
+  useEffect(() => {
+    if (moodKey === moodSent.current.key) return;
+    const wait = Math.max(0, 3_000 - (Date.now() - moodSent.current.at));
+    const id = window.setTimeout(() => {
+      moodSent.current = { key: moodKey, at: Date.now() };
+      void fetch('/api/room/mood', { method: 'POST', headers: { 'content-type': 'application/json' }, body: moodKey }).catch(() => {});
+    }, wait);
+    return () => window.clearTimeout(id);
+  }, [moodKey]);
   const planCount = openPlans(session.ledger).length;
   const nudgeColor = nudge?.speakerId != null ? colorOf(nudge.speakerId) : colorFor(nudge?.speaker);
 
   return (
     <div className="mx-auto flex h-dvh max-w-[640px] flex-col px-5 pt-[env(safe-area-inset-top)] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       style={nudge ? ({ ['--ink-2' as string]: 'var(--ink)' }) : undefined}
-      onTouchStart={(e) => { swipeY.current = e.touches[0].clientY; }}
-      onTouchEnd={(e) => { const y0 = swipeY.current; swipeY.current = null; if (y0 != null && !nudge && y0 - e.changedTouches[0].clientY > 70) setTableOpen(true); }}>
+      onTouchStart={(e) => { swipeY.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+      onTouchEnd={(e) => {
+        const s0 = swipeY.current; swipeY.current = null;
+        if (!s0 || nudge || tableOpen || mapOpen) return;
+        const dx = e.changedTouches[0].clientX - s0.x, dy = e.changedTouches[0].clientY - s0.y;
+        if (-dy > 70 && Math.abs(dx) < Math.abs(dy)) setTableOpen(true);
+        else if (-dx > 70 && Math.abs(dy) < 60) setMapOpen(true);
+      }}>
       {/* Asked you: the whole page turns amber for 10 s (200 ms background transition). */}
       <div aria-hidden className="fixed inset-0 -z-10 transition-colors duration-200" style={{ background: nudge ? 'var(--amber)' : 'var(--cream)' }} />
-      <TopLine word={nudge ? 'asked you' : word} onSettings={() => setSettingsOpen(true)} />
+      <TopLine word={nudge ? 'asked you' : mood !== 'quiet' ? `${word} · ${mood} table` : word} onSettings={() => setSettingsOpen(true)} />
 
       <main className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden py-4">
         {nudge ? (
@@ -125,7 +164,8 @@ export default function App() {
         ) : (
           <>
             <Sentence utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
-              onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat} />
+              onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat}
+              prev={prevUtt ? { utt: prevUtt, name: nameOf(prevUtt.speaker) } : undefined} />
             <p className={`oat-label mt-6 min-h-4 transition-opacity duration-200 ${laughed ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
               {laughed ? 'The table laughed' : ''}
             </p>
@@ -147,16 +187,23 @@ export default function App() {
           className="mt-1 h-14 w-full cursor-pointer rounded-xl text-[1rem] font-medium text-ink-2 underline-offset-4 hover:underline focus-visible:underline disabled:cursor-default">
           {loading ? 'Catching you up…' : 'What did I miss?'}
         </button>
-        <button type="button" onClick={() => setTableOpen(true)} aria-label={`Plans: ${planCount} open. Open the table.`}
-          className={`oat-label -mt-1 h-14 w-full cursor-pointer hover:text-ink ${planCount ? '' : 'invisible'}`} data-testid="plans-label">
-          Plans · {planCount}
-        </button>
+        <div className="-mt-1 flex justify-center gap-6">
+          <button type="button" onClick={() => setTableOpen(true)} aria-label={`Plans: ${planCount} open. Open the table.`}
+            className={`oat-label h-14 min-w-14 cursor-pointer px-2 hover:text-ink ${planCount ? '' : 'hidden'}`} data-testid="plans-label">
+            Plans · {planCount}
+          </button>
+          <button type="button" onClick={() => setMapOpen(true)} aria-label="Open the map of the conversation"
+            className="oat-label h-14 min-w-14 cursor-pointer px-2 hover:text-ink" data-testid="map-label">
+            Map
+          </button>
+        </div>
       </div>
 
       {tableOpen && (
         <TablePage ledger={session.ledger} nudge={nudge} lastCatchup={lastCatchup}
           onAnswerNudge={s.dismissNudge} onClose={() => setTableOpen(false)} />
       )}
+      {mapOpen && <MapPage session={session} onClose={() => setMapOpen(false)} />}
       {renameSp && (
         <RenameDialog speaker={renameSp} current={nameOf(renameSp.id)}
           others={Object.values(session.speakers).filter((o) => o.id !== renameSp.id).map((o) => ({ id: o.id, name: nameOf(o.id) }))}
