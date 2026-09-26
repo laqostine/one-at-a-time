@@ -21,8 +21,8 @@ export const CROSS_GAP = 0.1;
 /** Real voices on a phone mic score 0.3-0.6 against their own print (TitaNet-small); a stranger scores about the same
  *  against someone else's. With >= 2 voices the decision is RELATIVE: best clearly ahead of the runner-up and above a
  *  low floor. With 1 voice only the absolute threshold can be used. */
-export const REL_FLOOR = Number(process.env.VOICEID_REL_FLOOR) || 0.35;
-export const REL_MARGIN = Number(process.env.VOICEID_REL_MARGIN) || 0.12;
+export const REL_FLOOR = Number(process.env.VOICEID_REL_FLOOR) || 0.45;
+export const REL_MARGIN = Number(process.env.VOICEID_REL_MARGIN) || 0.15;
 /** A confidently named live line becomes a new sample: the print adapts to the room and the mic within a minute. */
 export const ADAPT_MIN_SCORE = Number(process.env.VOICEID_ADAPT_MIN) || 0.5;
 export const DEFAULT_MIN_MS = 800;
