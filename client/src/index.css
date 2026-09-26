@@ -32,6 +32,19 @@
   --radius: 1rem;
   --glow-warn: 0 0 0 1px rgb(246 185 59 / .55), 0 0 28px -4px rgb(246 185 59 / .45);
   --glow-accent: 0 0 0 1px rgb(141 182 255 / .45), 0 0 26px -6px rgb(141 182 255 / .45);
+  /* The table (physical metaphor): walnut, linen placemat, lamp light. Ink on linen is 13:1. */
+  --wood-hi: #8c4d2d;
+  --wood: #66341f;
+  --wood-lo: #3a1d16;
+  --linen: #f3e9d6;
+  --linen-lo: #e4d4b8;
+  --ink: #2b1f18;
+  --ink-muted: #6b5443;   /* 6.1:1 on --linen */
+  --lamp-light: #ffcf83;
+  /* Table lamp (mirrors the phones' lamp mode). */
+  --lamp-good: #3fcf8e;
+  --lamp-amber: #f6b93b;
+  --lamp-red: #ff5d4d;
 
   font-size: 18px; /* base; prefs S/M/L/XL overrides this only, everything else is rem */
   color-scheme: dark;
@@ -73,6 +86,10 @@
   --color-good: var(--good);
   --color-bad: var(--bad);
   --color-change: var(--change);
+  --color-linen: var(--linen);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-wood: var(--wood);
 
   /* shadcn/ui semantic tokens mapped onto the app palette */
   --color-background: var(--bg);
@@ -234,6 +251,45 @@ body::after {
 }
 :root[data-contrast="high"] body::after { display: none; }
 
+/* ---------- The table: room light, walnut top, linen placemat (ideas from v0 sVRM3anYDGB / j3Vmfa0IsRr) ---------- */
+/* The room: a warm pool of lamp light from above, vignette toward the walls. */
+@utility room-light {
+  background:
+    radial-gradient(70rem 42rem at 50% 30%, rgb(255 207 131 / .075), transparent 62%),
+    radial-gradient(120% 90% at 50% 40%, transparent 55%, rgb(0 0 0 / .35));
+}
+/* Walnut top: lamp hot-spot + fine grain + a warm radial body, with a rim and a drop shadow. */
+@utility wood {
+  background:
+    radial-gradient(ellipse at 45% 32%, rgb(255 207 131 / .26), transparent 42%),
+    repeating-linear-gradient(96deg, rgb(60 28 17 / .16) 0px, rgb(109 54 29 / .12) 4px, rgb(42 18 12 / .18) 9px, transparent 16px),
+    repeating-linear-gradient(88deg, transparent 0 38px, rgb(30 12 8 / .14) 39px, transparent 41px),
+    radial-gradient(ellipse at 50% 38%, var(--wood-hi), var(--wood) 55%, var(--wood-lo) 100%);
+  box-shadow: inset 0 0 0 10px rgb(40 19 13 / .38), inset 0 0 40px 14px rgb(25 11 8 / .55), 0 28px 60px -12px rgb(0 0 0 / .75);
+}
+/* Linen: woven lines on warm off-white. Text on it uses --ink / --ink-muted. */
+@utility linen {
+  color: var(--ink);
+  background:
+    repeating-linear-gradient(0deg, rgb(90 70 49 / .035) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgb(90 70 49 / .03) 0 1px, transparent 1px 5px),
+    radial-gradient(ellipse at 40% 18%, #fffaf0, var(--linen) 55%, var(--linen-lo));
+  box-shadow: 0 8px 18px -6px rgb(28 13 8 / .55), inset 0 0 18px rgb(139 105 67 / .14);
+}
+/* A dish: a warm card resting on the table edge. */
+@utility dish {
+  background: linear-gradient(180deg, color-mix(in oklab, #41271c 70%, var(--card)), var(--card));
+  border: 1px solid rgb(221 179 127 / .22);
+  box-shadow: inset 0 1px 0 0 rgb(255 230 190 / .06), 0 14px 30px -18px rgb(0 0 0 / .8);
+}
+:root[data-contrast="high"] .wood, :root[data-contrast="high"] .dish { background: var(--card); box-shadow: none; border: 2px solid var(--line-strong); }
+:root[data-contrast="high"] .linen { background: #ffffff; color: #000; box-shadow: none; }
+/* Table lamp halo breathes slowly under the table in the lamp color. */
+@keyframes imt-lamp { 0%, 100% { opacity: .55; } 50% { opacity: .85; } }
+.imt-lamp { animation: imt-lamp 5s ease-in-out infinite; }
+/* The mug slides to the new speaker's seat. */
+.mug-token { transition: left 450ms var(--ease-out-soft), top 450ms var(--ease-out-soft), opacity 200ms; }
+
 /* Say card countdown ring (10 s): the stroke drains once. */
 @keyframes imt-countdown { from { stroke-dashoffset: 0; } to { stroke-dashoffset: var(--ring-len, 151); } }
 .imt-countdown { animation: imt-countdown var(--ring-ms, 10000ms) linear forwards; }
@@ -246,7 +302,7 @@ html.io .reveal { opacity: 0; transform: translateY(18px); transition: opacity 7
 html.io .reveal.is-in { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .imt-pulse, .imt-skeleton, .imt-flash, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .animate-spin { animation: none !important; }
+  .imt-pulse, .imt-skeleton, .imt-flash, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .imt-lamp, .animate-spin { animation: none !important; }
   html.io .reveal { opacity: 1; transform: none; }
   *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }

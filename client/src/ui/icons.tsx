@@ -141,3 +141,54 @@ export const IconLedger = make('ledger', <>
   <path d="M5.5 18.5a2 2 0 0 1 2-2h11" />
   <path d="M9 7.5h6M9 10.5h6" />
 </>);
+
+/* ---------- Table objects (the family-table metaphor) ---------- */
+
+/** Mug: the talking token. Whoever holds it has the floor. */
+export const IconMug = make('mug', <>
+  <path d="M5 8.5h10.5v7A4.5 4.5 0 0 1 11 20h-1.5A4.5 4.5 0 0 1 5 15.5Z" />
+  <path d="M15.5 10h1.6a2.6 2.6 0 0 1 0 5.2h-1.8" />
+  <path d="M8.5 3.5c-.6.9.6 1.6 0 2.6M12 3.5c-.6.9.6 1.6 0 2.6" />
+</>);
+
+/** Lamp: the table's light (green calm, amber overlap, red too fast). */
+export const IconLamp = make('lamp', <>
+  <path d="M12 2.5v3.5" />
+  <path d="M6 13a6 6 0 0 1 12 0Z" />
+  <path d="M10.2 15.8a1.8 1.8 0 0 0 3.6 0" />
+  <path d="M4.5 19.5l1.4-1.4M19.5 19.5l-1.4-1.4M12 21.5v-1.8" />
+</>);
+
+/** Chair: a seat at the table (faint when empty). */
+export const IconChair = make('chair', <>
+  <path d="M7 3.5h10v7.5H7Z" />
+  <path d="M5.5 11h13v3h-13Z" />
+  <path d="M7 14v6.5M17 14v6.5" />
+</>);
+
+/** Placemat: where the sentence being said right now lies. */
+export const IconPlacemat = make('placemat', <>
+  <rect x="3" y="6" width="18" height="12" rx="3" />
+  <path d="M6.5 10h11M6.5 14h7" />
+</>);
+
+/** Plate: a dish on the table (Plans, Asked you, Why they laughed). */
+export const IconPlate = make('plate', <>
+  <circle cx="12" cy="12" r="8.5" />
+  <circle cx="12" cy="12" r="4.8" />
+  <path d="M2.5 5v4a1.5 1.5 0 0 0 3 0V5M4 9v10.5M21.5 5c-1.5 0-2.5 2-2.5 4.5 0 1.2.7 1.7 1.5 1.7V19.5" />
+</>);
+
+/** Laugh: a smile with two crinkled eyes (why they laughed). */
+export const IconLaugh = make('laugh', <>
+  <circle cx="12" cy="12" r="8.5" />
+  <path d="M8 9.8q1.2-1.3 2.4 0M13.6 9.8q1.2-1.3 2.4 0" />
+  <path d="M7.8 13.3h8.4a4.2 4.2 0 0 1-8.4 0Z" />
+</>);
+
+/** House rules: a card pinned with a magnet. */
+export const IconRules = make('rules', <>
+  <rect x="4.5" y="5" width="15" height="15.5" rx="2" />
+  <circle cx="12" cy="4.6" r="1.6" />
+  <path d="M8 10h8M8 13.3h8M8 16.6h5" />
+</>);
