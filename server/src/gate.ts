@@ -12,7 +12,7 @@ const GATE_TIMEOUT_MS = 2_500;
 //  - 'tool' (GATE_MODE=tool): forced tool `gate`. Haiku's tool_use costs ~85 output tokens for these 4 fields
 //    (measured; max_tokens 12/40/60 all truncate), so it runs ~1.1-1.3 s. Kept for A/B.
 export const GATE_MODE: 'text' | 'tool' = process.env.GATE_MODE === 'tool' ? 'tool' : 'text';
-export const GATE_MAX_TOKENS = Number(process.env.GATE_MAX_TOKENS) || (GATE_MODE === 'tool' ? 120 : 12);
+export const GATE_MAX_TOKENS = Number(process.env.GATE_MAX_TOKENS) || (GATE_MODE === 'tool' ? 120 : 16); // text: addressed lines use exactly 12 tokens -> 16 = margin
 const KINDS = ['decision', 'objection', 'open_question', 'instruction_change', 'assigned_to_me', 'chatter'] as const;
 const CONF_P = { high: 0.9, medium: 0.65, low: 0.4 } as const;
 type Conf = keyof typeof CONF_P;
