@@ -1,5 +1,6 @@
 // A past table: where and when, and the notes the clerk took there. Same typography as "The table": hairlines, no cards.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { getTable, type NoteRow, type TableRow } from '@/lib/notesDb';
 
 const PREFIX: Record<string, string> = { objection: 'Pushback', open_question: 'Question', instruction_change: 'Changed', assigned_to_me: 'Asked of you', missed: 'Missed' };
@@ -42,8 +43,8 @@ export function NotesPage({ id, onClose }: { id: string; onClose: () => void }) 
   const asked = notes.filter((n) => n.kind === 'assigned_to_me');
   const missed = notes.filter((n) => n.kind === 'missed');
   const other = notes.filter((n) => !plans.includes(n) && !asked.includes(n) && !missed.includes(n));
-  return (
-    <div role="dialog" aria-modal="true" aria-label="A past table" className="oat-up font-notes fixed inset-0 z-[90] overflow-y-auto bg-cream text-ink"
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label="A past table" className="oat-up font-notes fixed inset-0 z-[1200] overflow-y-auto bg-cream text-ink"
       onTouchStart={(e) => { touchY.current = e.touches[0].clientY; }}
       onTouchEnd={(e) => { const y0 = touchY.current; touchY.current = null; if (y0 != null && e.changedTouches[0].clientY - y0 > 70) onClose(); }}
       onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
@@ -72,6 +73,7 @@ export function NotesPage({ id, onClose }: { id: string; onClose: () => void }) 
         {other.length > 0 && <Section title="Notes"><ul className="divide-y divide-rule">{other.map((n) => <Line key={n.id} n={n} />)}</ul></Section>}
         {!data && !err && <Empty>Loading…</Empty>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

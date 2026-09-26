@@ -14,7 +14,9 @@ function Map({ tables, onPick }: { tables: TableRow[]; onPick: (id: string) => v
   useEffect(() => {
     if (!el.current || map.current) return;
     const m = L.map(el.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: false });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(m);
+    const key = import.meta.env.VITE_CARTO_KEY as string | undefined;
+    if (key) L.tileLayer(`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(key)}`, { maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(m);
+    else L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors', className: 'oat-tiles' }).addTo(m);
     L.control.zoom({ position: 'bottomright' }).addTo(m);
     map.current = m;
     return () => { m.remove(); map.current = null; };
@@ -48,7 +50,7 @@ export function PlacesPage({ onClose }: { onClose: () => void }) {
   }, []);
   const pinned = (tables ?? []).filter((t) => t.lat != null).length;
   return (
-    <div role="dialog" aria-modal="true" aria-label="Places" className="oat-up font-notes fixed inset-0 z-50 overflow-y-auto bg-cream text-ink"
+    <div role="dialog" aria-modal="true" aria-label="Places" className="oat-up font-notes fixed inset-0 z-[1100] overflow-y-auto bg-cream text-ink"
       onTouchStart={(e) => { touchY.current = e.touches[0].clientY; }}
       onTouchEnd={(e) => { const y0 = touchY.current; touchY.current = null; if (y0 != null && e.changedTouches[0].clientY - y0 > 70 && !open) onClose(); }}
       onKeyDown={(e) => { if (e.key === 'Escape' && !open) onClose(); }}>
