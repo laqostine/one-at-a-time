@@ -193,6 +193,52 @@ function FullPage({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
+/** Main menu (first open): who is this phone for? The listener stays here; a speaker goes to the lamp page. */
+export type Role = 'listener' | 'speaker';
+export function loadRole(): Role | null {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('menu')) { localStorage.removeItem('imt.role'); return null; }
+    if (q.get('me')) return 'listener';
+    const v = localStorage.getItem('imt.role');
+    return v === 'listener' ? 'listener' : null;
+  } catch { return null; }
+}
+export function saveRole(role: Role) { try { localStorage.setItem('imt.role', role); } catch { /* ignore */ } }
+export async function goToPhone(): Promise<void> {
+  let token = '';
+  try {
+    const r = await fetch('/api/room');
+    if (r.ok) token = ((await r.json()) as { token?: string }).token ?? '';
+  } catch { /* offline */ }
+  const q = new URLSearchParams();
+  if (token) q.set('token', token);
+  q.set('voice', '1');
+  window.location.href = `/join.html?${q.toString()}`;
+}
+export function RoleGate({ onListener }: { onListener: () => void }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <FullPage label="Who is this phone for?">
+      <div className="my-auto flex flex-col gap-6 py-10">
+        <h1 className="font-display-italic text-[2.353rem] leading-none">Who is this phone for?</h1>
+        <p className="text-[1.176rem] text-ink-2">One phone reads. Every other phone goes on the table and becomes a lamp.</p>
+        <button type="button" onClick={onListener} data-testid="role-listener"
+          className="flex h-20 w-full cursor-pointer flex-col items-center justify-center rounded-full bg-amber text-ink">
+          <span className="text-[1.176rem] font-bold">I’m reading</span>
+          <span className="text-[0.94rem]">the hard-of-hearing person</span>
+        </button>
+        <button type="button" disabled={busy} onClick={() => { setBusy(true); void goToPhone(); }} data-testid="role-speaker"
+          className="flex h-20 w-full cursor-pointer flex-col items-center justify-center rounded-full border-2 border-ink text-ink disabled:opacity-50">
+          <span className="text-[1.176rem] font-bold">{busy ? 'Opening…' : 'I’m talking'}</span>
+          <span className="text-[0.94rem]">put my phone on the table</span>
+        </button>
+        <p className="oat-label">Nothing is stored</p>
+      </div>
+    </FullPage>
+  );
+}
+
 export function FirstRun({ onDone }: { onDone: (name: string) => void }) {
   const [name, setName] = useState('');
   return (

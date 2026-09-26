@@ -4,6 +4,7 @@ import type { Session } from '../../../shared/types';
 import { FONT_PX, type FontSize, type Prefs } from './prefs';
 import { Modal } from './Modal';
 import { JoinLink } from './JoinQr';
+import { goToPhone } from './Listener';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -120,6 +121,13 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
           </span>
           <span aria-hidden className="text-ink-2">›</span>
         </a>
+        <button type="button" onClick={() => void goToPhone()} className="flex w-full cursor-pointer items-center justify-between border-t border-rule py-4 text-left">
+          <span>
+            <span className="block text-[1.06rem] font-bold text-ink">Use this phone as a speaker instead</span>
+            <span className="block text-[0.94rem] leading-snug text-ink-2">Goes to the lamp page. Someone else reads.</span>
+          </span>
+          <span aria-hidden className="text-ink-2">›</span>
+        </button>
         <JoinLink hostName={me.name} clerkSpeaks={prefs.clerkSpeaks} clerkVoice={prefs.clerkVoice} count={participantCount} />
         {captionsOnly && <p className="oat-label">Browser captions only · speakers not told apart</p>}
         <p className="oat-label">Nothing is stored · audio stays in memory 15 min</p>
