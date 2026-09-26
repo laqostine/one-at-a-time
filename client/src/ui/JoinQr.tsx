@@ -8,6 +8,12 @@ interface Props {
   participants: Participant[];
   colorOf: (id: number) => string;
   onClose: () => void;
+  /** effective: this device's mic is muted because phones are joined */
+  phonesOnly?: boolean;
+  /** null = user hasn't chosen (defaults ON once a phone joins) */
+  phonesOnlyPref?: boolean | null;
+  onPhonesOnly?: (v: boolean) => void;
+  table?: { overlap: boolean; avgWpm: number } | null;
 }
 
 /** Prefer the origin this page was actually served from (tunnel / LAN) over the server's guess. */
@@ -17,7 +23,7 @@ function joinUrlFor(info: RoomInfo): string {
   return info.joinUrl;
 }
 
-export function JoinQr({ participants, colorOf, onClose }: Props) {
+export function JoinQr({ participants, colorOf, onClose, phonesOnly = false, phonesOnlyPref = null, onPhonesOnly, table }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -69,6 +75,31 @@ export function JoinQr({ participants, colorOf, onClose }: Props) {
             </li>
           ))}
         </ul>
+      )}
+      {participants.length > 0 && table && (table.avgWpm > 0 || table.overlap) && (
+        <p className={`mt-3 text-sm ${table.overlap ? 'font-semibold text-bad' : 'text-muted'}`} data-testid="table-pace" role="status">
+          {table.overlap ? 'Two people are talking at once. ' : ''}{table.avgWpm > 0 ? `Table pace ${table.avgWpm} wpm` : ''}
+        </p>
+      )}
+      {onPhonesOnly && (
+        <div className="mt-5 rounded-xl border border-line p-3" data-testid="phones-only">
+          <label className="flex items-start gap-3">
+            <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-[var(--color-accent)]"
+              checked={phonesOnlyPref ?? true} onChange={(e) => onPhonesOnly(e.target.checked)} />
+            <span>
+              <span className="block font-semibold">Use phones only (mute this device’s mic)</span>
+              <span className="block text-sm text-muted">Stops the same line showing up twice when this device also hears the phones.</span>
+            </span>
+          </label>
+          {participants.length > 0 && (
+            <p className="mt-2 text-sm" role="status" aria-live="polite">
+              {phonesOnly
+                ? (phonesOnlyPref == null ? 'A phone joined, so this device’s mic is now muted. Captions come from the phones.' : 'This device’s mic is muted. Captions come from the phones.')
+                : 'This device’s mic is on too. Lines heard by both are merged.'}
+            </p>
+          )}
+          {participants.length === 0 && <p className="mt-2 text-sm text-muted">Turns on when the first phone joins.</p>}
+        </div>
       )}
     </Modal>
   );

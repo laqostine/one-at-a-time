@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import WebSocket from 'ws';
 import type { AsrMessage, Participant, RoomInfo } from '../../shared/types';
+import { paceLevel } from '../../shared/types';
 
 /** Participant speaker ids start here so they never collide with Deepgram diarization ids (0..n). */
 export const PARTICIPANT_ID_BASE = 100;
@@ -18,6 +19,15 @@ export type Role = 'host' | 'participant';
 
 interface PSock { name: string; id: number; speakingUntil: number }
 
+// ---- pace + overlap (see research: DHH caption comprehension drops above ~170 wpm; crosstalk is the top failure) ----
+const PACE_WINDOW_MS = 20_000;   // rolling window of final transcripts
+const PACE_MIN_SPEECH_MS = 2_000; // below this much speech in the window, report 0 (no reading yet)
+const OVERLAP_WINDOW_MS = 1_500;  // two sources voiced inside the same 1.5 s => overlap
+const OVERLAP_MIN_VOICED_MS = 300; // per source, so a cough or one bled chunk doesn't count
+const PACE_EVERY_MS = 2_000;
+const HOST_SOURCE = 'host';
+interface FinalRec { at: number; words: number; durMs: number }
+
 export class Room {
   readonly token: string;
   private hosts = new Set<WebSocket>();
@@ -27,6 +37,11 @@ export class Room {
   hostEpoch: number | null = null;
   private lastListJson = '';
   private tick: NodeJS.Timeout | undefined;
+  private paceTick: NodeJS.Timeout | undefined;
+  /** Host's own name (POST /api/room/me) — phones say "Good pace for <name>". */
+  meName = '';
+  private finals = new Map<number, FinalRec[]>();          // participant id -> recent finals
+  private voiced = new Map<string, { at: number; ms: number }[]>(); // source -> voiced chunks
 
   constructor(token: string) { this.token = token; }
 
@@ -47,6 +62,7 @@ export class Room {
     const p: PSock = { name, id: this.idFor(name), speakingUntil: 0 };
     this.parts.set(ws, p);
     this.ensureTick();
+    this.ensurePaceTick();
     this.pushList(true);
     return p;
   }
@@ -67,7 +83,77 @@ export class Room {
     const shift = participantEpoch - (this.hostEpoch ?? participantEpoch);
     const out: AsrMessage = { ...m, speaker: p.id, name: p.name, tStart: Math.max(0, m.tStart + shift), tEnd: Math.max(0, m.tEnd + shift) };
     if (m.text.trim()) this.touch(p);
+    if (m.final) this.recordFinal(p.id, m.text, m.tEnd - m.tStart);
     for (const h of this.hosts) this.sendTo(h, out);
+  }
+
+  /** A voiced PCM chunk from a source (participant id or the host mic); feeds overlap detection. */
+  voice(source: number | typeof HOST_SOURCE, ms: number): void {
+    const k = String(source);
+    const now = Date.now();
+    const arr = (this.voiced.get(k) ?? []).filter((v) => now - v.at <= OVERLAP_WINDOW_MS);
+    arr.push({ at: now, ms });
+    this.voiced.set(k, arr);
+  }
+  hostVoice(ms: number): void { this.voice(HOST_SOURCE, ms); }
+
+  recordFinal(id: number, text: string, durMs: number): void {
+    const words = text.trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+    if (!words) return;
+    const now = Date.now();
+    const arr = (this.finals.get(id) ?? []).filter((f) => now - f.at <= PACE_WINDOW_MS);
+    // Deepgram word timings; floor at ~0.2 s/word so a mistimed one-word final can't read as 600 wpm.
+    arr.push({ at: now, words, durMs: Math.max(durMs, words * 200) });
+    this.finals.set(id, arr);
+  }
+
+  /** Speaking rate over the rolling window: words / minutes of speech (Deepgram word timings), 0 if too little speech. */
+  wpmOf(id: number, now = Date.now()): number {
+    const arr = (this.finals.get(id) ?? []).filter((f) => now - f.at <= PACE_WINDOW_MS);
+    const words = arr.reduce((a, f) => a + f.words, 0);
+    const ms = arr.reduce((a, f) => a + f.durMs, 0);
+    if (ms < PACE_MIN_SPEECH_MS) return 0;
+    return Math.round(words / (ms / 60_000));
+  }
+
+  /** >= 2 sources each voiced >= 300 ms inside the last 1.5 s. */
+  overlap(now = Date.now()): boolean {
+    let n = 0;
+    for (const arr of this.voiced.values()) {
+      const ms = arr.reduce((a, v) => a + (now - v.at <= OVERLAP_WINDOW_MS ? v.ms : 0), 0);
+      if (ms >= OVERLAP_MIN_VOICED_MS && ++n >= 2) return true;
+    }
+    return false;
+  }
+
+  private pushPace(): void {
+    const now = Date.now();
+    const overlap = this.overlap(now);
+    const listenerName = this.meName.trim() || 'the table';
+    const active: number[] = [];
+    const seen = new Set<number>();
+    for (const [ws, p] of this.parts) {
+      const wpm = this.wpmOf(p.id, now);
+      if (!seen.has(p.id)) { seen.add(p.id); if (wpm > 0) active.push(wpm); }
+      this.sendTo(ws, { type: 'pace', wpm, level: paceLevel(wpm), overlap, listenerName });
+    }
+    const avgWpm = active.length ? Math.round(active.reduce((a, b) => a + b, 0) / active.length) : 0;
+    for (const h of this.hosts) this.sendTo(h, { type: 'table', overlap, avgWpm });
+    // drop stale sources
+    for (const [k, arr] of this.voiced) if (!arr.some((v) => now - v.at <= OVERLAP_WINDOW_MS)) this.voiced.delete(k);
+  }
+
+  private ensurePaceTick(): void {
+    if (this.paceTick) return;
+    this.paceTick = setInterval(() => {
+      if (!this.parts.size) {
+        clearInterval(this.paceTick); this.paceTick = undefined;
+        for (const h of this.hosts) this.sendTo(h, { type: 'table', overlap: false, avgWpm: 0 });
+        return;
+      }
+      this.pushPace();
+    }, PACE_EVERY_MS);
+    this.paceTick.unref();
   }
 
   list(): Participant[] {
@@ -169,5 +255,11 @@ export function registerRooms(app: FastifyInstance): void {
   app.get<{ Querystring: { token?: string } }>('/api/room/verify', async (req, reply) => {
     const ok = !!req.query.token && rooms.has(req.query.token);
     return reply.code(ok ? 200 : 401).send({ ok });
+  });
+  // Host tells the room its user's name so phones can say "Good pace for Bera".
+  app.post<{ Body: { name?: unknown } }>('/api/room/me', async (req) => {
+    const n = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 40) : '';
+    room.meName = n;
+    return { ok: true, name: n };
   });
 }

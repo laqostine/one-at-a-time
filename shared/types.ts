@@ -70,7 +70,18 @@ export type AsrMessage =
   | { type: 'transcript'; speaker: number; text: string; tStart: number; tEnd: number; final: boolean; name?: string }
   | { type: 'status'; state: 'connecting'|'open'|'closed'|'error'; detail?: string }
   // host only: who is connected via /join.html (sent on join/leave/speaking change)
-  | { type: 'participants'; list: Participant[] };
+  | { type: 'participants'; list: Participant[] }
+  // participant phones only, every 2s: THIS speaker's pace (rolling 20s, words/min of speech) + table-wide overlap
+  | { type: 'pace'; wpm: number; level: PaceLevel; overlap: boolean; listenerName: string }
+  // hosts only, every 2s while phones are joined: table-wide overlap + mean wpm of recently active speakers
+  | { type: 'table'; overlap: boolean; avgWpm: number };
+
+/** DHH caption comprehension drops above ~170 wpm: ok <150, fast 150-170, too_fast >170. */
+export type PaceLevel = 'ok'|'fast'|'too_fast';
+export const PACE_FAST_WPM = 150;
+export const PACE_TOO_FAST_WPM = 170;
+export const paceLevel = (wpm: number): PaceLevel => (wpm > PACE_TOO_FAST_WPM ? 'too_fast' : wpm >= PACE_FAST_WPM ? 'fast' : 'ok');
+// POST /api/room/me {name}: the host's own name, shown on phones ("Good pace for Bera")
 
 // "Everyone joins" mode: WS /ws/audio?role=participant&name=Alex&token=... ; GET /api/room -> RoomInfo
 export interface Participant { id: number; name: string; speaking: boolean }

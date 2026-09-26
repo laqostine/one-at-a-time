@@ -2,7 +2,7 @@
 // No transcript is shown here on purpose — the phone only sends audio.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, MicOff } from 'lucide-react';
-import type { AsrMessage } from '../../../shared/types';
+import type { AsrMessage, PaceLevel } from '../../../shared/types';
 import { startMic, type MicHandle } from '../audio/mic';
 import { Presence } from '../ui/Presence';
 
@@ -21,6 +21,59 @@ function savedName(): string {
   try { return localStorage.getItem(NAME_KEY) ?? ''; } catch { return ''; }
 }
 
+interface Pace { wpm: number; level: PaceLevel; overlap: boolean; listenerName: string }
+const PACE_MAX_WPM = 220;     // right edge of the bar
+const BUZZ_EVERY_MS = 10_000; // at most one vibration per 10 s
+
+/** The participant's main job: a big "am I easy to caption?" bar. */
+function PaceBar({ pace }: { pace: Pace | null }) {
+  const who = pace?.listenerName || 'the table';
+  if (!pace) {
+    return (
+      <div className="rounded-2xl border border-line bg-card p-5" data-testid="pace">
+        <div className="text-[1.15rem] font-semibold">Your pace</div>
+        <p className="mt-1 text-muted">Start talking — your speed shows here.</p>
+      </div>
+    );
+  }
+  const { wpm, level, overlap } = pace;
+  const tone = overlap || level === 'too_fast' ? 'bad' : level === 'fast' ? 'warn' : 'good';
+  const bar = tone === 'bad' ? 'bg-bad' : tone === 'warn' ? 'bg-warn' : 'bg-good';
+  const border = tone === 'bad' ? 'border-bad' : tone === 'warn' ? 'border-warn' : 'border-good/60';
+  const text = wpm === 0 ? `Talk normally — ${who} is following`
+    : level === 'too_fast' ? `Too fast for ${who} to follow`
+    : level === 'fast' ? `A bit fast for ${who}, slow down`
+    : `Good pace for ${who}`;
+  const pct = Math.min(100, Math.round((wpm / PACE_MAX_WPM) * 100));
+  const mark = (w: number) => `${(w / PACE_MAX_WPM) * 100}%`;
+  return (
+    <div className={`rounded-2xl border-2 ${border} bg-card p-5`} data-testid="pace" data-level={level} data-overlap={overlap}>
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="text-[1.3rem] leading-tight font-bold" role="status" aria-live="polite">{text}</div>
+        <div className="shrink-0 text-right">
+          <span className="text-[2rem] font-bold tabular-nums" data-testid="pace-wpm">{wpm || '–'}</span>
+          <span className="ml-1 text-sm text-muted">wpm</span>
+        </div>
+      </div>
+      <div className="relative mt-4 h-8 w-full overflow-hidden rounded-full bg-card-2" role="meter" aria-label="Your speaking pace"
+        aria-valuemin={0} aria-valuemax={PACE_MAX_WPM} aria-valuenow={wpm} aria-valuetext={`${wpm} words per minute, ${text}`}>
+        <div className={`h-full rounded-full ${bar} transition-[width] duration-500`} style={{ width: `${pct}%` }} />
+        <span aria-hidden className="absolute top-0 h-full w-0.5 bg-fg/40" style={{ left: mark(150) }} />
+        <span aria-hidden className="absolute top-0 h-full w-0.5 bg-fg/70" style={{ left: mark(170) }} />
+      </div>
+      <div aria-hidden className="relative mt-1 h-4 text-xs text-muted">
+        <span className="absolute -translate-x-1/2" style={{ left: mark(150) }}>150</span>
+        <span className="absolute -translate-x-1/2" style={{ left: mark(170) }}>170</span>
+      </div>
+      {overlap && (
+        <div role="alert" className="mt-3 rounded-xl bg-bad/15 px-3 py-2 text-[1.15rem] font-semibold text-bad" data-testid="pace-overlap">
+          Two people talking, one at a time helps {who}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type WakeLockLike = { release: () => Promise<void> };
 
 export default function JoinPage() {
@@ -35,6 +88,9 @@ export default function JoinPage() {
   const mic = useRef<MicHandle | null>(null);
   const wake = useRef<WakeLockLike | null>(null);
   const mutedRef = useRef(false);
+  const [pace, setPace] = useState<Pace | null>(null);
+  const lastBuzz = useRef(0);
+  const wasAlarm = useRef(false);
 
   useEffect(() => { document.title = 'Join the table · I Missed That'; }, []);
   useEffect(() => () => { mic.current?.stop(); void wake.current?.release().catch(() => {}); }, []);
@@ -53,6 +109,17 @@ export default function JoinPage() {
   }, [phase, keepAwake]);
 
   const onMessage = useCallback((m: AsrMessage) => {
+    if (m.type === 'pace') {
+      setPace({ wpm: m.wpm, level: m.level, overlap: m.overlap, listenerName: m.listenerName });
+      // One short buzz on the transition into "too fast" or "overlap", max once per 10 s.
+      const alarm = m.level === 'too_fast' || m.overlap;
+      if (alarm && !wasAlarm.current && Date.now() - lastBuzz.current > BUZZ_EVERY_MS) {
+        lastBuzz.current = Date.now();
+        try { navigator.vibrate?.(120); } catch { /* unsupported */ }
+      }
+      wasAlarm.current = alarm;
+      return;
+    }
     if (m.type !== 'status') return; // participants never see transcripts
     if (m.state === 'open') setLink('open');
     else if (m.state === 'connecting') {
@@ -114,6 +181,7 @@ export default function JoinPage() {
     void wake.current?.release().catch(() => {});
     setPhase('form');
     setLevel(0);
+    setPace(null);
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -136,8 +204,8 @@ export default function JoinPage() {
     <div className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <header>
         <div className="text-sm font-semibold tracking-wide text-accent uppercase">I Missed That</div>
-        <h1 className="mt-1 text-2xl font-bold">Join the table</h1>
-        <p className="mt-1 text-muted">Your phone becomes your microphone, so captions show your name.</p>
+        <h1 className="mt-1 text-2xl font-bold">{phase === 'live' ? name.trim() : 'Join the table'}</h1>
+        {phase !== 'live' && <p className="mt-1 text-muted">Your phone becomes your microphone, so captions show your name.</p>}
       </header>
 
       {phase === 'error' && (
@@ -176,12 +244,12 @@ export default function JoinPage() {
                 style={{ width: `${Math.round(level * 100)}%` }} />
             </div>
           </div>
+          <PaceBar pace={muted ? null : pace} />
           <button type="button" onClick={toggleMute} aria-pressed={muted}
             className={`flex h-16 items-center justify-center gap-3 rounded-2xl text-[1.2rem] font-bold ${muted ? 'bg-bad text-black' : 'bg-card-2 text-fg'}`}>
             {muted ? <MicOff size={24} aria-hidden /> : <Mic size={24} aria-hidden />}
             {muted ? 'Unmute' : 'Mute'}
           </button>
-          <p className="text-muted">Keep this screen open and your phone on the table in front of you.</p>
           <button type="button" onClick={leave} className="h-12 rounded-xl border border-line text-muted">Leave</button>
         </section>
       )}

@@ -18,6 +18,21 @@ import { SoundHistory } from './ui/SoundHistory';
 import { JoinQr } from './ui/JoinQr';
 import { SpeakCard } from './ui/SpeakCard';
 
+/** Click gate: the mic's AudioContext needs a user gesture, so a saved name shows one big button instead of auto-starting. */
+function StartGate({ name, onStart }: { name: string; onStart: () => void }) {
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-6 bg-bg px-6 text-center" role="dialog" aria-modal="true" aria-labelledby="start-gate-title">
+      <div className="text-sm font-semibold tracking-wide text-accent uppercase">I Missed That</div>
+      <h1 id="start-gate-title" className="text-2xl font-bold">Hi {name}</h1>
+      <button type="button" onClick={onStart} autoFocus data-testid="start-listening"
+        className="h-20 w-full max-w-sm rounded-2xl bg-accent text-[1.5rem] font-bold text-black hover:brightness-110">
+        Start listening
+      </button>
+      <p className="max-w-sm text-muted">Audio is transcribed live for this table only. Nothing is stored.</p>
+    </div>
+  );
+}
+
 export default function App() {
   const s = useSession();
   const { session } = s;
@@ -89,8 +104,10 @@ export default function App() {
         <SettingsDrawer me={session.me} prefs={prefs} listening={s.listening} onMe={s.setMe} onPrefs={setPrefs}
           onListening={s.setListening} onClose={() => setSettingsOpen(false)} />
       )}
-      {joinOpen && <JoinQr participants={s.participants} colorOf={colorOf} onClose={() => setJoinOpen(false)} />}
-      {!session.me.name && <Onboarding onDone={(n) => s.setMe(n, [])} />}
+      {joinOpen && <JoinQr participants={s.participants} colorOf={colorOf} onClose={() => setJoinOpen(false)}
+        phonesOnly={s.phonesOnly} phonesOnlyPref={s.phonesOnlyPref} onPhonesOnly={s.setPhonesOnly} table={s.table} />}
+      {!session.me.name && <Onboarding onDone={(n) => { s.setMe(n, []); s.start(); }} />}
+      {session.me.name && !s.started && <StartGate name={session.me.name} onStart={s.start} />}
     </div>
   );
 }

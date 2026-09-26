@@ -146,7 +146,11 @@ export function registerAsr(app: FastifyInstance): void {
           return;
         }
         const buf = Array.isArray(data) ? Buffer.concat(data) : Buffer.isBuffer(data) ? data : Buffer.from(data);
-        if (participant && isVoice(buf)) join.room.touch(participant);
+        if (isVoice(buf)) {
+          const ms = buf.length / 32; // PCM16 @ 16 kHz: 32 bytes per ms
+          if (participant) { join.room.touch(participant); join.room.voice(participant.id, ms); }
+          else join.room.hostVoice(ms);
+        }
         if (dg.readyState === WebSocket.OPEN) dg.send(buf);
         else if (dg.readyState === WebSocket.CONNECTING) {
           pending.push(buf);
