@@ -45,3 +45,7 @@ Pass = every speaker has ≥5 finals, at least one `too_fast` or overlap pace me
 2. `cd client && npm run build && ../bin/serve.sh` (production bundle on 5174, proxies /api and /ws)
 3. `bin/tunnel-named.sh` (Cloudflare named tunnel → https://table.akilion.ai)
 Rebuild after any client change: `cd client && npm run build` (preview serves the new dist immediately).
+
+### Stage
+`bin/demo.sh` starts server + production bundle + named tunnel with auto-restart and prints the links.
+Hand a judge the listener with their name in the link: `https://table.akilion.ai/?me=Ayse`.

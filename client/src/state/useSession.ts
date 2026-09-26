@@ -52,6 +52,15 @@ function replayName(): string | null {
 }
 
 function loadMe(): Session['me'] {
+  // Stage shortcut: /?me=Ayse sets (and saves) the listener's name so a judge can be handed the phone in one tap.
+  try {
+    const q = new URLSearchParams(window.location.search).get('me');
+    if (q && q.trim()) {
+      const me = { name: q.trim().slice(0, 40), aliases: [] as string[] };
+      try { localStorage.setItem('imt.me', JSON.stringify(me)); } catch { /* ignore */ }
+      return me;
+    }
+  } catch { /* no window */ }
   try {
     const raw = localStorage.getItem('imt.me');
     if (raw) { const v = JSON.parse(raw); if (typeof v?.name === 'string') return { name: v.name, aliases: Array.isArray(v.aliases) ? v.aliases : [] }; }
