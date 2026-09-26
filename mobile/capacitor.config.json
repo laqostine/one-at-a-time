@@ -1,0 +1,7 @@
+{
+  "appId": "ai.akilion.oneatatime",
+  "appName": "One at a time",
+  "webDir": "www",
+  "server": { "url": "https://table.akilion.ai", "cleartext": false },
+  "ios": { "contentInset": "automatic", "backgroundColor": "#F4EEE2" }
+}

@@ -7,3 +7,6 @@ research/reddit/*.json
 .playwright-mcp
 client/public/icons/raw/
 design/assets/raw/
+mobile/node_modules/
+mobile/ios/App/build/
+mobile/ios/DerivedData/
