@@ -48,7 +48,15 @@ late-deafened"; never "96% of deaf children have hearing parents" as an
 EU fact — that figure is US-sourced, child-focused data, and it isn't
 used on this deck at all since our audience is adults.
 
-## Slide 4 — how it works
+## Slide 4 — the table (three phone frames)
+
+Screenshots of the running app: `research/oat-lamp.png` (their phone), `research/oat-listener.png` (your phone), `research/oat-map.png` (where it went), copied to `pitch/build/assets/`. Note: the listener screenshot shows a name and sentence but no tone word; the tone tag (e.g. Mom · TEASING) is named in the label and shown live in the demo. Slide 5 uses `research/oat-listener-asked.png` for the amber ask.
+
+## Slide 5 — what the listener gets back
+
+Tone in 0.7 s, plans refreshed every 10 s, ask under 1 s: build timings. Laughter: `server/src/rooms.ts` `maybeLaugh` — a proxy (≥2 phones voiced ≥900 ms within 2 s, no words in the last 3 s), no audio model.
+
+## (former) how it works
 
 Architecture (phones on the table → each phone is its owner's mic via
 Deepgram, one stream per phone → server measures pace and overlap →
@@ -61,7 +69,7 @@ existing v2 build plan referenced across `research/08` and `research/09`
 Latency targets (sentence under 1s, lamp under 2s) reflect the same build
 plan's gate/ledger timing.
 
-## Slide 5 — what's new
+## Slide 6 — what's new
 
 Built from the competitor rows in `research/06-github-landscape.md`:
 - **Ava** does phones-as-mics for captions (§1: "QR/link so each person's
@@ -90,7 +98,7 @@ Built from the competitor rows in `research/06-github-landscape.md`:
   aids/CIs." Still just words in front of one person's eyes, not a signal
   the table can act on.
 
-## Slide 6 — scope, limits, next
+## Slide 7 — scope, limits, next
 
 - **Persona** (hard-of-hearing and late-deafened adults in hearing rooms,
   not sign-first Deaf users): stated per `research/09-niche-scale.md` §5's
@@ -115,19 +123,24 @@ Built from the competitor rows in `research/06-github-landscape.md`:
   and Turkish, end to end... verify that our Deepgram model and region
   support `it` and `tr` for streaming before the demo."
 
-## Numbered sources (as shown on slide 6)
+## Numbered sources (as shown on slide 7)
+
+Superscripts on slides 2 and 3 use this numbering.
 
 1. AEA / EFHOH / EHIMA, *Getting the numbers right on hearing loss, hearing
-   care and hearing aid use in Europe*, 2024.
+   care and hearing aid use in Europe*, 2024. (50M EU27 is our arithmetic on the 59M Europe total.)
    https://www.ehima.com/wp-content/uploads/2024/03/Getting-the-numbers-right-on-Hearing-Loss-Hearing-Care-and-Hearing-Aid-Use-in-Europe-2024.pdf
-2. EHIMA / Anovum, *EuroTrak Italy 2022*.
+2. EHIMA / Anovum, *EuroTrak Italy 2022*, p. 60.
    https://www.ehima.com/wp-content/uploads/2022/11/EuroTrak_Italy_2022.pdf
-3. Non-speech information in captions — EEG study, PMC7040021; May et al.,
+3. Caption reading speed vs. conversational pace (170 wpm; 160–220 wpm):
+   synthesis of captioning-speed studies, `research/05-numbers-for-pitch.md`.
+   No single primary source captured; stated as such on the slide.
+4. Non-speech information in captions — EEG study, PMC7040021; May et al.,
    2025. https://pmc.ncbi.nlm.nih.gov/articles/PMC7040021/
-4. Reddit, r/deaf, "Anyone else struggling with group conversations at
+5. Reddit, r/deaf, "Anyone else struggling with group conversations at
    work…" (35↑). https://www.reddit.com/r/deaf/comments/1r2797f/
-5. Reddit, r/deaf, "Exhausted and sad after family Sunday lunch" (36↑).
+6. Reddit, r/deaf, "Exhausted and sad after family Sunday lunch" (36↑).
    https://www.reddit.com/r/deaf/comments/1fh8h7h/
-6. Reddit, r/deaf, "Dinner table syndrome and I want to cry" (174↑) —
-   background reading on Dinner Table Syndrome, not directly quoted on
-   this deck. https://www.reddit.com/r/deaf/comments/n8msyg/
+
+Background only, not on a slide: r/deaf, "Dinner table syndrome and I want
+to cry" (174↑). https://www.reddit.com/r/deaf/comments/n8msyg/

@@ -15,7 +15,7 @@ section {
 }
 h1, h2, .display { font-family: 'Fraunces', Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 500; color: var(--ink); letter-spacing: -0.01em; }
 h1 { font-size: 150px; line-height: 1; margin: 0; }
-h2 { font-size: 50px; line-height: 1.12; margin: 0 0 22px 0; }
+h2 { font-size: 46px; line-height: 1.12; margin: 0 0 22px 0; }
 .label, .lbl { font-family: 'Space Mono', Consolas, 'Courier New', monospace; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink2); }
 .ink2 { color: var(--ink2); }
 .amber { color: var(--amber); }
@@ -44,7 +44,7 @@ section.title .foot { position: absolute; left: 72px; right: 72px; bottom: 56px;
 /* 4 phones */
 .phones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 4px; justify-items: center; }
 .phones figure { margin: 0; text-align: center; }
-.phones img { height: 440px; border: 1px solid var(--rule); border-radius: 12px; display: block; margin: 8px auto 12px auto; }
+.phones img { height: 420px; border: 1px solid var(--rule); border-radius: 12px; display: block; margin: 8px auto 12px auto; }
 .phones .cap { font-family: Georgia, serif; font-style: italic; font-size: 30px; }
 .phones .lbl { font-size: 13px; }
 
@@ -62,7 +62,9 @@ section.title .foot { position: absolute; left: 72px; right: 72px; bottom: 56px;
 table { border-collapse: collapse; width: 100%; font-size: 21px; background: transparent; display: table; }
 th, td { border: none; border-top: 1px solid var(--rule); padding: 13px 16px 13px 0; text-align: left; vertical-align: top; background: transparent !important; color: var(--ink); }
 th { font-family: 'Space Mono', Consolas, monospace; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink2); font-weight: 400; }
-tr.us td { border-top: 1px solid var(--ink); }
+section table, section table tr, section table th, section table td { border: 0 !important; background: transparent !important; }
+section table th, section table td { border-top: 1px solid var(--rule) !important; }
+section table tr.us td { border-top: 1px solid var(--ink) !important; }
 .close { font-family: Georgia, serif; font-style: italic; font-size: 40px; margin-top: 22px; }
 
 /* 7 scope */
@@ -131,19 +133,22 @@ Fallback: ?replay=demo2 reproduces the exact same cards without a key or mic.
 
 <div class="phones">
 <figure>
-<div class="lbl">Lamp · Go ahead / One at a time</div>
+<div class="lbl">Lamp</div>
 <img src="build/assets/oat-lamp.png">
 <div class="cap">their phone</div>
+<div class="lbl">Go ahead · One at a time</div>
 </figure>
 <figure>
-<div class="lbl">Listener · one sentence · Mom · teasing</div>
+<div class="lbl">Listener</div>
 <img src="build/assets/oat-listener.png">
 <div class="cap">your phone</div>
+<div class="lbl">One sentence · name · tone · Say something</div>
 </figure>
 <figure>
-<div class="lbl">Map · who, to whom, about what</div>
+<div class="lbl">Map</div>
 <img src="build/assets/oat-map.png">
 <div class="cap">where it went</div>
+<div class="lbl">Who, to whom, about what</div>
 </figure>
 </div>
 
@@ -154,7 +159,7 @@ Fallback: ?replay=demo2 reproduces the exact same cards without a key or mic.
 <div class="five">
 <div>
 
-## One sentence, and what a voice carries.
+## What a voice carries, on one screen.
 
 <div class="row"><span class="lbl">Who</span><span class="t">Every line named. The phones are the mics.</span></div>
 <div class="row"><span class="lbl">How it was said</span><span class="t">Tone in 0.7 s: <i>warm, teasing, annoyed.</i></span></div>
