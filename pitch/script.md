@@ -41,7 +41,7 @@ on both teammates' phones. They read it aloud.
 > for the moment you're locked out of, not autopilot.
 
 **Q2: Doesn't the amber light shame the fast talker?**
-> It's amber, never red — ambient light on their own phones, a mirror,
+> It's amber; there is no red state — ambient light on their own phones, a mirror,
 > not a scolding. Nobody has to say "one at a time" for the hundredth
 > time; the light says it instead.
 

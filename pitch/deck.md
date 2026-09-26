@@ -42,7 +42,7 @@ Read faster. Ask again. Get told never mind. **We built the other side.**
 - **50 million** people in the EU say they have trouble hearing — about **1 in 9**
 - **The family table**, not the office, is where they most want to hear: **56%** say home with family matters most, vs. **21%** for work <span class="src">EuroTrak Italy 2022</span>
 - Caption comprehension collapses **above 170 wpm** — group speech runs **160–220 wpm**
-- Only **4%** of non-speech information (laughter, tone) ever reaches a caption
+- Only **4%** of sampled videos caption non-speech sound (laughter, tone)
 
 <p class="src">Hard-of-hearing and late-deafened adults. Sources numbered on the last slide.</p>
 

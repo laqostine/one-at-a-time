@@ -93,7 +93,7 @@ const sup = (n) => ({ text: String(n), options: { superscript: true, color: C.mu
   const tiles = [
     ['56% vs 21%', 'say the family table matters most for hearing well. Work: 21%.', 2],
     ['170 wpm', 'caption comprehension drops. Group speech runs 160–220.', 3],
-    ['4%', 'of non-speech sound (laughter, tone) ever reaches a caption', 3],
+    ['4%', 'of sampled videos caption non-speech sound (laughter, tone)', 3],
   ];
   const gx = 5.2, gy = 1.4, tw = 2.55, th = 3.1, gap = 0.2;
   tiles.forEach(([n, label, cite], i) => {
