@@ -106,7 +106,7 @@ function LaneView({ lane, max, colorFor, onOpen, wide, compact }: { lane: Lane; 
         <IconThread size={16} strokeWidth={2} className="shrink-0 text-accent" />
         <h3 className="min-w-0 truncate text-[0.92rem] font-semibold text-fg">{lane.label}</h3>
         {openN > 0 && !compact && <span className="shrink-0 font-mono text-[0.68rem] text-muted tabular-nums">{openN} open</span>}
-        {people.length > 0 && (
+        {people.length > 0 && !compact && (
           <ul className="ml-auto flex shrink-0 items-center -space-x-1.5" aria-label={`At the table in this conversation: ${lane.participants.join(', ')}`}>
             {people.map((p) => {
               const c = colorFor(p);

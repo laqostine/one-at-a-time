@@ -199,7 +199,7 @@ export function Header(props: Props) {
       </div>
       <div className="flex items-center gap-2 sm:gap-4">
         <div className="-my-1 flex shrink-0 flex-col items-center">
-          <PresenceAuto size={wide ? 140 : 112} state={p.state} level={p.level} flare={flare} />
+          <PresenceAuto size={wide ? 140 : 96} state={p.state} level={p.level} flare={flare} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="hidden items-start justify-between gap-3 sm:flex">
@@ -223,7 +223,7 @@ export function Header(props: Props) {
             </button>
           )}
         </div>
-        <TableRing seats={seats} source={seatSource} size={wide ? 112 : 84} />
+        {wide && <TableRing seats={seats} source={seatSource} size={112} />}
       </div>
       {!wide && legendOpen && <ColorLegend id="imt-legend" current={p.state} flaring={p.flaring} className="mt-1 mb-1 px-1" />}
     </header>

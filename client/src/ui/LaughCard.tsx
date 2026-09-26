@@ -66,7 +66,7 @@ export function LaughCard({ items, catchup, nameOf, colorOf, colorFor, getNow, o
   const ago = (t: number) => { const s = Math.max(0, Math.round((nowT - t) / 1000)); return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`; };
 
   const last = jokes[jokes.length - 1];
-  const earlier = jokes.slice(-3, -1).reverse();
+  const earlier = jokes.slice(-2, -1);
 
   if (variant === 'strip') {
     if (!last && !sounds.length) return null;

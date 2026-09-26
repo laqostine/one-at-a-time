@@ -7,7 +7,7 @@ import { around, colorForName, currentUtterance, lastMinutes, speakerColor, spea
 import { useInterject, useLastActivity } from './state/useInterject';
 import { applyPrefs, loadPrefs, type Prefs } from './ui/prefs';
 import { DesktopTop, Header, LG, TableHead, TableLegend, useMedia } from './ui/Header';
-import { TableTop, LampPill, TableKey } from './ui/TableTop';
+import { TableTop, LampPill } from './ui/TableTop';
 import { tableLamp } from './ui/tableLamp';
 import { LaughCard } from './ui/LaughCard';
 import { HouseRules } from './ui/HouseRules';
@@ -144,7 +144,7 @@ export default function App() {
       empty={<HouseRules host={host} variant="mat" className="mt-1" />}
       onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat} className={cls} />
   );
-  const openCard = (tall: boolean, cls?: string) => <OpenCard items={session.ledger} threads={s.threads} colorFor={colorFor} onOpen={setJumpT} tall={tall} className={cls ?? (tall ? 'h-full rounded-3xl' : 'min-h-[7.5rem]')} />;
+  const openCard = (tall: boolean, cls?: string) => <OpenCard items={session.ledger} threads={s.threads} colorFor={colorFor} onOpen={setJumpT} tall={tall} className={cls ?? (tall ? 'h-full rounded-3xl' : 'flex-none')} />;
   const forYou = (cls?: string) => (
     <ForYouCard items={session.ledger} nudge={s.nudge}
       nudgeColor={s.nudge?.speakerId != null ? colorOf(s.nudge.speakerId) : colorFor(s.nudge?.speaker)}
@@ -165,7 +165,7 @@ export default function App() {
   const captions = <CaptionsStrip items={session.timeline} nameOf={nameOf} colorOf={colorOf} onSpeaker={setRenaming} onAskRepeat={onAskRepeat} />;
 
   return (
-    <div className={desktop ? 'mx-auto flex h-dvh max-w-[90rem] flex-col px-6 pb-5' : 'mx-auto flex h-dvh max-w-4xl flex-col'}>
+    <div className={desktop ? 'mx-auto flex h-dvh max-w-[90rem] flex-col px-6 pb-5' : 'mx-auto flex min-h-dvh max-w-4xl flex-col'}>
       {desktop ? (
         <>
           <DesktopTop {...headerProps} />
@@ -184,7 +184,7 @@ export default function App() {
                 head={<TableHead {...headerProps} size={xl ? 104 : 88} />}
                 placemat={nowCard('min-h-[31cqw]')} />
               {!xl && <LaughCard variant="strip" items={session.timeline} catchup={s.catchup} nameOf={nameOf} colorOf={colorOf} colorFor={colorFor} getNow={s.nowT} onOpen={setJumpT} className="px-2" />}
-              <TableKey className="shrink-0 pt-1"><TableLegend {...headerProps} className="justify-center" /></TableKey>
+              <TableLegend {...headerProps} className="shrink-0 justify-center pt-1" />
             </div>
             <div className="relative flex min-h-0 flex-col gap-4">
               {forYou('max-h-[62%] shrink-0 overflow-y-auto rounded-3xl')}
@@ -207,20 +207,23 @@ export default function App() {
       ) : (
         <>
           <Header {...headerProps} />
-          <main className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
+          {/* Phones/tablets scroll like a page: the placemat first, then the one question, plans, the laugh.
+              "Catch me up" stays pinned to the bottom edge so it is one thumb away wherever you are. */}
+          <main className="flex flex-1 flex-col gap-3 px-3 pb-3 sm:px-4">
             {nowCard()}
-            <div className="relative flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden sm:gap-3">
-              {/* a live question comes first on phones: it is the one interrupt; plans give way */}
-              {s.nudge && forYou()}
+            {s.nudge && forYou()}
+            <div className="relative flex flex-col gap-3">
               {openCard(false)}
-              {!s.nudge && session.ledger.some((i) => i.kind === 'assigned_to_me') && forYou()}
-              <SpeakCard api={interject} say={sayLine} voice={prefs.voice} />
               {catchup}
             </div>
-            {catchUpBtn}
+            {!s.nudge && session.ledger.some((i) => i.kind === 'assigned_to_me') && forYou()}
             <LaughCard variant="strip" items={session.timeline} catchup={s.catchup} nameOf={nameOf} colorOf={colorOf} colorFor={colorFor} getNow={s.nowT} onOpen={setJumpT} />
+            <SpeakCard api={interject} say={sayLine} voice={prefs.voice} />
             {captions}
           </main>
+          <div className="sticky bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
+            {catchUpBtn}
+          </div>
         </>
       )}
 

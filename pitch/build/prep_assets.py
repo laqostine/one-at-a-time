@@ -17,6 +17,6 @@ for n in ['mug','lamp','bell','note','popper','phone','table','hand','card','pla
             a = max(0, min(255, int((m - 6) * 255 / 34)))  # 6..40 ramps to opaque
             op[x, y] = (r, g, b, a)
     out.save(os.path.join(OUT, n + '.png'))
-for src in ['research/qa-live-desktop.png', 'research/design-app.png']:
+for src in ['research/table-app.png', 'research/qa-live-desktop.png', 'research/design-app.png']:
     shutil.copy(os.path.join(ROOT, src), OUT)
 print('ok')
