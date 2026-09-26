@@ -381,6 +381,29 @@ export function useSession() {
     } finally { setRequestPending(false); }
   }, [nowT]);
 
+  // Rolling "What did I miss?": refreshed by itself every 10 s whenever >= 2 new finals arrived since the last
+  // run, so a tap shows it instantly. It never marks the window as seen and never touches the on-demand state.
+  const [missed, setMissed] = useState<{ data: CatchupResponse; at: number; sinceT: number } | null>(null);
+  const missedRun = useRef({ busy: false, lastFinalCount: 0 });
+  useEffect(() => {
+    if (!started) return;
+    const id = window.setInterval(async () => {
+      const s = ref.current;
+      if (missedRun.current.busy) return;
+      const finals = s.timeline.filter((i) => isUtt(i) && i.final && i.text.trim()).length;
+      if (finals - missedRun.current.lastFinalCount < 2) return;
+      missedRun.current.busy = true;
+      missedRun.current.lastFinalCount = finals;
+      const now = nowT();
+      const sinceT = Math.max(0, now - CATCHUP_MAX_MS, Math.min(s.lastSeenAt, now - CATCHUP_MIN_MS));
+      try {
+        const raw = await postCatchup({ me: s.me, speakers: s.speakers, window: windowSince(s, sinceT), sinceT, nowT: now });
+        if (!raw.degraded) setMissed({ data: raw, at: Date.now(), sinceT });
+      } catch { /* keep the previous one */ } finally { missedRun.current.busy = false; }
+    }, 10_000);
+    return () => window.clearInterval(id);
+  }, [started, nowT]);
+
   const hasFinals = session.timeline.some((i) => isUtt(i) && i.final);
 
   return {
@@ -389,6 +412,7 @@ export function useSession() {
     lastTranscriptAt, requestPending, micLevel,
     nudge, dismissNudge: useCallback(() => setNudge(null), []),
     catchup, catchUp, dismissCatchup: useCallback(() => setCatchup({ status: 'idle' }), []),
+    missed, // rolling catch-up, always fresh (see effect above)
     setListening,
     started, start: useCallback(() => setStarted(true), []),
     table, laughAt, phonesOnly, phonesOnlyPref, setPhonesOnly: useCallback((v: boolean) => setPhonesOnlyPref(v), []),
