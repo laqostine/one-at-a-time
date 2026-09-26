@@ -93,9 +93,9 @@ export function Sentence({ utt, name, color, onSpeaker, onAskRepeat, prev }: {
 export const ASK_MS = 10_000;
 
 /** The page itself turns amber (App sets the background); this is the content in the sentence area. */
-export function Asked({ nudge, color, onAnswer }: { nudge: Nudge; color: string; onAnswer: () => void }) {
+export function Asked({ nudge, color, onAnswer }: { nudge: Nudge; color: string; onAnswer: (label?: string) => void }) {
   useEffect(() => {
-    const id = window.setTimeout(onAnswer, ASK_MS);
+    const id = window.setTimeout(() => onAnswer(), ASK_MS);
     return () => window.clearTimeout(id);
   }, [nudge.id, onAnswer]);
   return (
@@ -107,7 +107,7 @@ export function Asked({ nudge, color, onAnswer }: { nudge: Nudge; color: string;
       <p className={cn(sentenceCls(nudge.question.length), 'line-clamp-5')}>{nudge.question}</p>
       <div className="mt-7 flex gap-2">
         {['Yes', 'Clarify', "Can't"].map((l) => (
-          <button key={l} type="button" onClick={onAnswer}
+          <button key={l} type="button" onClick={() => onAnswer(l)}
             className="h-14 flex-1 cursor-pointer rounded-full bg-cream text-[1.1rem] font-bold text-ink">
             {l}
           </button>

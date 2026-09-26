@@ -34,7 +34,7 @@ export function TablePage({ ledger, nudge, lastCatchup, missed: rolling, onAnswe
   nudge: Nudge | null;
   lastCatchup: { data: CatchupResponse; title?: string } | null;
   missed?: { data: CatchupResponse; at: number; sinceT: number } | null;
-  onAnswerNudge: () => void;
+  onAnswerNudge: (label?: string) => void;
   onClose: () => void;
 }) {
   const [answered, setAnswered] = useState<Set<string>>(() => new Set());
@@ -48,9 +48,9 @@ export function TablePage({ ledger, nudge, lastCatchup, missed: rolling, onAnswe
       .filter((i) => !nudge || i.text.trim() !== nudge.question.trim())
       .map((i) => ({ id: i.id, speaker: i.speaker ?? 'Someone', text: i.text, live: false })),
   ].filter((a) => !answered.has(a.id)).slice(-3);
-  const answer = (a: (typeof asked)[number]) => {
+  const answer = (a: (typeof asked)[number], label?: string) => {
     setAnswered((s) => new Set(s).add(a.id));
-    if (a.live) onAnswerNudge();
+    onAnswerNudge(label);
   };
 
   // The rolling catch-up (refreshed every 10 s) wins; the last manual catch-up is the fallback.
@@ -105,7 +105,7 @@ export function TablePage({ ledger, nudge, lastCatchup, missed: rolling, onAnswe
                   <p className="text-[1.176rem] leading-[1.35]"><b>{a.speaker}:</b> {a.text}</p>
                   <div className="mt-3 flex gap-2">
                     {['Yes', 'Clarify', "Can't"].map((l) => (
-                      <button key={l} type="button" onClick={() => answer(a)}
+                      <button key={l} type="button" onClick={() => answer(a, l)}
                         className="h-14 flex-1 cursor-pointer rounded-full bg-card-2 text-[1.06rem] font-bold text-ink">{l}</button>
                     ))}
                   </div>

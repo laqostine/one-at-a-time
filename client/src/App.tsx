@@ -89,6 +89,12 @@ export default function App() {
     return sent;
   }, [voiceOn, clerkOn, speakAtGap, addLocal]);
   const sayApi = useMemo(() => ({ speakAtGap: (t: string) => { void sayLine(t); } }), [sayLine]);
+  // Yes / Clarify / Can't: the answer goes to the table as the listener's line, so the asker sees it on their phone.
+  const ANSWER_LINES: Record<string, string> = { Yes: 'Yes.', Clarify: 'Sorry, can you say that again?', "Can't": "I can't, sorry." };
+  const answerAsk = useCallback((label?: string) => {
+    if (label && ANSWER_LINES[label]) void sayLine(ANSWER_LINES[label]);
+    s.dismissNudge();
+  }, [sayLine, s.dismissNudge]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Doubt words: tapping one asks the speaker to repeat it.
   const nameOf = useCallback((id: number) => speakerName(session, id), [session]);
@@ -169,7 +175,7 @@ export default function App() {
 
       <main className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden py-4">
         {nudge ? (
-          <Asked nudge={nudge} color={nudgeColor} onAnswer={s.dismissNudge} />
+          <Asked nudge={nudge} color={nudgeColor} onAnswer={answerAsk} />
         ) : shownCatchup.status !== 'idle' ? (
           <Missed state={shownCatchup} title={awayTitle ?? undefined} onDone={dismissMissed} />
         ) : (
@@ -212,7 +218,7 @@ export default function App() {
 
       {tableOpen && (
         <TablePage ledger={session.ledger} nudge={nudge} lastCatchup={lastCatchup} missed={s.missed}
-          onAnswerNudge={s.dismissNudge} onClose={() => setTableOpen(false)} />
+          onAnswerNudge={answerAsk} onClose={() => setTableOpen(false)} />
       )}
       {mapOpen && <MapPage session={session} onClose={() => setMapOpen(false)} />}
       {renameSp && (
