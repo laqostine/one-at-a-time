@@ -14,8 +14,10 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 // ---------- tunables (see tools/voiceid-test.mjs for how these were chosen) ----------
-export const DEFAULT_THRESHOLD = Number(process.env.VOICEID_THRESHOLD) || 0.55;
-export const DEFAULT_MARGIN = Number(process.env.VOICEID_MARGIN) || 0.08;
+export const DEFAULT_THRESHOLD = Number(process.env.VOICEID_THRESHOLD) || 0.62;
+export const DEFAULT_MARGIN = Number(process.env.VOICEID_MARGIN) || 0.1;
+/** A stranger must not pass as the closest enrolled voice: the threshold sits at least this far above the closest pair. */
+export const CROSS_GAP = 0.1;
 export const DEFAULT_MIN_MS = 800;
 export const MAX_SAMPLES_PER_NAME = 3;
 export const SWITCH_VOTES = 2;
@@ -120,7 +122,7 @@ interface DgMap { name: string; votes: number; pending: string | null; pendingVo
 interface Table { voices: Map<string, Voice>; dg: Map<string, DgMap>; calib: Calibration | null }
 /** Per-table threshold: midway between the least self-similar enrolled voice and the most similar pair of voices. */
 export interface Calibration { threshold: number; self: number | null; cross: number | null }
-export const CALIB_MIN = 0.45, CALIB_MAX = 0.7;
+export const CALIB_MIN = 0.55, CALIB_MAX = 0.8;
 const tables = new Map<string, Table>();
 
 function table(token: string): Table {
@@ -157,7 +159,8 @@ function calibrate(t: Table): void {
   const self = selfs.length ? Math.min(...selfs) : null;
   let cross: number | null = null;
   for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) cross = Math.max(cross ?? -1, cosine(vs[i].centroid, vs[j].centroid));
-  const mid = self != null && cross != null ? (self + cross) / 2 : DEFAULT_THRESHOLD;
+  let mid = self != null && cross != null ? (self + cross) / 2 : DEFAULT_THRESHOLD;
+  if (cross != null) mid = Math.max(mid, cross + CROSS_GAP, DEFAULT_THRESHOLD);
   const r3 = (x: number | null) => (x == null ? null : Math.round(x * 1000) / 1000);
   t.calib = { threshold: r3(Math.min(CALIB_MAX, Math.max(CALIB_MIN, mid)))!, self: r3(self), cross: r3(cross) };
 }

@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { recordPcm16 } from './record';
 
-const SECONDS = 5;
+const SECONDS = 8;
 const QUIET_RMS = 0.01;
 const GOT_MS = 1_200;
 const FAIL_MS = 1_800;
@@ -92,7 +92,7 @@ export function VoiceStep({ name, token, onDone, onGesture }: {
       ) : (
         <>
           <h1 className="font-display-italic text-[2.353rem] leading-[1.1] text-ink">Teach the table your voice</h1>
-          <p className="text-[20px] leading-snug text-ink-2">Say your name and one sentence.</p>
+          <p className="text-[20px] leading-snug text-ink-2">Say your name, then keep talking until the bar fills. Two or three sentences.</p>
         </>
       )}
       {step !== 'got' && (

@@ -13,7 +13,7 @@ keep() { # keep <name> <cmd...>: restart on exit, 2 s backoff
 }
 pkill -f "tsx watch src/index.ts" 2>/dev/null; pkill -f "vite preview" 2>/dev/null; pkill -f "cloudflared tunnel" 2>/dev/null; sleep 1
 ( cd client && npm run build >/tmp/imt/build.log 2>&1 ) && echo "client built" || { echo "client build FAILED, see /tmp/imt/build.log"; exit 1; }
-keep server bash -c 'cd server && npx tsx src/index.ts'
+keep server bash -c 'cd server && VOICEID_LOG=1 npx tsx src/index.ts'
 keep preview bash -c 'cd client && npx vite preview --host'
 keep tunnel cloudflared tunnel --no-autoupdate run --url http://localhost:5174 imt-table
 trap 'for p in /tmp/imt/*.pid; do kill "$(cat "$p")" 2>/dev/null; done; pkill -f "tsx src/index.ts"; pkill -f "vite preview"; pkill -f "cloudflared tunnel"; echo; echo stopped; exit 0' INT TERM

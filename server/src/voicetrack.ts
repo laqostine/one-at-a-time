@@ -10,7 +10,7 @@
 //                Deepgram's diarization ids are only a hint).
 //   stamp()      voiceName/voiceScore for a transcript message: finals = identify the whole segment (+ vote the Deepgram
 //                id -> name map); else window vote; else the remembered Deepgram-id mapping.
-import { assign, cosine, embed, identify, identifyEmbedding, resolve, roster, tableThreshold } from './voiceid.ts';
+import { assign, cosine, embed, identify, identifyEmbedding, roster, tableThreshold } from './voiceid.ts';
 import type { AsrMessage } from '../../shared/types';
 
 type TranscriptMsg = Extract<AsrMessage, { type: 'transcript' }>;
@@ -51,7 +51,7 @@ export const VOICE_MAX_SEG_MS = 4_000; // embedding cost grows with length: a lo
 export const VOICE_SHORT_MIN_SCORE = 0.7; // short line read from a centred 800 ms window: name it only this confident
 export const VOICE_WIN_S = 1.2;        // sliding window length…
 export const VOICE_HOP_S = 0.4;        // …every this much voiced audio
-const WIN_SLACK = 0.05;                // windows are short: accept threshold - 0.05 (the margin rule still applies)
+const WIN_SLACK = 0.02;                // windows are short: accept threshold - 0.05 (the margin rule still applies)
 const WIN_SLOW_MS = 40;                // a window slower than this skips the next one (CPU cap)
 export const CHANGE_COS = 0.5;         // window vs current speaker's window below this = "someone else"
 const CHANGE_BACK_S = 0.7;             // change time ≈ end of the first unlike window - this; it lies in [end - 1.2, end - 0.2]
@@ -251,7 +251,7 @@ export class VoiceTrack {
       const w = this.windowVote(a, b + INTERIM_AHEAD_S);
       const shown = this.sticky.get(runKey);
       // Keep the name already on this run unless >= 2 windows now agree on someone else.
-      const name = shown && (!w || w.name === shown || w.n < 2) ? shown : w?.name ?? (key ? resolve(this.table, key) : null);
+      const name = shown && (!w || w.name === shown || w.n < 2) ? shown : w?.name ?? null;
       if (!name) return m;
       this.sticky.set(runKey, name);
       if (this.sticky.size > 200) this.sticky.delete(this.sticky.keys().next().value!);
@@ -269,8 +269,6 @@ export class VoiceTrack {
     }
     const w = this.windowVote(a, b);
     if (w) { if (vs) vs.hostIded++; return { ...m, voiceName: w.name, voiceScore: w.score }; }
-    const n = key ? resolve(this.table, key) : null;
-    if (n) { if (vs) vs.hostRemembered++; return { ...m, voiceName: n }; }
     const wide = m.tEnd - m.tStart < VOICE_MIN_SEG_MS ? voiceOf(this.table, slice, m.tStart, m.tEnd, true) : null;
     if (wide && wide.score >= VOICE_SHORT_MIN_SCORE) { if (vs) vs.hostIded++; return { ...m, voiceName: wide.name, voiceScore: wide.score }; }
     return m;
