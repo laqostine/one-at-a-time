@@ -11,9 +11,14 @@ export interface Utterance {
   threadId?: string;          // Thread.id this line belongs to (stamped after /api/state)
   replyTo?: string;           // display name of the person this line answered
   words?: WordConf[];         // finals only: per-word ASR confidence (0..1), in text order
-  repeatRequested?: boolean;
-  tone?: Tone;  // user tapped "please repeat" on this line
+  repeatRequested?: boolean; // user tapped "please repeat" on this line
+  tone?: Tone;                // DISPLAYED tone (smoothed per speaker in useGate)
+  toneRaw?: Tone;             // the gate's raw per-line verdict
+  prosody?: Prosody;          // voice cues from the phone's audio (participant finals only)
 }
+/** Voice cues measured server-side per participant final: loudness vs that speaker's own baseline, speaking rate, and
+ *  the silence before the line (since the previous final anyone at the table finished). */
+export interface Prosody { loud: 'quiet'|'normal'|'loud'; rate: 'slow'|'normal'|'fast'; pauseBeforeMs: number }
 /** One ASR word with confidence c (0..1). */
 export interface WordConf { w: string; c: number }
 /** Wire form of a word (ms since stream start). */
@@ -101,7 +106,7 @@ export const ME_SPEAKER_ID = -2;
 // server -> client: JSON messages:
 export type AsrMessage =
   // name: set when the line came from an "Everyone joins" participant phone (speaker = stable per-name id >= 100)
-  | { type: 'transcript'; speaker: number; text: string; tStart: number; tEnd: number; final: boolean; name?: string; words?: AsrWord[] /* finals only */ }
+  | { type: 'transcript'; speaker: number; text: string; tStart: number; tEnd: number; final: boolean; name?: string; words?: AsrWord[] /* finals only */; prosody?: Prosody /* participant finals only */ }
   | { type: 'status'; state: 'connecting'|'open'|'closed'|'error'; detail?: string }
   // host only: who is connected via /join.html (sent on join/leave/speaking change)
   | { type: 'participants'; list: Participant[] }
@@ -121,7 +126,8 @@ export type PaceLevel = 'ok'|'fast'|'too_fast';
 export const PACE_FAST_WPM = 185;  // group speech runs 160–220; the lamp must stay green most of the time
 export const PACE_TOO_FAST_WPM = 210;
 export const paceLevel = (wpm: number): PaceLevel => (wpm > PACE_TOO_FAST_WPM ? 'too_fast' : wpm >= PACE_FAST_WPM ? 'fast' : 'ok');
-// POST /api/room/me {name}: the host's own name, shown on phones ("Good pace for Bera")
+// POST /api/room/me {name, aliases?}: the host's own name, shown on phones ("Good pace for Bera"); also a Deepgram keyterm
+// POST /api/room/terms {terms: string[]}: proper nouns from the ledger/thread labels -> Deepgram keyterms (<= 10 kept)
 
 // "Everyone joins" mode: WS /ws/audio?role=participant&name=Alex&token=... ; GET /api/room -> RoomInfo
 export interface Participant { id: number; name: string; speaking: boolean }

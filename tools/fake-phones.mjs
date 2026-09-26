@@ -16,6 +16,9 @@
 //   --no-drive              don't simulate the host client's /api/gate + /api/state (8 s, 90 s window) + /api/catchup calls.
 //   --repeat <n>            play the script n times back to back (n=2 gives a ~2 min run, i.e. full 90 s ledger windows).
 //   --json <path>           write the summary as JSON too.
+//   --tone-report           per scripted line with an expected `tone` (demo2.json): the gate's raw tone, the client's
+//                           smoothed (displayed) tone and the final's prosody; prints raw + smoothed accuracy.
+//   --rates a,b,c           per-speaker `say -r` rates (overrides --rate for that speaker index), e.g. 185,230,185.
 // Every phone streams continuously (silence/noise between lines) in 100 ms chunks, in real time, like a real mic.
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -33,7 +36,7 @@ for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (!a.startsWith('--')) { pos.push(a); continue; }
   const k = a.slice(2);
-  if (['overlap', 'host', 'no-drive'].includes(k)) flags[k] = true;
+  if (['overlap', 'host', 'no-drive', 'tone-report'].includes(k)) flags[k] = true;
   else flags[k] = argv[++i];
 }
 const base = pos[0] ?? flags.base ?? 'ws://localhost:8787';
@@ -44,6 +47,8 @@ const scenario = JSON.parse(readFileSync(scenPath, 'utf8'));
 const names = scenario.names ?? { 0: 'Alex', 1: 'Sam', 2: 'Priya' };
 const voiceList = (flags.voices ?? 'Daniel,Samantha,Karen').split(',').map((s) => s.trim());
 const RATE = Number(flags.rate) || 185;
+const RATES = (flags.rates ?? '').split(',').map((s) => Number(s.trim()) || RATE);
+const rateOf = (speaker) => RATES[Number(speaker)] || RATE;
 const OVERLAP = !!flags.overlap;
 const HOST = !!flags.host;
 const DRIVE = !flags['no-drive'];
@@ -57,11 +62,11 @@ const HOST_GAIN = 0.6;            // the host mic is further away than each phon
 mkdirSync('/tmp/imt-tts', { recursive: true });
 const token = JSON.parse(execSync(`curl -s ${http}/api/room`).toString()).token;
 
-function pcm16k(text, voice) {
-  const key = Buffer.from(`${text}|${voice}|${RATE}`).toString('base64url').slice(-48);
+function pcm16k(text, voice, rate = RATE) {
+  const key = Buffer.from(`${text}|${voice}|${rate}`).toString('base64url').slice(-48);
   const aiff = `/tmp/imt-tts/${key}.aiff`, raw = `/tmp/imt-tts/${key}.raw`;
   if (!existsSync(raw)) {
-    execSync(`say -v "${voice}" -r ${RATE} -o "${aiff}" ${JSON.stringify(text)}`);
+    execSync(`say -v "${voice}" -r ${rate} -o "${aiff}" ${JSON.stringify(text)}`);
     execSync(`ffmpeg -loglevel error -y -i "${aiff}" -ac 1 -ar 16000 -f s16le "${raw}"`);
   }
   const b = readFileSync(raw);
@@ -72,7 +77,7 @@ function pcm16k(text, voice) {
 const REPEAT = Math.max(1, Number(flags.repeat) || 1);
 const script = scenario.lines.filter((l) => l.text).sort((a, b) => a.t - b.t);
 const lines = Array.from({ length: REPEAT }, () => script).flat().map((l) => ({
-  ...l, pcm: pcm16k(l.text, voiceList[l.speaker] ?? voiceList[0] ?? 'Alex'),
+  ...l, pcm: pcm16k(l.text, voiceList[l.speaker] ?? voiceList[0] ?? 'Alex', rateOf(l.speaker)),
 }));
 let cursor = 0, overlaps = 0;
 const busyUntil = {};
@@ -143,9 +148,10 @@ function onHostMsg(j) {
   if (j.name) {
     S.finals[j.name] = (S.finals[j.name] ?? 0) + 1;
     speakersMap[j.speaker] = { id: j.speaker, name: j.name, color: '#888' };
-    const f = { name: j.name, text: j.text, tokens: toks(j.text), at, tStart: j.tStart, tEnd: j.tEnd, speaker: j.speaker };
+    const f = { name: j.name, text: j.text, tokens: toks(j.text), at, tStart: j.tStart, tEnd: j.tEnd, speaker: j.speaker, ...(j.prosody ? { prosody: j.prosody } : {}) };
     partFinals.push(f);
-    console.log(`  [final ${el()}s] ${j.name}: ${j.text}`);
+    const pr = j.prosody ? `  {${j.prosody.loud}/${j.prosody.rate}/+${j.prosody.pauseBeforeMs}ms}` : '';
+    console.log(`  [final ${el()}s] ${j.name}: ${j.text}${pr}`);
     dirty = true;
     if (DRIVE) void driveGate(f);
   } else {
@@ -192,7 +198,7 @@ console.log(`room ${token}: ${speakerIds.length} phones + host${HOST ? ' (mixed 
 
 // ---------- client simulation (/api/gate per final, /api/state every 8 s, /api/catchup at end) ----------
 const me = { name: 'Bera', aliases: [] };
-const utt = (f, i) => ({ id: `u${f.speaker}-${f.tStart}-${i}`, type: 'utterance', speaker: f.speaker, text: f.text, tStart: f.tStart, tEnd: f.tEnd, final: true, ...(f.threadId ? { threadId: f.threadId } : {}) });
+const utt = (f, i) => ({ id: `u${f.speaker}-${f.tStart}-${i}`, type: 'utterance', speaker: f.speaker, text: f.text, tStart: f.tStart, tEnd: f.tEnd, final: true, ...(f.threadId ? { threadId: f.threadId } : {}), ...(f.prosody ? { prosody: f.prosody } : {}) });
 async function post(path, body) {
   const s = Date.now();
   try {
@@ -205,10 +211,21 @@ async function post(path, body) {
     return { ms: Date.now() - s, status: 0, j: {}, err: String(e?.message ?? e) };
   }
 }
+// Mirror of client/src/state/useGate.ts smoothing: the displayed tone only changes when the new raw tone repeats
+// (2 of the speaker's last 3 lines) or is 'urgent'; otherwise the speaker's previous non-neutral displayed tone stays.
+const toneHist = {}, toneShown = {};
+function smoothTone(speaker, raw) {
+  const h = (toneHist[speaker] ??= []); h.push(raw); if (h.length > 3) h.shift();
+  if (raw === 'urgent' || h.filter((t) => t === raw).length >= 2) toneShown[speaker] = raw;
+  return toneShown[speaker] ?? 'neutral';
+}
 async function driveGate(f) {
   const all = partFinals.map(utt);
   const r = await post('/api/gate', { me, speakers: speakersMap, recent: all.slice(-7, -1), target: all[all.length - 1] });
   S.gate.push({ ms: r.ms, server: r.j.latencyMs, source: r.j.source });
+  f.tone = r.j.tone ?? 'neutral';
+  f.shown = smoothTone(f.speaker, f.tone);
+  if (flags['tone-report']) console.log(`  [tone ${el()}s] ${f.name}: ${f.tone}${f.shown !== f.tone ? ` (shown ${f.shown})` : ''} :: ${f.text.slice(0, 50)}`);
 }
 let ledger = [], threads = [], stateInflight = false;
 const nowT = () => Math.max(0, ...partFinals.map((f) => f.tEnd)) + 500;
@@ -278,6 +295,52 @@ for (const l of lines) {
   if (got / tk.size < 0.5) S.missed.push(`${names[l.speaker]}: "${l.text}"`);
 }
 
+// ---------- name accuracy: script lines naming the listener, did the final spell the name right? ----------
+const nameRe = new RegExp(`\\b${me.name}\\b`);
+S.name = { lines: 0, hit: 0, got: [] };
+for (const l of lines.filter((x) => nameRe.test(x.text))) {
+  S.name.lines++;
+  const tk = toks(l.text);
+  const best = partFinals.filter((f) => f.name === names[l.speaker]).sort((a, b) => frac(tk, b.tokens) - frac(tk, a.tokens))[0];
+  if (best && nameRe.test(best.text)) S.name.hit++;
+  S.name.got.push(best?.text ?? '(none)');
+}
+// ---------- fragmented: a script line whose words are spread over >= 2 finals, none holding >= 70% ----------
+S.fragmented = [];
+for (const l of lines) {
+  const tk = toks(l.text);
+  const mine = partFinals.filter((f) => f.name === names[l.speaker]);
+  const covers = mine.map((f) => frac(tk, f.tokens)).filter((c) => c >= 0.2);
+  if (covers.length >= 2 && Math.max(...covers) < 0.7) S.fragmented.push(`${names[l.speaker]}: "${l.text}"`);
+}
+// ---------- tone report: expected (scenario `tone`) vs the gate's raw + smoothed tone ----------
+S.tone = null;
+if (flags['tone-report']) {
+  const rows = [];
+  for (const l of lines) {
+    const tk = toks(l.text);
+    const best = partFinals.filter((f) => f.name === names[l.speaker]).map((f) => ({ f, c: frac(tk, f.tokens) })).sort((a, b) => b.c - a.c)[0];
+    const f = best && best.c >= 0.5 ? best.f : null;
+    rows.push({ who: names[l.speaker], text: l.text, want: l.tone ?? '', raw: f?.tone ?? '-', shown: f?.shown ?? '-', prosody: f?.prosody });
+  }
+  console.log('\n===== TONE REPORT =====');
+  console.log('expected  raw       shown     prosody               line');
+  for (const r of rows) {
+    const p = r.prosody ? `${r.prosody.loud}/${r.prosody.rate}/+${r.prosody.pauseBeforeMs}` : '';
+    console.log(`${(r.want || '.').padEnd(10)}${r.raw.padEnd(10)}${r.shown.padEnd(10)}${p.padEnd(22)}${r.who}: ${r.text}`);
+  }
+  const lab = rows.filter((r) => r.want);
+  const acc = (k) => lab.filter((r) => r[k] === r.want).length;
+  const emo = lab.filter((r) => r.want !== 'neutral');
+  S.tone = { labelled: lab.length, raw: acc('raw'), shown: acc('shown'), emotive: emo.length, emotiveRaw: emo.filter((r) => r.raw === r.want).length, emotiveShown: emo.filter((r) => r.shown === r.want).length };
+  const rates = {};
+  for (const f of partFinals) if (f.prosody) { const k = `${f.name}:${f.prosody.rate}`; rates[k] = (rates[k] ?? 0) + 1; }
+  S.tone.prosodyRates = rates;
+  const loud = {};
+  for (const f of partFinals) if (f.prosody) { const k = `${f.name}:${f.prosody.loud}`; loud[k] = (loud[k] ?? 0) + 1; }
+  S.tone.prosodyLoud = loud;
+}
+
 // ---------- summary ----------
 const stats = (arr) => { const v = arr.filter((x) => typeof x === 'number').sort((a, b) => a - b); return v.length ? { n: v.length, p50: v[Math.floor(v.length / 2)], max: v[v.length - 1] } : { n: 0 }; };
 const summary = {
@@ -288,6 +351,7 @@ const summary = {
   http: S.http, gate: stats(S.gate.map((g) => g.ms)), gateSources: S.gate.reduce((a, g) => ({ ...a, [g.source]: (a[g.source] ?? 0) + 1 }), {}),
   state: stats(S.state.map((s) => s.ms)), stateDegraded: S.state.filter((s) => s.degraded || s.status !== 200).length,
   stateMaxWindow: Math.max(0, ...S.state.map((s) => s.win)), catchup: S.catchup, ledgerItems: S.ledgerItems, say: S.say,
+  name: S.name, fragmented: S.fragmented, tone: S.tone,
 };
 console.log('\n===== SUMMARY =====');
 console.log(`finals per speaker: ${Object.entries(S.finals).map(([k, v]) => `${k}=${v}`).join(' ')}`);
@@ -295,6 +359,9 @@ console.log(`pace by level: ${Object.entries(S.pace).map(([k, p]) => `${k}{ok:${
 console.log(`overlap: scheduled=${overlaps} pace-msgs-with-overlap=${S.paceOverlap} table-msgs-with-overlap=${S.tableOverlap}`);
 if (HOST) console.log(`host mic: finals=${S.hostFinals} caught-as-duplicate=${S.hostFinalsDup} would-show-as-extra-line=${S.hostFinalsUnique.length}`);
 console.log(`merged finals: ${S.merged.length}${S.merged.length ? '\n  ' + S.merged.join('\n  ') : ''}`);
+console.log(`fragmented script lines: ${S.fragmented.length}${S.fragmented.length ? '\n  ' + S.fragmented.join('\n  ') : ''}`);
+console.log(`name "${me.name}": ${S.name.hit}/${S.name.lines} spelled right${S.name.got.length ? ` (${S.name.got.join(' | ')})` : ''}`);
+if (S.tone) console.log(`tone: raw ${S.tone.raw}/${S.tone.labelled} smoothed ${S.tone.shown}/${S.tone.labelled}; emotive-only raw ${S.tone.emotiveRaw}/${S.tone.emotive} smoothed ${S.tone.emotiveShown}/${S.tone.emotive}; prosody rate ${JSON.stringify(S.tone.prosodyRates)} loud ${JSON.stringify(S.tone.prosodyLoud)}`);
 console.log(`missed script lines: ${S.missed.length}${S.missed.length ? '\n  ' + S.missed.join('\n  ') : ''}`);
 console.log(`status errors: ${S.statusErrors.length ? S.statusErrors.join('; ') : 'none'}; unexpected closes: ${summary.unexpectedCloses.join('; ') || 'none'}`);
 if (DRIVE) {
