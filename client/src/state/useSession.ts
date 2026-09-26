@@ -70,6 +70,7 @@ export function useSession() {
   const [started, setStarted] = useState(() => !!replayName());
   // Table-wide pace/overlap from the server (only while phones are joined).
   const [table, setTable] = useState<{ overlap: boolean; avgWpm: number } | null>(null);
+  const [laughAt, setLaughAt] = useState(0); // wall-clock ms of the last host `laugh` message
   // "Use phones only": null = user hasn't chosen => ON by default once a phone joins.
   const [phonesOnlyPref, setPhonesOnlyPref] = useState<boolean | null>(null);
   const micRef = useRef<MicHandle | null>(null);
@@ -131,6 +132,7 @@ export function useSession() {
     }
     if (raw.type === 'participants') { participantsRef.current = raw.list; setParticipants(raw.list); return; }
     if (raw.type === 'table') { setTable({ overlap: raw.overlap, avgWpm: raw.avgWpm }); return; }
+    if (raw.type === 'laugh') { setLaughAt(Date.now()); return; }
     if (raw.type === 'pace') return; // participant-only message
     // Any other non-transcript message kind (pace/overlap telemetry, etc.) isn't handled here yet.
     if (raw.type !== 'transcript') return;
@@ -380,7 +382,7 @@ export function useSession() {
     catchup, catchUp, dismissCatchup: useCallback(() => setCatchup({ status: 'idle' }), []),
     setListening,
     started, start: useCallback(() => setStarted(true), []),
-    table, phonesOnly, phonesOnlyPref, setPhonesOnly: useCallback((v: boolean) => setPhonesOnlyPref(v), []),
+    table, laughAt, phonesOnly, phonesOnlyPref, setPhonesOnly: useCallback((v: boolean) => setPhonesOnlyPref(v), []),
     // "Speak for me": ME's TTS line enters the timeline as a final utterance (speaker -2) and dirties the ledger loop.
     addLocalUtterance: useCallback((text: string, durMs = 2000) => {
       dispatch({ type: 'localUtterance', text, t: Date.now() - ref.current.startedAt, durMs });

@@ -103,3 +103,34 @@ export function JoinQr({ participants, colorOf, onClose, phonesOnly = false, pho
     </Modal>
   );
 }
+
+/** Settings (DESIGN.md): the join link with its QR, under the label ADD PHONES. Plain, no chrome. */
+export function JoinLink({ hostName, clerkSpeaks = false, clerkVoice = '', count = 0 }: { hostName?: string; clerkSpeaks?: boolean; clerkVoice?: string; count?: number }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    let dead = false;
+    fetch('/api/room')
+      .then((r) => (r.ok ? (r.json() as Promise<RoomInfo>) : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((info) => { if (!dead) setUrl(joinUrlFor(info, hostName, clerkSpeaks, clerkVoice)); })
+      .catch((e: unknown) => { if (!dead) setErr(String((e as Error)?.message ?? e)); });
+    return () => { dead = true; };
+  }, [hostName, clerkSpeaks, clerkVoice]);
+  useEffect(() => {
+    if (!url || !canvas.current) return;
+    QRCode.toCanvas(canvas.current, url, { width: 200, margin: 1, color: { dark: '#17130F', light: '#F4EEE2' } }).catch(() => {});
+  }, [url]);
+  return (
+    <section aria-labelledby="oat-add-phones">
+      <h3 id="oat-add-phones" className="oat-label mb-3">Add phones{count ? ` · ${count} on the table` : ''}</h3>
+      {err && <p role="alert" className="text-ink">Couldn’t load the table link.</p>}
+      {url && (
+        <>
+          <p className="font-mono text-[0.76rem] break-all text-ink" data-testid="join-url">{url}</p>
+          <canvas ref={canvas} className="mt-3" aria-label="QR code for the join link" />
+        </>
+      )}
+    </section>
+  );
+}

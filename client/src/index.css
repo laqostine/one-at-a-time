@@ -2,19 +2,23 @@
 @import "tw-animate-css";
 
 /*
- * One at a time: design/BRAND.md v2. Cream, ink, one amber. Single theme, flat, no textures.
- * Contrast on cream #F5EFE4: ink 15.9:1, muted 5.6:1, amber-ink 5.4:1, lamp red 5.1:1.
- * Amber means "attention" and nothing else: the asked-you moment and the one-at-a-time lamp.
+ * One at a time: design/DESIGN.md (tokens) + design/BRAND.md v2. Cream, ink, one amber.
+ * Single theme. No gradients, no shadows, no textures, no borders except the 1px --rule.
+ * Contrast on cream: ink 15:1, ink-2 6.6:1. Amber = "asked you", "one at a time", the button.
  */
 :root {
-  --cream: #F5EFE4;
-  --ink: #1B1611;
-  --ink-muted: #6B6057;
-  --amber: #E0A63A;
+  --cream: #F4EEE2;
+  --ink: #17130F;
+  --ink-muted: #5E554B;
+  --ink-2: #5E554B;
+  --rule: #D9D0C0;
+  --amber: #E4A73A;
   --amber-ink: #7E5210;
-  --lamp-good: #4F8A5B;
-  --lamp-amber: #E0A63A;
-  --lamp-red: #B4432F;
+  --lamp-good: #4C8C5C;
+  --go: #4C8C5C;
+  --stop: #B8402E;
+  --lamp-amber: var(--amber);
+  --lamp-red: #B8402E;
   /* legacy names kept so unmounted components still compile to something sane */
   --lamplight: var(--amber);
   --linen: var(--cream);
@@ -25,12 +29,12 @@
   --lamp-light: var(--amber);
 
   --bg: var(--cream);
-  --card: #FBF8F2;
-  --card-2: rgb(27 22 17 / .06);
-  --line: rgb(27 22 17 / .14);
-  --line-strong: rgb(27 22 17 / .34);
+  --card: var(--cream);
+  --card-2: rgb(23 19 15 / .05);
+  --line: var(--rule);
+  --line-strong: var(--rule);
   --fg: var(--ink);
-  --muted: var(--ink-muted);
+  --muted: var(--ink-2);
   --accent: var(--ink);
   --accent-deep: var(--ink);
   --accent-fg: var(--cream);
@@ -48,7 +52,7 @@
   --spk-mix: 55%;
   --spk-to: var(--ink);
 
-  font-size: 19px; /* base; prefs S/M/L/XL overrides this only, everything else is rem */
+  font-size: 17px; /* base; prefs S/M/L/XL overrides this only, everything else is rem */
   color-scheme: light;
   -webkit-text-size-adjust: 100%;
 }
@@ -93,6 +97,10 @@
   --color-tea: var(--amber-ink);
   --color-amber: var(--amber);
   --color-amber-ink: var(--amber-ink);
+  --color-ink-2: var(--ink-2);
+  --color-rule: var(--rule);
+  --color-go: var(--go);
+  --color-stop: var(--stop);
   --color-lamplight: var(--amber);
   --color-lamp-good: var(--lamp-good);
   --color-lamp-amber: var(--lamp-amber);
@@ -146,13 +154,13 @@ body {
 }
 
 :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
-::selection { background: rgb(224 166 58 / .35); color: var(--ink); }
+::selection { background: rgb(228 167 58 / .35); color: var(--ink); }
 .tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
 
 /* Fraunces with SOFT all the way up; Nunito for reading; Space Mono for labels. */
 @layer base {
-  [class*="font-display"], .wordmark, blockquote, h1, h2 { font-variation-settings: "SOFT" 100, "WONK" 0; }
-  [class*="font-display"] { font-weight: 520; letter-spacing: -0.005em; }
+  [class*="font-display"], .wordmark, blockquote, h1, h2 { font-variation-settings: "SOFT" 100, "WONK" 0, "opsz" 144; }
+  [class*="font-display"] { font-weight: 500; letter-spacing: -0.01em; }
   body { font-weight: 500; }
 }
 
@@ -180,7 +188,7 @@ body {
 @utility font-display-italic {
   font-family: var(--font-display);
   font-style: italic;
-  font-weight: 520;
+  font-weight: 500;
 }
 /* Body: 18px on phone, ~21px on desktop at the default M size. */
 @utility text-body {
@@ -215,12 +223,12 @@ body {
 @keyframes imt-shimmer { 0% { opacity: .45; } 50% { opacity: .9; } 100% { opacity: .45; } }
 .imt-skeleton { animation: imt-shimmer 1.2s ease-in-out infinite; background: var(--card-2); border-radius: 8px; }
 /* The single proactive interrupt: amber glow that breathes three times, then stays lit. */
-@keyframes imt-flash { 0% { box-shadow: 0 0 0 0 rgb(224 166 58 / .8), var(--glow-warn); } 100% { box-shadow: 0 0 0 12px rgb(224 166 58 / 0), var(--glow-warn); } }
+@keyframes imt-flash { 0% { box-shadow: 0 0 0 0 rgb(228 167 58 / .8), var(--glow-warn); } 100% { box-shadow: 0 0 0 12px rgb(228 167 58 / 0), var(--glow-warn); } }
 .imt-flash { animation: imt-flash 1s ease-out 3; box-shadow: var(--glow-warn); }
 /* New/replaced content: fade in + a brief tint that clears. Opacity/background only, no reflow. */
 @keyframes imt-in { from { opacity: .35; } to { opacity: 1; } }
 .imt-in { animation: imt-in 180ms ease-out; }
-@keyframes imt-highlight { from { background-color: rgb(224 166 58 / .16); } to { background-color: transparent; } }
+@keyframes imt-highlight { from { background-color: rgb(228 167 58 / .16); } to { background-color: transparent; } }
 .imt-highlight { animation: imt-highlight 700ms ease-out; }
 /* "Catch me up" invites a press only after an away span ended. */
 /* a small nudge on the table (translate), never a glow */
@@ -248,8 +256,20 @@ body {
 @utility brass { background: var(--line-strong); }
 
 /* One at a time: 180 ms opacity + a small rise, nothing else. */
-@keyframes oat-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.oat-in { animation: oat-in 180ms var(--ease-out-soft) both; }
+@keyframes oat-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.oat-in { animation: oat-in 160ms var(--ease-out-soft) both; }
+@keyframes oat-up { from { transform: translateY(100%); } to { transform: none; } }
+.oat-up { animation: oat-up 200ms var(--ease-out-soft) both; }
+/* Label: Space Mono 12, tracked caps, ink-2 (state word, footnotes). */
+@utility oat-label {
+  font-family: var(--font-mono);
+  font-size: 0.706rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--ink-2);
+}
 @keyframes oat-fade { from { opacity: 0; } to { opacity: 1; } }
 .oat-fade { animation: oat-fade 200ms ease-out both; }
 
@@ -294,7 +314,7 @@ html.io .reveal { opacity: 0; transform: translateY(18px); transition: opacity 7
 html.io .reveal.is-in { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .imt-pulse, .imt-skeleton, .imt-flash, .imt-sheet-up, .imt-line-in, .imt-slide-r, .imt-slide-l, .imt-note-in, .imt-ring, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .imt-lamp, .oat-in, .oat-fade, .animate-spin { animation: none !important; }
+  .imt-pulse, .imt-skeleton, .imt-flash, .imt-sheet-up, .imt-line-in, .imt-slide-r, .imt-slide-l, .imt-note-in, .imt-ring, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .imt-lamp, .oat-in, .oat-fade, .oat-up, .animate-spin { animation: none !important; }
   html.io .reveal { opacity: 1; transform: none; }
   *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }

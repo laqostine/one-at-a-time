@@ -1,17 +1,11 @@
-// "Everyone joins" participant page: your phone = your mic, labelled with your name on the host.
-// No transcript is shown here on purpose — the phone only sends audio.
+// "Put my phone on the table": your phone = your mic, labelled with your name on the listener's phone.
+// Once joined the whole screen is the lamp: one color, one word. No transcript is shown here on purpose.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff } from 'lucide-react';
 import type { AsrMessage, PaceLevel } from '../../../shared/types';
 import { startMic, type MicHandle } from '../audio/mic';
-import { PresenceAuto } from '../ui/PresenceAuto';
-import { IconOverlap, IconPace, IconSpeakForMe } from '../ui/icons';
-import { Lamp } from './Lamp';
-import { HouseRules } from '../ui/HouseRules';
-import { ObjIcon } from '../ui/ObjIcon';
+import { Lamp, lampTone } from './Lamp';
 import { SayCard, type SayMsg } from './SayCard';
-import { Toggle } from '@/components/ui/toggle';
-import { Wordmark } from '../ui/Wordmark';
+import { adoptTableVoiceParams, oneAtATime, playMp3, primeSpeech, speakLine, tableVoiceName, tableVoiceOn, unlockAudio } from '@/lib/clerkVoice';
 
 type Phase = 'form' | 'starting' | 'live' | 'error';
 type Link = 'connecting' | 'open' | 'reconnecting' | 'lost';
@@ -29,57 +23,11 @@ function savedName(): string {
 }
 
 interface Pace { wpm: number; level: PaceLevel; overlap: boolean; listenerName: string }
-const PACE_MAX_WPM = 220;     // right edge of the bar
-const BUZZ_EVERY_MS = 10_000; // at most one vibration per 10 s
+const BUZZ_EVERY_MS = 10_000;  // at most one vibration per 10 s
+const NUDGE_WINDOW_MS = 10_000; // 2nd overlap / too-fast flip within this window...
+const NUDGE_BACKOFF_MS = 30_000; // ...speaks "One at a time" once, then stays quiet this long
 
-/** The participant's main job: a big "am I easy to caption?" bar. */
-function PaceBar({ pace }: { pace: Pace | null }) {
-  const who = pace?.listenerName || 'the table';
-  if (!pace) {
-    return (
-      <div className="paper rounded-[6px_10px_8px_12px] p-5" data-testid="pace">
-        <div className="flex items-center gap-1.5 card-label"><IconPace size={16} strokeWidth={2} />Your pace</div>
-        <div className="mt-2 text-[3.5rem] leading-none font-bold text-muted tabular-nums">–</div>
-        <p className="mt-2 text-body text-muted">Start talking — your speed shows here.</p>
-      </div>
-    );
-  }
-  const { wpm, level, overlap } = pace;
-  const tone = overlap || level === 'too_fast' ? 'bad' : level === 'fast' ? 'warn' : 'good';
-  const bar = tone === 'bad' ? 'bg-bad' : tone === 'warn' ? 'bg-warn' : 'bg-good';
-  const border = tone === 'bad' ? 'border-bad' : tone === 'warn' ? 'border-warn' : 'border-good/60';
-  const text = wpm === 0 ? `Talk normally — ${who} is following`
-    : level === 'too_fast' ? `Too fast for ${who} to follow`
-    : level === 'fast' ? `A bit fast for ${who}, slow down`
-    : `Good pace for ${who}`;
-  const pct = Math.min(100, Math.round((wpm / PACE_MAX_WPM) * 100));
-  const mark = (w: number) => `${(w / PACE_MAX_WPM) * 100}%`;
-  return (
-    <div className={`paper rounded-[6px_10px_8px_12px] border-2 ${border} p-5 transition-colors duration-200`} data-testid="pace" data-level={level} data-overlap={overlap}>
-      <div className="flex items-center gap-1.5 card-label"><IconPace size={16} strokeWidth={2} />Your pace</div>
-      <div className="mt-1 flex items-baseline gap-2">
-        <span className={`text-[4.5rem] leading-none font-bold tracking-tight tabular-nums ${tone === 'bad' ? 'text-bad' : tone === 'warn' ? 'text-warn' : 'text-fg'}`} data-testid="pace-wpm">{wpm || '–'}</span>
-        <span className="font-mono text-[0.85rem] font-medium text-muted">words / min</span>
-      </div>
-      <div className="mt-2 text-[1.2rem] leading-snug font-semibold" role="status" aria-live="polite">{text}</div>
-      <div className="relative mt-4 h-5 w-full overflow-hidden rounded-full bg-card-2" role="meter" aria-label="Your speaking pace"
-        aria-valuemin={0} aria-valuemax={PACE_MAX_WPM} aria-valuenow={wpm} aria-valuetext={`${wpm} words per minute, ${text}`}>
-        <div className={`h-full origin-left rounded-full ${bar} transition-[width] duration-200`} style={{ width: `${pct}%` }} />
-        <span aria-hidden className="absolute top-0 h-full w-0.5 bg-bg/70" style={{ left: mark(150) }} />
-        <span aria-hidden className="absolute top-0 h-full w-1 -translate-x-1/2 bg-bg" style={{ left: mark(170) }} />
-      </div>
-      <div aria-hidden className="relative mt-1.5 h-4 text-[0.72rem] font-semibold text-muted tabular-nums">
-        <span className="absolute -translate-x-1/2" style={{ left: mark(150) }}>150</span>
-        <span className="absolute -translate-x-1/2" style={{ left: mark(170) }}>170</span>
-      </div>
-      {overlap && (
-        <div role="alert" className="mt-4 flex items-center gap-2.5 rounded-xl border border-bad/40 bg-bad/12 px-3.5 py-2.5 text-[1.1rem] font-semibold text-bad" data-testid="pace-overlap">
-          <IconOverlap size={22} className="shrink-0" />Two people talking, one at a time helps {who}
-        </div>
-      )}
-    </div>
-  );
-}
+try { adoptTableVoiceParams(new URLSearchParams(location.search)); } catch { /* ignore */ }
 
 type WakeLockLike = { release: () => Promise<void> };
 
@@ -98,10 +46,14 @@ export default function JoinPage() {
   const mutedRef = useRef(false);
   const [pace, setPace] = useState<Pace | null>(null);
   const lastBuzz = useRef(0);
-  const wasAlarm = useRef(false);
-  // Lamp mode (default ON once joined): the screen is a colored lamp; a tap shows controls for 8 s.
-  const [lamp, setLamp] = useState(true);
+  const lastTone = useRef<string>('');
+  // The lamp is the screen; a tap shows Mute / Leave for 6 s.
   const [revealUntil, setRevealUntil] = useState(0);
+  // Spoken "One at a time" (only when the table has voice on): transition timestamps + last spoken.
+  const lang = useRef('en');
+  const flips = useRef<{ overlap: number[]; fast: number[] }>({ overlap: [], fast: [] });
+  const prev = useRef({ overlap: false, fast: false });
+  const lastNudge = useRef(0);
   const [say, setSay] = useState<SayMsg | null>(null);
   const dismissSay = useCallback(() => setSay(null), []);
   useEffect(() => {
@@ -110,7 +62,7 @@ export default function JoinPage() {
     return () => window.clearTimeout(id);
   }, [revealUntil]);
 
-  useEffect(() => { document.title = 'Join the table · I Missed That'; }, []);
+  useEffect(() => { document.title = 'Put my phone on the table · One at a time'; }, []);
   useEffect(() => () => { mic.current?.stop(); void wake.current?.release().catch(() => {}); }, []);
 
   const keepAwake = useCallback(async () => {
@@ -129,18 +81,35 @@ export default function JoinPage() {
   const onMessage = useCallback((m: AsrMessage) => {
     if (m.type === 'pace') {
       setPace({ wpm: m.wpm, level: m.level, overlap: m.overlap, listenerName: m.listenerName });
-      // One short buzz on the transition into "too fast" or "overlap", max once per 10 s.
-      const alarm = m.level === 'too_fast' || m.overlap;
-      if (alarm && !wasAlarm.current && Date.now() - lastBuzz.current > BUZZ_EVERY_MS) {
+      // Vibrate on every color change, max once per 10 s.
+      const tone = lampTone({ wpm: m.wpm, level: m.level, overlap: m.overlap }, mutedRef.current);
+      if (tone !== lastTone.current && lastTone.current !== '' && Date.now() - lastBuzz.current > BUZZ_EVERY_MS) {
         lastBuzz.current = Date.now();
         try { navigator.vibrate?.(120); } catch { /* unsupported */ }
       }
-      wasAlarm.current = alarm;
+      lastTone.current = tone;
+      // Voice nudge: the 2nd flip into overlap (or into too fast) within 10 s speaks softly, then backs off 30 s.
+      const now = Date.now();
+      const fast = m.level === 'too_fast';
+      const hit = (k: 'overlap' | 'fast', on: boolean) => {
+        if (on && !prev.current[k]) flips.current[k] = [...flips.current[k].filter((x) => now - x < NUDGE_WINDOW_MS), now];
+        prev.current[k] = on;
+        return flips.current[k].length >= 2;
+      };
+      const due = [hit('overlap', m.overlap), hit('fast', fast)].some(Boolean);
+      if (due && tableVoiceOn() && now - lastNudge.current > NUDGE_BACKOFF_MS) {
+        lastNudge.current = now;
+        flips.current = { overlap: [], fast: [] };
+        speakLine(oneAtATime(lang.current), { lang: lang.current, voice: tableVoiceName(), volume: 0.55 });
+      }
       return;
     }
     if (m.type === 'say') {
       setSay({ name: m.name, text: m.text, t: m.t });
       try { navigator.vibrate?.(200); } catch { /* unsupported */ }
+      // The clerk speaks: server audio (ElevenLabs) when present, else the device voice when the table has voice on.
+      if (m.audio) playMp3(m.audio);
+      else if (m.voice) speakLine(m.text, { lang: lang.current, voice: tableVoiceName() });
       return;
     }
     if (m.type !== 'status') return; // participants never see transcripts
@@ -172,6 +141,10 @@ export default function JoinPage() {
     const n = name.trim();
     if (!n) return;
     try { localStorage.setItem(NAME_KEY, n); } catch { /* ignore */ }
+    // The Join tap is the user gesture that lets this phone play the clerk's voice later.
+    unlockAudio();
+    primeSpeech();
+    void fetch('/api/room/lang').then((r) => (r.ok ? r.json() : null)).then((j: { lang?: string } | null) => { if (j?.lang) lang.current = j.lang; }).catch(() => {});
     setPhase('starting');
     setError('');
     try {
@@ -188,7 +161,6 @@ export default function JoinPage() {
       mic.current = await startMic(onMessage, onPcm, { role: 'participant', name: n, token, maxReconnects: 1000 });
       mic.current.setMuted(mutedRef.current);
       setPhase('live');
-      setLamp(true);
       setRevealUntil(0);
       void keepAwake();
     } catch (e) {
@@ -218,108 +190,52 @@ export default function JoinPage() {
     });
   }, []);
 
-  const host = pace?.listenerName && pace.listenerName !== 'the table' ? pace.listenerName : hostParam || 'The host';
+  const host = pace?.listenerName && pace.listenerName !== 'the table' ? pace.listenerName : hostParam || 'the listener';
   const heard = link === 'open' && !muted && Date.now() - heardAt < 1500;
-  const statusLine = muted ? 'Muted — the table can’t hear you'
-    : link === 'open' ? (heard ? 'You’re being heard' : 'Connected — just talk normally')
-    : link === 'lost' ? 'Connection lost — retrying…'
-    : link === 'reconnecting' ? 'Reconnecting…' : 'Connecting…';
-  const dot = muted ? 'bg-muted' : link === 'open' ? (heard ? 'bg-good imt-pulse' : 'bg-good') : 'bg-warn';
+  const status = muted ? 'muted' : link === 'open' ? (heard ? 'heard' : 'on the table') : link === 'lost' ? 'retrying' : link === 'reconnecting' ? 'reconnecting' : 'connecting';
+  void level;
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <header>
-        <div className="flex items-center justify-between"><Wordmark height={30} /><ObjIcon name="table" fallback={IconPace} size={56} className="-my-2" /></div>
-        <h1 className="mt-4 font-display-italic text-[2.6rem] leading-none [text-shadow:2px_3px_6px_rgb(27_20_16/.6)]">{phase === 'live' ? name.trim() : 'Join the table'}</h1>
-        <p className="mt-2 text-body text-cream/90">
-          Your phone is your mic. <span className="font-semibold text-cream">{host}</span> sees your name, not your voice. One at a time helps.
-        </p>
-      </header>
+    <div className="mx-auto flex min-h-dvh max-w-[640px] flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] text-ink">
+      <a href="/landing.html" className="w-fit pt-3 font-display-italic text-[18px]">One at a time</a>
 
       {phase === 'error' && (
-        <div role="alert" className="paper rounded-[6px_10px_8px_12px] p-5 text-body">{error}
-          {token && <button type="button" onClick={() => setPhase('form')} className="mt-4 h-12 w-full cursor-pointer rounded-xl border border-border bg-card-2 font-semibold">Try again</button>}
+        <div role="alert" className="my-auto py-10">
+          <p className="font-display-italic text-[1.882rem] leading-[1.15]">{error}</p>
+          {token && <button type="button" onClick={() => setPhase('form')} className="mt-6 h-16 w-full cursor-pointer rounded-full bg-amber text-[1.176rem] font-bold text-ink">Try again</button>}
         </div>
       )}
 
       {(phase === 'form' || phase === 'starting') && (
-        <form className="linen flex -rotate-[0.4deg] flex-col gap-4 rounded-[8px_12px_10px_6px] p-5" onSubmit={(e) => { e.preventDefault(); void join(); }}>
-          <label className="flex flex-col gap-2">
-            <span className="card-label">Your name</span>
+        <form className="my-auto flex flex-col gap-4 py-10" onSubmit={(e) => { e.preventDefault(); void join(); }}>
+          <label className="block">
+            <span className="mb-2 block text-[1.176rem] font-bold">Your name</span>
             <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" maxLength={40}
               placeholder="e.g. Joyce" enterKeyHint="go"
-              className="h-14 rounded-xl border border-input bg-cream/80 px-4 text-[1.2rem] text-ink outline-none transition-colors duration-150 focus:border-accent" />
+              className="h-16 w-full rounded-xl border border-rule bg-cream px-4 text-[1.176rem] text-ink placeholder:text-ink-2" />
           </label>
           <button type="submit" disabled={!name.trim() || phase === 'starting'}
-            className="h-16 cursor-pointer rounded-2xl bg-accent text-[1.3rem] font-bold text-accent-fg shadow-[var(--shadow-obj)] transition-[filter] duration-150 hover:brightness-110 disabled:cursor-default disabled:opacity-50">
-            {phase === 'starting' ? 'Starting mic…' : 'Join'}
+            className="h-16 w-full cursor-pointer rounded-full bg-amber text-[1.176rem] font-bold text-ink disabled:cursor-default disabled:opacity-40">
+            {phase === 'starting' ? 'Starting the mic…' : 'Put me on the table'}
           </button>
+          <p className="text-[1rem] leading-snug text-ink-2">Your phone is your mic. It changes color when it’s your turn to slow down.</p>
         </form>
-      )}
-      {(phase === 'form' || phase === 'starting') && (
-        <HouseRules host={host === 'The host' ? 'the host' : host} className="mx-1" />
-      )}
-      {(phase === 'form' || phase === 'starting') && (
-        <ul className="paper flex rotate-[0.4deg] flex-col gap-1 rounded-[4px] p-2" aria-label="What happens after you join">
-          {[
-            { Icon: IconPace, title: 'Screen up, it becomes a lamp', body: `Green: easy for ${host === 'The host' ? 'the host' : host} to follow. Amber: two talking. Red: too fast.` },
-            { Icon: IconSpeakForMe, title: `${host} can answer you here`, body: 'Their typed line fills your screen for 10 seconds.' },
-          ].map(({ Icon, title, body }) => (
-            <li key={title} className="flex items-start gap-3 rounded-xl px-2.5 py-2.5">
-              <ObjIcon name={Icon === IconPace ? 'lamp' : 'bell'} fallback={Icon} size={48} className="-my-1" />
-              <span className="min-w-0"><span className="block font-semibold">{title}</span><span className="block text-[0.95rem] leading-snug text-muted">{body}</span></span>
-            </li>
-          ))}
-        </ul>
       )}
 
       {phase === 'live' && (
-        <section className="flex flex-col gap-4" aria-live="polite">
-          <PaceBar pace={muted ? null : pace} />
-          <div className="linen rounded-[8px_12px_10px_6px] p-4">
-            <div className="flex items-center gap-3">
-              <PresenceAuto size={96} state={muted ? 'idle' : link === 'open' ? (heard ? 'speaking' : 'listening') : 'idle'} level={level} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span aria-hidden className={`h-3 w-3 shrink-0 rounded-full ${dot}`} />
-                  <div className="text-[1.05rem] leading-snug font-semibold" role="status">{statusLine}</div>
-                </div>
-                <div className="mt-0.5 truncate text-meta">Joined as <b className="text-fg">{name.trim()}</b></div>
-                <div className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-card-2" role="meter" aria-label="Mic level"
-                  aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(level * 100)}>
-                  <div className={`h-full rounded-full transition-[width] duration-100 ${heard ? 'bg-good' : 'bg-accent'}`}
-                    style={{ width: `${Math.round(level * 100)}%` }} />
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-[1fr_auto_auto] gap-2">
-              <Toggle pressed={muted} onPressedChange={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}
-                className={`h-14 cursor-pointer rounded-xl border text-[1.15rem] font-bold [&_svg:not([class*='size-'])]:size-6 ${muted ? 'border-bad bg-bad text-cream hover:bg-bad hover:text-cream data-[state=on]:bg-bad data-[state=on]:text-cream' : 'border-border bg-card-2 text-fg'}`}>
-                {muted ? <MicOff aria-hidden /> : <Mic aria-hidden />}
-                {muted ? 'Unmute' : 'Mute'}
-              </Toggle>
-              <Toggle pressed={lamp} onPressedChange={(v) => { setLamp(v); setRevealUntil(0); }} aria-label="Lamp mode: the whole screen shows your pace as a color"
-                data-testid="lamp-toggle"
-                className="h-14 cursor-pointer rounded-xl border border-border bg-card-2 px-4 text-[1.05rem] font-bold text-fg data-[state=on]:border-good data-[state=on]:bg-good/15 data-[state=on]:text-good">
-                <span aria-hidden className="size-3 rounded-full bg-current" /> Lamp
-              </Toggle>
-              <button type="button" onClick={leave} className="h-14 cursor-pointer rounded-xl border border-border px-4 font-semibold text-muted transition-colors duration-150 hover:text-fg">Leave</button>
-            </div>
-          </div>
-        </section>
+        <Lamp pace={muted ? null : pace} muted={muted} host={host} name={name.trim()} status={status}
+          onTap={() => setRevealUntil(Date.now() + 8_000)} />
       )}
-
-      <p className="mt-auto text-meta text-cream/80">Your voice is transcribed with your name for this table only. Nothing is stored.</p>
-
-      {phase === 'live' && lamp && !revealUntil && (
-        <Lamp pace={pace} muted={muted} host={host} name={name.trim()} heard={heard} level={level}
-          onReveal={() => setRevealUntil(Date.now() + 8_000)} />
-      )}
-      {phase === 'live' && lamp && revealUntil > 0 && (
-        <p role="status" className="fixed inset-x-0 bottom-0 z-20 bg-dusk/90 py-2 text-center font-mono text-[0.72rem] tracking-wider text-muted uppercase">Lamp returns in a few seconds</p>
+      {phase === 'live' && revealUntil > 0 && (
+        <div className="oat-in fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-35 flex gap-2">
+          <button type="button" onClick={() => { toggleMute(); setRevealUntil(Date.now() + 8_000); }} aria-pressed={muted}
+            className="h-14 min-w-24 cursor-pointer rounded-full bg-cream px-5 text-[1.05rem] font-bold text-ink">{muted ? 'Unmute' : 'Mute'}</button>
+          <button type="button" onClick={() => { setRevealUntil(0); leave(); }}
+            className="h-14 min-w-24 cursor-pointer rounded-full bg-ink px-5 text-[1.05rem] font-bold text-cream">Leave</button>
+        </div>
       )}
       {say && <SayCard say={say} onDismiss={dismissSay} />}
-      <div aria-live="assertive" aria-atomic="true" className="sr-only">{say ? `${say.name} wants to say: ${say.text}` : ''}</div>
+      <div aria-live="assertive" aria-atomic="true" className="sr-only">{say ? `${say.name} says: ${say.text}` : ''}</div>
     </div>
   );
 }

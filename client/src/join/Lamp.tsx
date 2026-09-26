@@ -1,20 +1,29 @@
-// The lamp: the whole phone screen is one color with one word, readable from across the table.
-// green = go ahead, amber = one at a time / slower, red = too fast. The owner's name small on top.
+// The lamp (design/DESIGN.md §2): the whole phone screen is one flat color with one word.
+// --go "Go ahead" · --amber "One at a time" (overlap) · --amber "Slower" (fast) · --stop "Too fast".
 import type { PaceLevel } from '../../../shared/types';
 
 export interface LampPace { wpm: number; level: PaceLevel; overlap: boolean }
-type Tone = 'good' | 'amber' | 'red' | 'idle';
+export type Tone = 'good' | 'amber' | 'red' | 'idle';
 
-// design/BRAND.md v2. Text on each: cream on green/red (large text only), ink on amber and cream.
-const BG: Record<Tone, string> = { good: '#4F8A5B', amber: '#E0A63A', red: '#B4432F', idle: '#F5EFE4' };
-const FG: Record<Tone, string> = { good: '#F5EFE4', amber: '#1B1611', red: '#F5EFE4', idle: '#1B1611' };
+const BG: Record<Tone, string> = { good: 'var(--go)', amber: 'var(--amber)', red: 'var(--stop)', idle: 'var(--cream)' };
+// Big word: cream on color, ink on cream. Small text (<=24px) on amber is ink (contrast).
+const WORD: Record<Tone, string> = { good: 'var(--cream)', amber: 'var(--cream)', red: 'var(--cream)', idle: 'var(--ink)' };
+const SMALL: Record<Tone, string> = { good: 'var(--cream)', amber: 'var(--ink)', red: 'var(--cream)', idle: 'var(--ink-2)' };
+
+export function lampTone(pace: LampPace | null, muted: boolean): Tone {
+  if (muted) return 'idle';
+  if (pace?.level === 'too_fast') return 'red';
+  if (pace?.overlap || pace?.level === 'fast') return 'amber';
+  return 'good';
+}
 
 export function lampState(pace: LampPace | null, muted: boolean, host: string): { tone: Tone; word: string; line: string } {
-  if (muted) return { tone: 'idle', word: 'Muted', line: 'The table can’t hear you' };
-  if (pace?.level === 'too_fast') return { tone: 'red', word: 'Too fast', line: `Too fast for ${host}` };
-  if (pace?.overlap) return { tone: 'amber', word: 'One at a time', line: `One at a time helps ${host}` };
-  if (pace?.level === 'fast') return { tone: 'amber', word: 'Slower', line: `Slower helps ${host}` };
-  return { tone: 'good', word: 'Go ahead', line: `${host} can follow you` };
+  const tone = lampTone(pace, muted);
+  if (muted) return { tone, word: 'Muted', line: 'the table can’t hear you' };
+  if (tone === 'red') return { tone, word: 'Too fast', line: `slower helps ${host}` };
+  if (pace?.overlap) return { tone, word: 'One at a time', line: `one at a time helps ${host}` };
+  if (tone === 'amber') return { tone, word: 'Slower', line: `slower helps ${host}` };
+  return { tone, word: 'Go ahead', line: '' };
 }
 
 export function Lamp({ pace, muted, host, name, status, onTap }: {
@@ -23,17 +32,13 @@ export function Lamp({ pace, muted, host, name, status, onTap }: {
   const st = lampState(pace, muted, host);
   return (
     <button type="button" onClick={onTap} data-testid="lamp" data-tone={st.tone}
-      aria-label={`${st.word}. ${st.line}. Tap for mute and leave.`}
-      className="fixed inset-0 z-30 flex cursor-pointer flex-col px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] text-left transition-colors duration-200"
-      style={{ background: BG[st.tone], color: FG[st.tone] }}>
-      <span className="flex w-full items-baseline justify-between gap-3">
-        <span className="truncate text-[1.05rem] font-bold">{name}</span>
-        {status && <span className="shrink-0 font-mono text-[13px] opacity-90">{status}</span>}
-      </span>
-      <span className="my-auto block w-full">
-        <span key={st.word} className="oat-in block font-display-italic text-[clamp(3.6rem,19vw,6.5rem)] leading-[0.95]" role="status" aria-live="polite">{st.word}</span>
-        <span className="mt-5 block text-[1.35rem] leading-snug font-bold">{st.line}</span>
-      </span>
+      aria-label={`${st.word}. ${st.line ? `${st.line}. ` : ''}Tap for mute and leave.`}
+      className="fixed inset-0 z-30 flex cursor-pointer flex-col px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.75rem,env(safe-area-inset-bottom))] text-left transition-colors duration-200"
+      style={{ background: BG[st.tone] }}>
+      <span className="oat-label" style={{ color: SMALL[st.tone] }}>{name}{status ? ` · ${status}` : ''}</span>
+      <span key={st.word} className="oat-in my-auto block w-full text-center font-display-italic text-[56px] leading-[1.02]"
+        style={{ color: WORD[st.tone] }} role="status" aria-live="polite">{st.word}</span>
+      <span className="min-h-6 text-[17px] font-medium" style={{ color: SMALL[st.tone], opacity: st.tone === 'red' ? 0.85 : 1 }}>{st.line}</span>
     </button>
   );
 }

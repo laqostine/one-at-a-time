@@ -1,6 +1,6 @@
 // Per-device display prefs (font size, contrast, synthetic voice, captions). localStorage is a convenience only.
 export type FontSize = 'S' | 'M' | 'L' | 'XL';
-export const FONT_PX: Record<FontSize, number> = { S: 17, M: 19, L: 22, XL: 25 };
+export const FONT_PX: Record<FontSize, number> = { S: 16, M: 17, L: 20, XL: 23 };
 /** voice: "Also say it aloud" for Say something (default OFF: text-first). captions: the full caption list (default OFF). */
 /** clerkSpeaks: "The clerk speaks for me" (voice on the table's phones, default OFF); clerkVoice: speechSynthesis voice name. */
 export interface Prefs { font: FontSize; contrast: boolean; voice: boolean; captions: boolean; clerkSpeaks: boolean; clerkVoice: string }

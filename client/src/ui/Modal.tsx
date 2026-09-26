@@ -27,7 +27,7 @@ export function Modal({ title, onClose, children, variant = 'center', dismissabl
   const guards = { onOpenAutoFocus, onEscapeKeyDown: block, onPointerDownOutside: block, onInteractOutside: block, 'aria-describedby': undefined };
 
   const header = (Title: typeof DialogTitle) => (
-    <div className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-line px-5">
+    <div className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-rule px-5">
       <Title className="font-display-italic text-[1.5rem] leading-tight text-ink">{title}</Title>
       {dismissable && (
         <DialogPrimitive.Close className="-mr-2 h-14 min-w-14 cursor-pointer rounded-xl px-3 font-bold text-ink underline-offset-4 hover:underline">
@@ -42,7 +42,7 @@ export function Modal({ title, onClose, children, variant = 'center', dismissabl
     return (
       <Dialog open onOpenChange={onOpenChange}>
         <DialogContent showCloseButton={false} {...guards}
-          className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden rounded-2xl border border-line bg-bg p-0 text-ink shadow-none sm:max-w-md">
+          className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden rounded-xl border-0 bg-bg p-0 text-ink shadow-none sm:max-w-md">
           {header(DialogTitle)}
           {body}
         </DialogContent>
@@ -52,8 +52,8 @@ export function Modal({ title, onClose, children, variant = 'center', dismissabl
   return (
     <Sheet open onOpenChange={onOpenChange}>
       <SheetContent side={variant === 'sheet' ? 'bottom' : 'right'} showCloseButton={false} {...guards}
-        className={cn('flex-col gap-0 border-line bg-bg p-0 text-ink shadow-none',
-          variant === 'sheet' ? 'mx-auto max-h-[85dvh] w-full max-w-[640px] rounded-t-2xl border-x border-t' : 'h-full w-full max-w-md border-l sm:max-w-md')}>
+        className={cn('flex-col gap-0 border-0 bg-bg p-0 text-ink shadow-none',
+          variant === 'sheet' ? 'mx-auto max-h-[85dvh] w-full max-w-[640px] rounded-t-xl' : 'h-full w-full max-w-md sm:max-w-md')}>
         {header(SheetTitle)}
         {body}
       </SheetContent>

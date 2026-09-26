@@ -68,3 +68,32 @@ export function tableVoiceOn(): boolean {
 export function tableVoiceName(): string {
   try { return localStorage.getItem(CV) ?? ''; } catch { return ''; }
 }
+
+// ElevenLabs audio from the server (say.audio): one shared <audio> element, unlocked by the Join tap.
+let player: HTMLAudioElement | null = null;
+/** A valid 50 ms silent 8 kHz mono WAV, built in code so it always decodes. */
+function silentWav(): string {
+  const n = 400, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const w = (o: number, t: string) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true);
+  v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  let bin = ''; new Uint8Array(buf).forEach((x) => { bin += String.fromCharCode(x); });
+  return `data:audio/wav;base64,${btoa(bin)}`;
+}
+export function unlockAudio(): void {
+  try {
+    player ??= new Audio();
+    player.src = silentWav();
+    void player.play().then(() => player?.pause()).catch(() => {});
+  } catch { /* ignore */ }
+}
+export function playMp3(base64: string): void {
+  try {
+    player ??= new Audio();
+    if (hasSpeech()) window.speechSynthesis.cancel();
+    player.src = `data:audio/mpeg;base64,${base64}`;
+    void player.play().catch(() => {});
+  } catch { /* ignore */ }
+}
