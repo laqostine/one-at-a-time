@@ -49,6 +49,13 @@ export function resultsToMessages(r: DgResults): AsrMessage[] {
   };
   for (const w of words) {
     if (run.length && (run[0].speaker ?? -1) !== (w.speaker ?? -1)) flush();
+    // Also split at a sentence end followed by a pause, so "…by Friday?" and "None taken."
+    // from the same phone don't merge into one line (seen in the live QA run).
+    if (run.length) {
+      const prev = run[run.length - 1];
+      const endsSentence = /[.?!]["')\]]?$/.test(prev.punctuated_word ?? '');
+      if (endsSentence && w.start - prev.end >= 0.6) flush();
+    }
     run.push(w);
   }
   flush();

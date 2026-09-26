@@ -289,7 +289,7 @@ export function useSession() {
       const s = ref.current;
       const t0 = performance.now();
       try {
-        const win = lastMinutes(s, 3, nowT());
+        const win = lastMinutes(s, 1.5, nowT()); // 90 s keeps the ledger call ~4 s live; older items persist via `existing`
         const covered = win.reduce((m, i) => (isUtt(i) && i.final ? Math.max(m, i.tStart) : m), -1);
         const res = await postState({ me: s.me, speakers: s.speakers, window: win, nowT: nowT(), existing: s.ledger.filter((i) => !i.provisional), existing_threads: s.threads });
         const ms = Math.round(performance.now() - t0);
