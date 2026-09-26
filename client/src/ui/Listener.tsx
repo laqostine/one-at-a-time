@@ -272,7 +272,7 @@ export function StartGate({ name, onStart }: { name: string; onStart: () => void
 }
 
 /** After the name, before "Start listening": teach the table this voice (skipped when already known). */
-export function VoiceGate({ name, onDone }: { name: string; onDone: () => void }) {
+export function VoiceGate({ name, onDone, onRename }: { name: string; onDone: () => void; onRename?: (name: string) => void }) {
   const [token, setToken] = useState<string | null>(null);
   useEffect(() => {
     let dead = false;
@@ -290,7 +290,7 @@ export function VoiceGate({ name, onDone }: { name: string; onDone: () => void }
   }, [name]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <FullPage label="Teach the table your voice">
-      {token != null && <VoiceStep name={name} token={token} onDone={onDone} />}
+      {token != null && <VoiceStep name={name} token={token} onDone={onDone} onRename={onRename} />}
     </FullPage>
   );
 }

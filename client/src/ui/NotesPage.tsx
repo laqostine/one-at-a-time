@@ -43,7 +43,7 @@ export function NotesPage({ id, onClose }: { id: string; onClose: () => void }) 
   const missed = notes.filter((n) => n.kind === 'missed');
   const other = notes.filter((n) => !plans.includes(n) && !asked.includes(n) && !missed.includes(n));
   return (
-    <div role="dialog" aria-modal="true" aria-label="A past table" className="oat-up fixed inset-0 z-[90] overflow-y-auto bg-cream text-ink"
+    <div role="dialog" aria-modal="true" aria-label="A past table" className="oat-up font-notes fixed inset-0 z-[90] overflow-y-auto bg-cream text-ink"
       onTouchStart={(e) => { touchY.current = e.touches[0].clientY; }}
       onTouchEnd={(e) => { const y0 = touchY.current; touchY.current = null; if (y0 != null && e.changedTouches[0].clientY - y0 > 70) onClose(); }}
       onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>

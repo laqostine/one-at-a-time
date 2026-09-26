@@ -26,8 +26,10 @@ export async function voiceAlreadyKnown(token: string, name: string): Promise<bo
 
 type Step = 'ask' | 'rec' | 'saving' | 'got' | 'failed';
 
-export function VoiceStep({ name, token, onDone, onGesture }: {
+export function VoiceStep({ name, token, onDone, onGesture, onRename }: {
   name: string;
+  /** Optional: the person can correct the name this voice is saved under (listener page). */
+  onRename?: (name: string) => void;
   token: string;
   /** Called after the recorder's stream is stopped and the result line has been shown. */
   onDone: () => void;
@@ -35,6 +37,8 @@ export function VoiceStep({ name, token, onDone, onGesture }: {
   onGesture?: () => void;
 }) {
   const [step, setStep] = useState<Step>('ask');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
   const [left, setLeft] = useState(SECONDS);
   const [progress, setProgress] = useState(0);
   const [note, setNote] = useState('');
@@ -93,6 +97,18 @@ export function VoiceStep({ name, token, onDone, onGesture }: {
         <>
           <h1 className="font-display-italic text-[2.353rem] leading-[1.1] text-ink">Teach the table your voice</h1>
           <p className="text-[20px] leading-snug text-ink-2">Say your name, then keep talking until the bar fills. Two or three sentences.</p>
+          {editing ? (
+            <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); const n = draft.trim(); if (n) { onRename?.(n); setEditing(false); } }}>
+              <input value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus aria-label="Your name" autoComplete="given-name"
+                className="h-14 min-w-0 flex-1 rounded-xl border border-rule bg-cream px-4 text-[1.176rem] text-ink" />
+              <button type="submit" disabled={!draft.trim()} className="h-14 shrink-0 cursor-pointer rounded-full bg-ink px-5 font-bold text-cream disabled:opacity-40">Save</button>
+            </form>
+          ) : (
+            <p className="text-[1.06rem] text-ink-2" data-testid="voice-whose">
+              Saving this voice as <span className="font-bold text-ink">{name}</span>.
+              {onRename && <> <button type="button" onClick={() => { setDraft(name); setEditing(true); }} className="cursor-pointer underline underline-offset-4">Not you? Change</button></>}
+            </p>
+          )}
         </>
       )}
       {step !== 'got' && (

@@ -7,6 +7,7 @@ import { useInterject, useLastActivity } from './state/useInterject';
 import { useAway, type AwayInterval } from './state/useAway';
 import { applyPrefs, loadPrefs, type Prefs } from './ui/prefs';
 import { useNotesDb } from './lib/notesDb';
+import { PlacesPage } from './ui/PlacesPage';
 import { RenameDialog } from './ui/RenameDialog';
 import { SettingsDrawer } from './ui/SettingsDrawer';
 import { SpeakCard } from './ui/SpeakCard';
@@ -38,6 +39,7 @@ export default function App() {
   const notesDb = useNotesDb({ started: s.started, me: session.me.name, location: prefs.location, ledger: session.ledger, lastCatchup: lastCatchup?.data ?? null });
   // The third page ("The map"): swipe left or tap MAP.
   const [mapOpen, setMapOpen] = useState(false);
+  const [placesOpen, setPlacesOpen] = useState(false);
   const swipeY = useRef<{ x: number; y: number } | null>(null);
   useTick();
 
@@ -170,7 +172,7 @@ export default function App() {
       onTouchStart={(e) => { swipeY.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
       onTouchEnd={(e) => {
         const s0 = swipeY.current; swipeY.current = null;
-        if (!s0 || nudge || tableOpen || mapOpen) return;
+        if (!s0 || nudge || tableOpen || mapOpen || placesOpen) return;
         const dx = e.changedTouches[0].clientX - s0.x, dy = e.changedTouches[0].clientY - s0.y;
         if (-dy > 70 && Math.abs(dx) < Math.abs(dy)) setTableOpen(true);
         else if (-dx > 70 && Math.abs(dy) < 60) setMapOpen(true);
@@ -219,6 +221,10 @@ export default function App() {
             className="oat-label h-14 min-w-14 cursor-pointer px-2 hover:text-ink" data-testid="map-label">
             Map
           </button>
+          <button type="button" onClick={() => setPlacesOpen(true)} aria-label="Open your places: every table, on a map, with its notes"
+            className="oat-label h-14 min-w-14 cursor-pointer px-2 hover:text-ink" data-testid="places-label">
+            Places
+          </button>
         </div>
       </div>
 
@@ -227,6 +233,7 @@ export default function App() {
           onAnswerNudge={answerAsk} onClose={() => setTableOpen(false)} />
       )}
       {mapOpen && <MapPage session={session} onClose={() => setMapOpen(false)} />}
+      {placesOpen && <PlacesPage onClose={() => setPlacesOpen(false)} />}
       {renameSp && (
         <RenameDialog speaker={renameSp} current={nameOf(renameSp.id)}
           others={Object.values(session.speakers).filter((o) => o.id !== renameSp.id).map((o) => ({ id: o.id, name: nameOf(o.id) }))}
@@ -241,7 +248,7 @@ export default function App() {
       )}
       {!role && <RoleGate onListener={() => { saveRole('listener'); setRole('listener'); }} />}
       {role && !session.me.name && <FirstRun onDone={(n) => { s.setMe(n, []); }} />}
-      {role && session.me.name && !s.started && !voiceDone && <VoiceGate name={session.me.name} onDone={() => setVoiceDone(true)} />}
+      {role && session.me.name && !s.started && !voiceDone && <VoiceGate name={session.me.name} onDone={() => setVoiceDone(true)} onRename={(n) => s.setMe(n, session.me.aliases)} />}
       {role && session.me.name && !s.started && voiceDone && <StartGate name={session.me.name} onStart={s.start} />}
     </div>
   );
