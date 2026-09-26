@@ -147,7 +147,7 @@ const sup = (n) => ({ text: String(n), options: { superscript: true, color: C.in
   label(s, 'What the listener gets back');
   headline(s, 'What a voice carries, on one screen.', { w: 8.4 });
   const rows = [
-    ['Who', [{ text: 'Every line named. The phones are the mics.' }]],
+    ['Who', [{ text: 'Every line named. Phones are the mics; with one phone, the voice itself names it (enrolled once, 100% on our test).' }]],
     ['How it was said', [{ text: 'Tone in 0.7 s: ' }, { text: 'warm, teasing, annoyed.', options: { fontFace: SERIF, italic: true } }]],
     ['What was agreed', [{ text: 'Plans with the reason, refreshed every 10 s.' }]],
     ['When they laughed', [{ text: '“The table laughed.” No audio model.' }]],

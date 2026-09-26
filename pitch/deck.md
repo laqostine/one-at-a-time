@@ -161,7 +161,7 @@ Fallback: ?replay=demo2 reproduces the exact same cards without a key or mic.
 
 ## What a voice carries, on one screen.
 
-<div class="row"><span class="lbl">Who</span><span class="t">Every line named. The phones are the mics.</span></div>
+<div class="row"><span class="lbl">Who</span><span class="t">Every line named. Phones are the mics; with one phone, the voice itself names it (enrolled once).</span></div>
 <div class="row"><span class="lbl">How it was said</span><span class="t">Tone in 0.7 s: <i>warm, teasing, annoyed.</i></span></div>
 <div class="row"><span class="lbl">What was agreed</span><span class="t">Plans with the reason, refreshed every 10 s.</span></div>
 <div class="row"><span class="lbl">When they laughed</span><span class="t">“The table laughed.” No audio model.</span></div>
