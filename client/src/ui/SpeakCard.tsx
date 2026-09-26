@@ -4,6 +4,7 @@ import { IconSpeakForMe } from './icons';
 import type { InterjectIntent } from '../../../shared/types';
 import { MAX_WAIT_MS, type InterjectApi } from '../state/useInterject';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface Props {
   api: InterjectApi;
@@ -11,6 +12,9 @@ interface Props {
   say?: (line: string) => Promise<number | null>;
   /** "Also say it aloud (synthetic voice)" pref. */
   voice?: boolean;
+  /** Desktop: the open panel rises over the grid from the actions row instead of pushing it. */
+  floating?: boolean;
+  className?: string;
 }
 
 const INTENTS: { intent: InterjectIntent; label: string }[] = [
@@ -24,7 +28,7 @@ const isTyping = (el: Element | null) =>
   !!el && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || (el as HTMLElement).isContentEditable);
 
 /** "Speak for me": one tap drafts re-entry lines; tapping one says it aloud at the next pause. */
-export function SpeakCard({ api, say, voice = true }: Props) {
+export function SpeakCard({ api, say, voice = true, floating = false, className }: Props) {
   const [sent, setSent] = useState<{ line: string; delivered: number | null } | null>(null);
   // Always: the line goes to the phones first. Voice: only if the user opted in.
   const send = (text: string) => {
@@ -34,7 +38,8 @@ export function SpeakCard({ api, say, voice = true }: Props) {
       setSent({ line: t, delivered: null });
       void say(t).then((n) => setSent((cur) => (cur?.line === t ? { line: t, delivered: n } : cur)));
     }
-    if (voice || !say) api.speakAtGap(t);
+    // `say` already speaks aloud when the voice pref is on; only speak here when there is no text path.
+    if (!say) api.speakAtGap(t);
   };
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState('');
@@ -77,7 +82,7 @@ export function SpeakCard({ api, say, voice = true }: Props) {
   if (!open) {
     return (
       <Button ref={openBtn} type="button" variant="outline" size="lg" onClick={openAndDraft} aria-keyshortcuts="S"
-        className="w-full shrink-0 border-accent/45 text-accent hover:border-accent hover:bg-accent/10">
+        className={cn('w-full shrink-0 border-accent/45 text-accent hover:border-accent hover:bg-accent/10', className)}>
         <IconSpeakForMe size={22} /> Speak for me
         <kbd className="ml-1 hidden rounded-md border border-border px-1.5 py-0.5 text-[0.72rem] font-normal text-muted sm:inline">S</kbd>
       </Button>
@@ -85,7 +90,8 @@ export function SpeakCard({ api, say, voice = true }: Props) {
   }
 
   return (
-    <section aria-label="Speak for me" className="imt-in shrink-0 rounded-2xl border border-accent/60 bg-card p-4 shadow-[var(--glow-accent)] sm:p-5">
+    <section aria-label="Speak for me" className={cn('imt-in shrink-0 rounded-2xl border border-accent/60 bg-card p-4 shadow-[var(--glow-accent)] sm:p-5',
+      floating && 'absolute right-0 bottom-0 z-30 max-h-[min(34rem,70dvh)] w-[34rem] max-w-[calc(100vw-2rem)] overflow-y-auto shadow-[var(--glow-accent),0_32px_64px_-24px_rgb(0_0_0/.85)]', className)}>
       <div className="flex min-h-8 items-center gap-2 pb-3">
         <h2 className="card-label text-accent!">Speak for me</h2>
         <p role="status" aria-live="polite" aria-atomic="true"

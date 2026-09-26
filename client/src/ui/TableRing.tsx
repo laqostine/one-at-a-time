@@ -27,7 +27,7 @@ export function TableRing({ seats, source, size = 96, className }: Props) {
   const you = pos(0);
 
   return (
-    <figure className={cn('flex shrink-0 flex-col items-center gap-1', className)} style={{ width: size }}>
+    <figure className={cn('flex shrink-0 flex-col items-center gap-1', className)} style={{ minWidth: size }}>
       <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={label} className="overflow-visible">
         {/* the table */}
         <circle cx="50" cy="50" r={R} fill="none" stroke="var(--line-strong)" strokeWidth="1.5" strokeDasharray="2 3.2" />
@@ -49,7 +49,7 @@ export function TableRing({ seats, source, size = 96, className }: Props) {
           );
         })}
       </svg>
-      <figcaption aria-hidden className="h-4 max-w-full truncate font-mono text-[0.66rem] tracking-wide text-muted">
+      <figcaption aria-hidden className="h-4 max-w-[10rem] truncate font-mono text-[0.66rem] tracking-wide text-muted">
         {active ? <><span style={{ color: `color-mix(in oklab, ${active.color} 70%, white)` }}>{active.name}</span> talking</> : shown.length ? 'quiet' : 'no one yet'}
       </figcaption>
     </figure>

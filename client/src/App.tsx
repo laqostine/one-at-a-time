@@ -6,7 +6,7 @@ import { useSession } from './state/useSession';
 import { around, colorForName, currentUtterance, lastMinutes, speakerColor, speakerName } from './state/session';
 import { useInterject, useLastActivity } from './state/useInterject';
 import { applyPrefs, loadPrefs, type Prefs } from './ui/prefs';
-import { Header } from './ui/Header';
+import { DesktopTop, Header, LG, PresenceCell, useMedia } from './ui/Header';
 import { NowCard } from './ui/NowCard';
 import { OpenCard } from './ui/OpenCard';
 import { ForYouCard } from './ui/ForYouCard';
@@ -122,37 +122,80 @@ export default function App() {
     ? s.participants.map((p) => ({ id: p.id, name: p.name, color: colorOf(p.id), active: p.speaking }))
     : Object.values(session.speakers).filter((sp) => sp.id >= 0).map((sp) => ({ id: sp.id, name: nameOf(sp.id), color: colorOf(sp.id), active: sp.id === talking }));
 
+  const desktop = useMedia(LG, false);
+  const headerProps = {
+    asr: s.asr, latency: s.latency, listening: s.listening,
+    onToggleListening: () => s.setListening(!s.listening), onSettings: () => setSettingsOpen(true),
+    onEveryoneJoins: () => setJoinOpen(true), participantCount: s.participants.length,
+    lastTranscriptAt: s.lastTranscriptAt, requestPending: s.requestPending, micLevel: s.micLevel,
+    speaking: interject.status === 'speaking',
+    flare, seats, seatSource,
+    badge: <AwayIndicator enabled={awayApi.enabled} active={awayApi.active} away={awayApi.away} sim={awayApi.sim} />,
+  };
+  const nowCard = (cls?: string) => (
+    <NowCard utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
+      onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat} className={cls} />
+  );
+  const openCard = (tall: boolean) => <OpenCard items={session.ledger} threads={s.threads} colorFor={colorFor} onOpen={setJumpT} tall={tall} className={tall ? 'h-full rounded-3xl' : undefined} />;
+  const forYou = (cls?: string) => (
+    <ForYouCard items={session.ledger} nudge={s.nudge}
+      nudgeColor={s.nudge?.speakerId != null ? colorOf(s.nudge.speakerId) : colorFor(s.nudge?.speaker)}
+      colorFor={colorFor} onDismiss={s.dismissNudge} onOpen={setJumpT} className={cls} />
+  );
+  const catchup = <CatchupCard state={s.catchup} title={awayTitle ?? undefined} colorFor={colorFor} onBullet={setJumpT} onDismiss={s.dismissCatchup} />;
+  const catchUpBtn = (
+    <Button type="button" size="lg" onClick={manualCatchUp} disabled={loading} aria-busy={loading}
+      className={`h-16 w-full shrink-0 text-[1.3rem] font-bold disabled:opacity-70 ${awayPending ? 'imt-invite' : ''}`}>
+      <IconCatchUp size={26} strokeWidth={2} />
+      {loading ? 'Catching you up…' : 'Catch me up'}
+    </Button>
+  );
+  const captions = <CaptionsStrip items={session.timeline} nameOf={nameOf} colorOf={colorOf} onSpeaker={setRenaming} onAskRepeat={onAskRepeat} />;
+
   return (
-    <div className="mx-auto flex h-dvh max-w-4xl flex-col">
-      <Header asr={s.asr} latency={s.latency} listening={s.listening}
-        onToggleListening={() => s.setListening(!s.listening)} onSettings={() => setSettingsOpen(true)}
-        onEveryoneJoins={() => setJoinOpen(true)} participantCount={s.participants.length}
-        lastTranscriptAt={s.lastTranscriptAt} requestPending={s.requestPending} micLevel={s.micLevel}
-        flare={flare} seats={seats} seatSource={seatSource}
-        badge={<AwayIndicator enabled={awayApi.enabled} active={awayApi.active} away={awayApi.away} sim={awayApi.sim} />} />
-
-      <main className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
-        <NowCard utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
-          onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat} />
-
-        <div className="relative flex min-h-0 flex-1 flex-col gap-2.5 sm:gap-3">
-          <OpenCard items={session.ledger} threads={s.threads} colorFor={colorFor} onOpen={setJumpT} />
-          <ForYouCard items={session.ledger} nudge={s.nudge}
-            nudgeColor={s.nudge?.speakerId != null ? colorOf(s.nudge.speakerId) : colorFor(s.nudge?.speaker)}
-            colorFor={colorFor} onDismiss={s.dismissNudge} onOpen={setJumpT} />
-          <SpeakCard api={interject} say={sayLine} voice={prefs.voice} />
-          <CatchupCard state={s.catchup} title={awayTitle ?? undefined} colorFor={colorFor} onBullet={setJumpT} onDismiss={s.dismissCatchup} />
-        </div>
-
-        <Button type="button" size="lg" onClick={manualCatchUp} disabled={loading} aria-busy={loading}
-          className={`h-16 w-full shrink-0 text-[1.3rem] font-bold disabled:opacity-70 ${awayPending ? 'imt-invite' : ''}`}>
-          <IconCatchUp size={26} strokeWidth={2} />
-          {loading ? 'Catching you up…' : 'Catch me up'}
-        </Button>
-
-        <SoundHistory events={events} getNow={s.nowT} />
-        <CaptionsStrip items={session.timeline} nameOf={nameOf} colorOf={colorOf} onSpeaker={setRenaming} onAskRepeat={onAskRepeat} />
-      </main>
+    <div className={desktop ? 'mx-auto flex h-dvh max-w-[90rem] flex-col px-5 pb-5' : 'mx-auto flex h-dvh max-w-4xl flex-col'}>
+      {desktop ? (
+        <>
+          <DesktopTop {...headerProps} />
+          {/* Bento: mascot hero | Now (serif line) across the top; Open (tall, thread lanes) | For you + Sounds; actions row. */}
+          <main className="grid min-h-0 flex-1 grid-cols-[minmax(19rem,0.85fr)_minmax(0,1.45fr)_minmax(0,1fr)] grid-rows-[12.5rem_minmax(0,1fr)_auto_auto] gap-3">
+            <PresenceCell {...headerProps} className="row-span-2" />
+            <div className="col-span-2 min-h-0">{nowCard('h-full! rounded-3xl')}</div>
+            <div className="relative min-h-0">
+              {openCard(true)}
+              {catchup}
+            </div>
+            <div className="flex min-h-0 flex-col gap-3">
+              {forYou('min-h-0 flex-1 overflow-y-auto rounded-3xl')}
+              {/* the live nudge needs the whole column (it is the one interrupt); sounds step aside meanwhile */}
+              {!s.nudge && <SoundHistory variant="cell" events={events} getNow={s.nowT} className="shrink-0" />}
+            </div>
+            <div className="col-span-3 grid grid-cols-[minmax(0,2.3fr)_minmax(0,1fr)] gap-3">
+              {catchUpBtn}
+              <div className="relative h-16">
+                <SpeakCard api={interject} say={sayLine} voice={prefs.voice} floating className="h-16 text-[1.15rem] font-semibold" />
+              </div>
+            </div>
+            <div className="col-span-3">{captions}</div>
+          </main>
+        </>
+      ) : (
+        <>
+          <Header {...headerProps} />
+          <main className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
+            {nowCard()}
+            <div className="relative flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden sm:gap-3">
+              {openCard(false)}
+              {forYou()}
+              <SpeakCard api={interject} say={sayLine} voice={prefs.voice} />
+              {catchup}
+            </div>
+            {catchUpBtn}
+            <SoundHistory events={events} getNow={s.nowT} />
+            {captions}
+          </main>
+        </>
+      )}
 
       {jumpT != null && (
         <TimelineSheet t={jumpT} items={around(session, jumpT)} nameOf={nameOf} colorOf={colorOf} onClose={() => setJumpT(null)} />

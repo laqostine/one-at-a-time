@@ -38,7 +38,7 @@ export function NowCard({ utt, name, color, onSpeaker, onAskRepeat, className }:
         )}
       </CardHeader>
       {utt ? (
-        <p key={utt.id} className={`imt-in line-clamp-3 font-display text-[1.6rem] leading-[1.14] sm:line-clamp-2 sm:text-[1.95rem] lg:line-clamp-4 lg:text-[2.25rem] ${utt.final ? 'text-fg' : 'text-fg/75'}`}>
+        <p key={utt.id} className={`imt-in line-clamp-3 font-display text-[1.6rem] leading-[1.14] sm:line-clamp-2 sm:text-[1.95rem] lg:line-clamp-3 lg:text-[2.3rem] lg:leading-[1.12] ${utt.final ? 'text-fg' : 'text-fg/75'}`}>
           <UttText utt={utt} speaker={name} onAskRepeat={onAskRepeat} />
         </p>
       ) : (

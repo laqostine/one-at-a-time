@@ -12,6 +12,9 @@ interface Props {
   threads?: Thread[];
   colorFor: (name?: string) => string;
   onOpen: (t: number) => void;
+  /** Desktop bento: the cell is tall, so lanes stack vertically and show one more item each. */
+  tall?: boolean;
+  className?: string;
 }
 
 const MAX_LANES = 3;
@@ -53,17 +56,17 @@ function pick(items: LedgerItem[], max: number): LedgerItem[] {
 }
 
 /** Decisions / objections / open questions / changes, in parallel conversation lanes. Stable order; resolved items fade. */
-export function OpenCard({ items, threads = [], colorFor, onOpen }: Props) {
+export function OpenCard({ items, threads = [], colorFor, onOpen, tall = false, className }: Props) {
   const open = items.filter((i) => i.kind !== 'assigned_to_me');
   const unresolved = open.filter((i) => !i.resolved);
   const lanes = buildLanes(open, threads);
   const lanesView = lanes.length > 1 || (lanes.length === 1 && lanes[0].key !== GENERAL);
-  const perLane = lanes.length <= 1 ? 4 : lanes.length === 2 ? 3 : 2;
+  const perLane = (lanes.length <= 1 ? 4 : lanes.length === 2 ? 3 : 2) + (tall ? 1 : 0);
   const shownOpen = (lanesView ? lanes.flatMap((l) => pick(l.items, perLane)) : pick(open, 4)).filter((i) => !i.resolved).length;
   const hidden = Math.max(0, unresolved.length - shownOpen);
 
   return (
-    <Card role="region" aria-label="Open on the table" className="min-h-0 flex-1 overflow-hidden px-3 sm:px-4">
+    <Card role="region" aria-label="Open on the table" className={cn('min-h-0 flex-1 overflow-hidden px-3 sm:px-4', className)}>
       <CardHeader className="px-1">
         <CardTitle>Open on the table</CardTitle>
         <CardAction>
@@ -79,9 +82,9 @@ export function OpenCard({ items, threads = [], colorFor, onOpen }: Props) {
           {pick(open, 4).map((i) => <LedgerRow key={i.id} item={i} color={colorFor(i.speaker)} replyColor={colorFor(i.replyTo)} onOpen={() => onOpen(i.t)} />)}
         </ul>
       ) : (
-        <div className={cn('grid min-h-0 flex-1 content-start gap-2.5 overflow-hidden', lanes.length > 1 && 'md:grid-cols-2')}>
+        <div className={cn('grid min-h-0 flex-1 content-start gap-2.5 overflow-hidden', lanes.length > 1 && !tall && 'md:grid-cols-2')}>
           {lanes.map((l) => (
-            <LaneView key={l.key} lane={l} max={perLane} colorFor={colorFor} onOpen={onOpen} wide={lanes.length === 3} />
+            <LaneView key={l.key} lane={l} max={perLane} colorFor={colorFor} onOpen={onOpen} wide={lanes.length === 3 && !tall} />
           ))}
         </div>
       )}

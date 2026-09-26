@@ -5,7 +5,7 @@ import { Mic, MicOff } from 'lucide-react';
 import type { AsrMessage, PaceLevel } from '../../../shared/types';
 import { startMic, type MicHandle } from '../audio/mic';
 import { PresenceAuto } from '../ui/PresenceAuto';
-import { IconOverlap, IconPace } from '../ui/icons';
+import { IconOverlap, IconPace, IconPhoneMic, IconSpeakForMe } from '../ui/icons';
 import { Lamp } from './Lamp';
 import { SayCard, type SayMsg } from './SayCard';
 import { Toggle } from '@/components/ui/toggle';
@@ -252,6 +252,20 @@ export default function JoinPage() {
             {phase === 'starting' ? 'Starting mic…' : 'Join'}
           </button>
         </form>
+      )}
+      {(phase === 'form' || phase === 'starting') && (
+        <ul className="flex flex-col gap-1 rounded-2xl border border-border/70 p-2" aria-label="What happens after you join">
+          {[
+            { Icon: IconPhoneMic, title: 'Your phone is your mic', body: 'Every line you say carries your name.' },
+            { Icon: IconPace, title: 'The screen becomes a lamp', body: `Green is easy for ${host === 'The host' ? 'the host' : host} to follow. Amber or red means slow down.` },
+            { Icon: IconSpeakForMe, title: `${host} can answer you here`, body: 'Their typed line fills your screen for 10 seconds.' },
+          ].map(({ Icon, title, body }) => (
+            <li key={title} className="flex items-start gap-3 rounded-xl px-2.5 py-2.5">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/8 text-accent"><Icon size={22} /></span>
+              <span className="min-w-0"><span className="block font-semibold">{title}</span><span className="block text-[0.95rem] leading-snug text-muted">{body}</span></span>
+            </li>
+          ))}
+        </ul>
       )}
 
       {phase === 'live' && (
