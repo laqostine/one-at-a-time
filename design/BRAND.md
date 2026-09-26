@@ -32,9 +32,10 @@ Sunday lunch at 1 pm. A walnut table with a soft pool of lamp light. Linen place
 Semantic lamp states: calm green `#5D8A5E`, amber `#D99A3D`, red `#B8503A`. These are the only saturated colors and they mean one thing each.
 
 ## Type
-- Display: Fraunces (variable serif, warm, slightly soft), italic for the spoken sentence.
-- Body: Inter at 18–22 px minimum on phone. Comprehension collapses above 170 wpm; nothing scrolls while someone speaks.
-- Labels: JetBrains Mono, small caps, wide tracking, for meta only.
+- Display: Fraunces with SOFT 100, weight ~520 (rounded, Cooper-like), italic for the spoken sentence.
+- Body: Nunito 500 at 18–22 px minimum on phone. Comprehension collapses above 170 wpm; nothing scrolls while someone speaks.
+- Labels: Space Mono, small caps, wide tracking, for meta only.
+- Feel: soft 90s warmth, nothing sharp.
 
 ## Layout rules (phone)
 - One thing at a time. The placemat with the current sentence fills the top half. Below it, one card at a time: Asked you (if any) > Plans > Why they laughed. Swipe or tap to flip, never scroll a list while people are talking.

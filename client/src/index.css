@@ -64,8 +64,8 @@
 }
 
 /* Light scope: printed on linen or paper. Same token names, ink values. */
-.linen { --card: var(--linen); }
-.paper { --card: #f1e8d6; }
+.linen { --card: var(--linen); --bg: var(--linen); }
+.paper { --card: #f1e8d6; --bg: #f1e8d6; }
 .linen, .paper {
   --card-2: rgb(43 33 23 / .07);
   --line: rgb(43 33 23 / .16);
@@ -156,9 +156,9 @@
   --radius-lg: calc(var(--radius) - 4px);
   --radius-xl: var(--radius);
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Nunito", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* type scale (rem, so S/M/L/XL scales it) */
   --text-display: 3.2rem;
@@ -187,13 +187,21 @@ body {
   line-height: 1.4;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "cv11", "ss01";
   text-rendering: optimizeLegibility;
 }
 
 :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
 ::selection { background: color-mix(in oklab, var(--accent) 35%, transparent); color: var(--fg); }
 .tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
+
+/* 90s, smooth: Fraunces with its SOFT axis all the way up (rounded, Cooper-ish curves), a touch
+ * heavier than a book serif; Nunito's rounded terminals for reading; Space Mono for meta. In @layer
+ * base so a font-weight utility on an element still wins. */
+@layer base {
+  [class*="font-display"], .wordmark, blockquote, h1, h2 { font-variation-settings: "SOFT" 100, "WONK" 0; }
+  [class*="font-display"] { font-weight: 520; letter-spacing: -0.005em; }
+  body { font-weight: 500; }
+}
 
 /* ---------- Type scale (rem only, so the S/M/L/XL root size scales everything) ---------- */
 /* Card titles / meta labels: tracked mono caps. */
@@ -219,7 +227,7 @@ body {
 @utility font-display-italic {
   font-family: var(--font-display);
   font-style: italic;
-  font-weight: 400;
+  font-weight: 520;
 }
 /* Body: 18px on phone, ~21px on desktop at the default M size. */
 @utility text-body {
@@ -296,7 +304,7 @@ body {
 }
 /* Grain: 5% noise over everything, so no surface is ever a flat fill. */
 body::after {
-  content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .05; mix-blend-mode: overlay;
+  content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .045;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 :root[data-contrast="high"] body::after { display: none; }
@@ -340,7 +348,7 @@ body::after {
   box-shadow: var(--shadow-sheet);
 }
 .dish {
-  --card: #f1e8d6; --card-2: rgb(43 33 23 / .07); --line: rgb(43 33 23 / .16); --line-strong: rgb(43 33 23 / .34);
+  --card: #f1e8d6; --bg: #f1e8d6; --card-2: rgb(43 33 23 / .07); --line: rgb(43 33 23 / .16); --line-strong: rgb(43 33 23 / .34);
   --fg: var(--ink); --muted: var(--ink-muted); --accent: #7a4f17; --accent-fg: var(--cream); --warn: #8a5a10;
   --good: #3f6b40; --bad: #9a3f2a; --change: #6b5443; --you: #3f5f86; --ring: var(--ink); --spk-mix: 55%; --spk-to: var(--ink);
   color: var(--ink); color-scheme: light;
@@ -368,6 +376,18 @@ body::after {
 .imt-slide-r { animation: imt-slide-in-r 220ms var(--ease-out-soft) both; }
 .imt-slide-l { animation: imt-slide-in-l 220ms var(--ease-out-soft) both; }
 .imt-note-in { animation: imt-slide-down 240ms var(--ease-out-soft) both; }
+/* A sheet of paper pushed up from the table edge. */
+@keyframes imt-sheet-up { from { transform: translateY(105%); } to { transform: none; } }
+.imt-sheet-up { animation: imt-sheet-up 260ms var(--ease-out-soft) both; }
+/* A new spoken line settles onto the placemat from just below. */
+@keyframes imt-line-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.imt-line-in { animation: imt-line-in 240ms var(--ease-out-soft) both; }
+/* The deck card follows the finger; on release it glides back or away. */
+.deck-card { will-change: transform; transition: transform 220ms var(--ease-out-soft), opacity 220ms var(--ease-out-soft); }
+.deck-card[data-drag="1"] { transition: none; }
+/* Objects on the table sink a little when pressed. */
+.press { transition: transform 160ms var(--ease-out-soft); }
+.press:active { transform: translate(1px, 2px) scale(.96); }
 /* The bell rings: a short swing, three times. */
 @keyframes imt-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-12deg); } 40% { transform: rotate(10deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(3deg); } }
 .imt-ring { animation: imt-ring 700ms ease-in-out 3; transform-origin: 50% 15%; }
@@ -390,7 +410,7 @@ html.io .reveal { opacity: 0; transform: translateY(18px); transition: opacity 7
 html.io .reveal.is-in { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .imt-pulse, .imt-skeleton, .imt-flash, .imt-slide-r, .imt-slide-l, .imt-note-in, .imt-ring, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .imt-lamp, .animate-spin { animation: none !important; }
+  .imt-pulse, .imt-skeleton, .imt-flash, .imt-sheet-up, .imt-line-in, .imt-slide-r, .imt-slide-l, .imt-note-in, .imt-ring, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .imt-lamp, .animate-spin { animation: none !important; }
   html.io .reveal { opacity: 1; transform: none; }
   *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }

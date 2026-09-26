@@ -230,9 +230,13 @@ export function registerAsr(app: FastifyInstance): void {
         const d = new WebSocket(`${participant ? DG_URL_SOLO : DG_URL}&language=${jroom.lang}`, { headers: { Authorization: `Token ${key}` } });
         dg = d;
         let openedAt = 0;
+        // Under nonstop crosstalk + room noise Deepgram never endpoints and held the host mic's is_final for ~10 s
+        // (measured). Ask it to finalize once words have been interim-only for too long.
+        let lastFinalAt = Date.now();
+        const unfinalCapMs = participant ? 8_000 : 4_000;
         d.on('open', () => {
           if (closed || dg !== d) { closeDg(d); return; }
-          openedAt = dgOpenedAt = Date.now();
+          openedAt = dgOpenedAt = lastFinalAt = Date.now();
           if (!participant) jroom.hostEpoch = dgOpenedAt;
           send({ type: 'status', state: 'open' });
           for (const b of pending.splice(0)) d.send(b);
@@ -244,7 +248,16 @@ export function registerAsr(app: FastifyInstance): void {
           if (isBinary) return;
           let msg: { type?: string };
           try { msg = JSON.parse(data.toString()) as { type?: string }; } catch { return; }
-          if (msg.type === 'Results') co.results(msg as DgResults);
+          if (msg.type === 'Results') {
+            const r = msg as DgResults;
+            const now = Date.now();
+            if (r.is_final) lastFinalAt = now;
+            else if (now - lastFinalAt > unfinalCapMs && (r.channel?.alternatives?.[0]?.words?.length ?? 0) > 0) {
+              lastFinalAt = now;
+              try { d.send(JSON.stringify({ type: 'Finalize' })); } catch { /* closing */ }
+            }
+            co.results(r);
+          }
           else if (msg.type === 'UtteranceEnd') co.flush();
         });
         d.on('unexpected-response', (_r, res) => {

@@ -7,7 +7,7 @@ import websocket from '@fastify/websocket';
 import type { CatchupRequest, LaughRequest, StateRequest } from '../../shared/types.ts';
 import { CATCHUP_BUDGET_MS, STATE_BUDGET_MS, catchUp, extractState, explainLaugh, hasAnthropic } from './claude.ts';
 import { registerAsr } from './asr.ts';
-import { registerRooms, roomInfo } from './rooms.ts';
+import { registerRooms, room, roomInfo } from './rooms.ts';
 import { draftInterjections } from './interject.ts';
 import { registerGate } from './gate.ts';
 
@@ -27,7 +27,7 @@ registerRooms(app);
 
 app.get('/api/health', async () => {
   const t0 = Date.now();
-  return { ok: true, hasAnthropic: hasAnthropic(), hasDeepgram: !!process.env.DEEPGRAM_API_KEY, latencyMs: Date.now() - t0 };
+  return { ok: true, hasAnthropic: hasAnthropic(), hasDeepgram: !!process.env.DEEPGRAM_API_KEY, room: room.stats(), latencyMs: Date.now() - t0 };
 });
 
 app.post<{ Body: CatchupRequest }>('/api/catchup', async (req) => {

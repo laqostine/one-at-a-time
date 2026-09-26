@@ -97,7 +97,7 @@ export function SpeakCard({ api, say, voice = true, floating = false, renderTrig
   return (
     <section aria-label="Speak for me" className={cn('paper imt-in shrink-0 rounded-2xl p-4 sm:p-5',
       floating && 'absolute right-0 bottom-0 z-30 max-h-[min(34rem,70dvh)] w-[34rem] max-w-[calc(100vw-2rem)] overflow-y-auto shadow-[var(--shadow-sheet)]',
-      sheet && 'imt-note-in fixed inset-x-2 bottom-2 z-40 max-h-[82dvh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-sheet)]', className)}>
+      sheet && 'imt-sheet-up fixed inset-x-2 bottom-2 z-40 max-h-[82dvh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-sheet)]', className)}>
       <div className="flex min-h-8 items-center gap-2 pb-3">
         <h2 className="card-label text-accent!">Speak for me</h2>
         <p role="status" aria-live="polite" aria-atomic="true"
@@ -161,11 +161,11 @@ export function SpeakCard({ api, say, voice = true, floating = false, renderTrig
         ))}
       </div>
 
-      <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (custom.trim()) { send(custom); setCustom(''); } }}>
+      <form className={cn('mt-2 flex gap-2', sheet && 'flex-wrap')} onSubmit={(e) => { e.preventDefault(); if (custom.trim()) { send(custom); setCustom(''); } }}>
         <label htmlFor="imt-speak-custom" className="sr-only">Your own line</label>
         <input id="imt-speak-custom" value={custom} onChange={(e) => setCustom(e.target.value)} maxLength={200}
           placeholder="Type your own line…" autoComplete="off"
-          className="h-12 min-w-0 flex-1 rounded-xl border border-input bg-card-2 px-3 text-[1.05rem] transition-colors duration-150 placeholder:text-muted focus:border-accent" />
+          className={cn('h-12 min-w-0 flex-1 rounded-xl border border-input bg-card-2 px-3 text-[1.05rem] transition-colors duration-150 placeholder:text-muted focus:border-accent', sheet && 'basis-full')} />
         <button type="button" disabled={!custom.trim() || status === 'drafting' || busy} onClick={() => void api.draft('custom', custom)}
           className="h-12 cursor-pointer rounded-xl border border-border px-3 text-[0.95rem] font-medium text-muted transition-colors duration-150 hover:text-fg disabled:cursor-default disabled:opacity-50">Polish</button>
         <button type="submit" disabled={!custom.trim() || busy}
