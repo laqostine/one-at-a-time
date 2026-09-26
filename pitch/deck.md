@@ -19,34 +19,36 @@ table { font-size: 0.7em; }
 
 # I Missed That
 
-<p class="big">Accessibility at a table is a contract. We're the clerk that holds both sides to it.</p>
+<p class="big">The dinner table where you're loved, and still locked out. We built the other side of it.</p>
 
-For hard-of-hearing and late-deafened adults, in hearing rooms — work meetings, family dinners.
-
----
-
-## Every accessibility tool puts the burden on one person
-
-Read faster. Ask again. Get told "never mind." Today, the deaf person carries the whole contract alone.
-
-<p class="quote">"I work in marketing and we have these weekly team meetings where everyone just talks over each other... I've started just nodding along even when I have no idea what was decided... I genuinely don't know what I signed up for."</p>
-<p class="src">— r/deaf, 35↑</p>
-
-<p class="quote">"Sometimes I didn't know how to respond because I wasn't even sure what exactly had been said... they assumed I was lying."</p>
-<p class="src">— r/deaf, 25↑</p>
-
-<p class="quote">"Asking people to repeat themselves a couple times and still not totally hearing or understanding them and then they say 'Never mind' or 'It's not important'."</p>
-<p class="src">— r/hardofhearing, 13↑ thread</p>
+For hard-of-hearing and late-deafened adults, at their hearing family's table — and the Monday meeting after it.
 
 ---
 
-## Why "just add captions" isn't enough
+## Every accessibility tool puts the whole burden on the deaf person
 
-- **51.9%** of DHH live-caption users are frustrated with caption quality
-- ASR lag of **1–2s** is rated *worse* than the errors themselves
+Read faster. Ask again. Get told never mind. We built the other side.
+
+<p class="quote">"Dinner table syndrome and I want to cry."</p>
+<p class="src">— thread title, r/deaf, 174↑</p>
+
+<p class="quote">"DTS - Dinner Table Syndrome. Deaf people in hearing families are too familiar with this, myself included. It's simply too much work to follow along. Thats why you feel like you could sleep for a week, we have to work much harder than a hearing person to understand verbal conversations."</p>
+<p class="src">— r/deaf, "Exhausted and sad after family Sunday lunch," 36↑</p>
+
+<p class="quote">"I'd say the hardest part for me as a Deaf person in a hearing family during the holidays is extreme dinner table syndrome."</p>
+<p class="src">— r/deaf, "Christmas family diner experiences"</p>
+
+---
+
+## The numbers
+
+In the EU, about **50 million** people say they have trouble hearing. Only about **a third** use hearing aids. And the place they most want to hear isn't the office — it's **the family table**.
+
+- **56%** say "at home with family" is where hearing well matters most, vs. **21%** for the workplace <span class="src">— EuroTrak Italy 2022</span>
+- In Italy: **1 in 8** people report hearing loss, and **more than 1 in 3** people over 75
 - DHH caption comprehension drops above **170 wpm** — live group speech runs **160–220 wpm**
-- Only **4%** of non-speech info (laughter, tone, applause) ever reaches a caption
-- **96%** of deaf children are born to hearing parents — this is the default room, not the exception
+- Only **4%** of non-speech information (laughter, tone) ever reaches a caption
+- **>90%** of deaf children have hearing parents — the hearing family table is the default room, not the exception
 
 <p class="src">Sources: pitch/citations.md</p>
 
@@ -54,15 +56,15 @@ Read faster. Ask again. Get told "never mind." Today, the deaf person carries th
 
 ## The contract
 
-Accessibility at a table is a contract between everyone present. We're the clerk that holds both sides to it — Claude is the clerk any team can hire; the contract and the evidence are ours.
+Accessibility at a table is a contract between everyone present. We're the clerk that holds both sides to it — Claude is the clerk any family or team can hire; the contract and the evidence are ours.
 
 | The table's side | Your side |
 |---|---|
-| Join by phone (QR, no install) | Ledger — decisions **with the reason**, threads (who replied to whom) |
-| Pace bar goes amber on overlap or speed | Addressed-to-you, the moment it happens |
-| One-at-a-time nudge when it flaps | Away detection → catch-up card, on its own |
-| | **Speak for me** — one tap, said in the next gap |
-| | Doubt words — low-confidence words flagged, tap to ask for a repeat |
+| Phones on the table become mics (QR, no install) | **Plans**, with the reason ("Sunday at nonna's" — who's bringing what) |
+| Crosstalk lamp goes amber on overlap | **Asked you** — the moment someone asks, with a nudge and a buzz |
+| One-at-a-time nudge when it flaps | **Why they laughed** — the joke, so you can laugh for real |
+| | **While you looked away** — a card that opens itself |
+| | **Say it as text** — one tap, appears on every phone at the table |
 
 <p class="small">Ava does the mics. We do what the mics are for.</p>
 
@@ -72,11 +74,11 @@ Accessibility at a table is a contract between everyone present. We're the clerk
 
 | Tool | What they already do | What nobody (before us) does |
 |---|---|---|
-| **Ava** | Phones join as named mics, speaker colors, type-to-speak | No ledger — the reason, the objection, the thread all vanish once said |
-| **Otter / Zoom "Catch me up"** | Post-meeting or on-demand summary | Summary *resolves* the debate — drops the live objection while it's still open |
-| **MS Teams** | Live captions + logged-in speaker names | Breaks on overlap; nothing addressed-to-you; no away detection |
-| **Caption glasses** (XRAI, Captify, AirCaps) | Captions in your line of sight | Arms fight hearing aids/CIs; still just words — no state |
-| **I Missed That** | — | Reasons, threads, addressed-to-you, away card, speak-for-me, doubt words |
+| **Ava** | Phones join as named mics, speaker colors, type-to-speak | No plans, no "asked you," no "why they laughed" — the family layer vanishes once said |
+| **Otter / Teams "Catch me up"** | Post-meeting or on-demand summary | Built for a meeting room, not a dinner table; resolves the debate instead of catching the joke or the ask |
+| **MS Teams** | Live captions + logged-in speaker names | Breaks on overlap; nothing addressed to you; no look-away catch-up |
+| **Caption glasses** (XRAI, Captify, AirCaps) | Captions in your line of sight | Arms fight hearing aids/CIs; still just words — no plan, no joke, no ask |
+| **I Missed That** | — | Plans with why, asked-you, why-they-laughed, look-away catch-up, say-it-as-text |
 
 <p class="src">Sources: research/06-github-landscape.md</p>
 
@@ -85,24 +87,26 @@ Accessibility at a table is a contract between everyone present. We're the clerk
 ## How it works
 
 ```
-phones (per person, named) ──► Deepgram, per-stream ASR ─┐
-                                                          ├──► Claude — structured extraction
-on-device gaze (no cloud) ──► "away" / "back" signal ────┘        (the ledger, never prose)
-                                                                          │
-                                                                          ▼
-                                                        3 static cards + For-you nudge + Speak for me
+phones on the table (placemat + one per person) ──► Deepgram, per-stream ASR ─┐
+                                                                                ├──► Claude — structured extraction
+on-device camera (nothing sent anywhere) ──► "away" / "back" signal ─────────┘        (the ledger, never prose)
+                                                                                              │
+                                                                                              ▼
+                                                    Plans · Asked you · Why they laughed · look-away catch-up · say-it-as-text
 ```
 
-Nothing is stored after the session — in-memory only, gone on close.
+Works in English, Italian and Turkish — verified on Deepgram nova-3. Nothing is stored after the session — in-memory only, gone on close.
 
 ---
 
 ## Scope, limits, next
 
-**Built for:** hard-of-hearing and late-deafened adults, in hearing rooms — work meetings, family dinners.
+**Built for:** hard-of-hearing and late-deafened adults, at a hearing family's table — the Monday meeting is the second scenario, not the first.
 
 **Not built for:** sign-first Deaf users, classrooms with interpreters, gamers.
 
 **Tested with:** not yet tested with a hard-of-hearing user.
 
-**Next:** HoH user tests, Turkish, glasses as a display of the same feed.
+**Honest reach:** ~10 million people in the EU could use this. Tonight, it reaches tens.
+
+**Next:** hard-of-hearing user tests, a table mode for 65+ relatives, glasses as a display of the same feed.
