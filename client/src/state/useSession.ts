@@ -176,9 +176,21 @@ export function useSession() {
     commit(msg);
   }, [fireNudge]);
 
+  const earlyAsk = useRef<string>(''); // interim text that already fired the nudge, so the final doesn't fire twice
   const commit = useCallback((msg: TranscriptMsg) => {
     dispatch({ type: 'transcript', msg });
     if (msg.text.trim()) setLastTranscriptAt(Date.now());
+    // Early ask: interim words already name ME with a question shape -> amber now, ~1-2 s before the final lands.
+    if (!msg.final && msg.text.trim()) {
+      const me0 = ref.current.me;
+      const t = msg.text.trim();
+      if (me0.name && t.length > 8 && earlyAsk.current !== `${msg.speaker}-${msg.tStart}` && isAddressedToMe(t, me0)) {
+        earlyAsk.current = `${msg.speaker}-${msg.tStart}`;
+        const sp = msg.speaker >= 0 ? (ref.current.merged[msg.speaker] ?? msg.speaker) : -1;
+        fireNudge({ id: `u${sp}-${msg.tStart}`, speaker: speakerName(ref.current, sp), speakerId: sp, question: t, t: msg.tStart });
+      }
+      return;
+    }
     if (!msg.final || !msg.text.trim()) return;
     dirty.current = true;
     const me = ref.current.me;
@@ -187,7 +199,10 @@ export function useSession() {
     // Regex first pass stays instant; the gate below can only add nudges, never delay this one.
     if (me.name && isAddressedToMe(msg.text, me)) {
       dispatch({ type: 'markAddressed', id });
-      fireNudge({ id, speaker: speakerName(ref.current, speaker), speakerId: speaker, question: msg.text.trim(), t: msg.tStart });
+      if (earlyAsk.current !== `${msg.speaker}-${msg.tStart}`) {
+        fireNudge({ id, speaker: speakerName(ref.current, speaker), speakerId: speaker, question: msg.text.trim(), t: msg.tStart });
+      }
+      earlyAsk.current = '';
     }
     gateUtterance({ id, type: 'utterance', speaker, text: msg.text.trim(), tStart: msg.tStart, tEnd: msg.tEnd, final: true });
   }, [fireNudge, gateUtterance]);

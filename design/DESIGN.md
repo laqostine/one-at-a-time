@@ -91,3 +91,10 @@ Ink on cream 15:1; cream on go 4.9:1, on amber 4.5:1 (use ink on amber for text 
 
 ## Don't
 Icons. Cards. Shadows. Textures. Mascot. Counters. Badges. A second accent. A second font family in one screen. Anything the listener has to read while someone is talking that is not the sentence.
+
+## Addendum: the second page (value without clutter)
+The home stays one sentence. Below the text link sits a quiet label: `PLANS · 3` (count of open items; hidden at 0). Swipe up anywhere, or tap the label, to open **The table**: a cream page, same type, three plain sections separated by hairlines, no cards:
+- **Plans** — each as `Sunday at one, everyone brings a side.` in body 20, with a second line in ink-2 `Mom · because nonna can't do evenings`. Pushback/questions/changes appear in the same list with a one-word label prefix in Space Mono (PUSHBACK, QUESTION, CHANGED).
+- **Asked of you** — `Mom: are you coming Sunday?` with the same Yes · Clarify · Can't pills.
+- **Since you looked away** — the last catch-up, ≤3 lines.
+Swipe down or tap the wordmark to return. The page never appears on its own; the ask still takes over the home.

@@ -10,7 +10,7 @@ const DG_URL =
   '&utterance_end_ms=1000&vad_events=true&encoding=linear16&sample_rate=16000&channels=1' +
   // Default endpointing is 10 ms, which finalized at every comma: 41 finals for 23 scripted lines ("Okay." "Focus."
   // "Who's bringing dessert?"), one /api/gate call each. 500 ms + the fragment coalescing below keeps a turn together.
-  '&endpointing=500';
+  '&endpointing=400';
 // Participant phones: one voice per stream, so no diarization.
 const DG_URL_SOLO = DG_URL.replace('diarize=true', 'diarize=false');
 
@@ -103,7 +103,9 @@ export class Coalescer {
     // sentence rule (and the short host cap) a host mic under nonstop crosstalk held captions for 8-12 s; without
     // the 1.5 s floor "Fine by me." / "Less cooking for once." split again.
     const sentenceEnd = /[.?!]["')\]]?$/.test(last?.punctuated_word ?? '');
-    if (r.speech_final || (sentenceEnd && span >= 1.5) || span > this.maxSpanS || this.held.length > 60) { this.flush(); return; }
+    // A question mark flushes at once: the listener's amber "asked you" moment must not wait for speech_final.
+    const question = /\?["')\]]?$/.test(last?.punctuated_word ?? '');
+    if (r.speech_final || question || (sentenceEnd && span >= 1.5) || span > this.maxSpanS || this.held.length > 60) { this.flush(); return; }
     if (words.length) this.out(this.held, false);
     if (this.held.length) this.arm();
   }
