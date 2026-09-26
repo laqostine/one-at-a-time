@@ -57,6 +57,7 @@ export const CHANGE_COS = 0.5;         // window vs current speaker's window bel
 const CHANGE_BACK_S = 0.7;             // change time ≈ end of the first unlike window - this; it lies in [end - 1.2, end - 0.2]
 const CUT_SILENCE_MS = 150;            // inside that range, cut at the longest VAD silence between words if >= this…
 const SNAP_S = 0.6;                    // …else at the word boundary nearest the estimate (if this close)
+const EDGE_S = 0.35;                   // never cut this close to a run's edges (one-word fragments)
 const GLITCH_WORDS = 2, GLITCH_S = 0.8; // inside one voice, a Deepgram-speaker run this short is a diarization glitch
 const INTERIM_AHEAD_S = 0.8;           // an interim's speaker usually keeps talking: look this far past its last word
 
@@ -182,10 +183,12 @@ export class VoiceTrack {
     const first = g(words[0], words[0].start), last = g(words[words.length - 1], words[words.length - 1].end);
     const cuts = new Set<number>();
     for (const c of this.changes) {
-      if (c.hi <= first || c.lo >= last) continue;
+      // A change estimated at the run's first word(s) is the gap BEFORE it (Deepgram already split there): no cut.
+      if (c.at <= first + EDGE_S || c.at >= last - EDGE_S) continue;
       let best = -1, bd = SNAP_S, bestSil = CUT_SILENCE_MS - 1;
       for (let i = 1; i < words.length; i++) {
         const b = (g(words[i - 1], words[i - 1].end) + g(words[i], words[i].start)) / 2;
+        if (b <= first + EDGE_S || b >= last - EDGE_S) continue;
         // A real turn change usually sits in a pause: prefer the longest one inside the change's plausible range.
         const cur = (words[i].gBase ?? this.base) === this.base && (words[i - 1].gBase ?? this.base) === this.base;
         const sil = cur && this.silence && b >= c.lo && b <= c.hi ? this.silence(words[i - 1].start, words[i].start + 0.05) : 0;
