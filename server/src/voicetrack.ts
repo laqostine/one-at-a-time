@@ -10,7 +10,8 @@
 //                Deepgram's diarization ids are only a hint).
 //   stamp()      voiceName/voiceScore for a transcript message: finals = identify the whole segment (+ vote the Deepgram
 //                id -> name map); else window vote; else the remembered Deepgram-id mapping.
-import { assign, cosine, embed, identify, identifyEmbedding, roster, tableThreshold } from './voiceid.ts';
+import { ADAPT_MIN_SCORE, adapt, assign, cosine, embed, identify, identifyEmbedding, roster, tableThreshold } from './voiceid.ts';
+import { dumpClip } from './voicedump.ts';
 import type { AsrMessage } from '../../shared/types';
 
 type TranscriptMsg = Extract<AsrMessage, { type: 'transcript' }>;
@@ -81,8 +82,11 @@ export function voiceOf(table: string, slice: StreamSlicer, tStartMs: number, tE
   if ((z - a) * 1000 > VOICE_MAX_SEG_MS) { const mid = (a + z) / 2; a = mid - VOICE_MAX_SEG_MS / 2000; z = mid + VOICE_MAX_SEG_MS / 2000; }
   const t0 = performance.now();
   try {
-    const r = identify(table, slice(a, z), { minMs: VOICE_MIN_SEG_MS });
+    const clip = slice(a, z);
+    const r = identify(table, clip, { minMs: VOICE_MIN_SEG_MS });
     const ms = Math.round(performance.now() - t0);
+    dumpClip('seg', clip, r.name ?? 'unknown', r.score);
+    if (r.name && r.score >= ADAPT_MIN_SCORE && !widened && (z - a) >= 1.5) adapt(table, r.name, embed(clip));
     if (LOG()) console.log(`[voiceid] seg ${Math.round(tStartMs)}-${Math.round(tEndMs)}ms -> ${r.name ?? `null(${r.reason})`} ${r.score} 2nd=${r.second?.name ?? '-'}:${r.second?.score ?? '-'} ${ms}ms`);
     return r.name ? { name: r.name, score: r.score, ms, ...(widened ? { widened } : {}) } : null;
   } catch (e) {

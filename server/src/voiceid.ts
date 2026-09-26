@@ -18,8 +18,15 @@ export const DEFAULT_THRESHOLD = Number(process.env.VOICEID_THRESHOLD) || 0.62;
 export const DEFAULT_MARGIN = Number(process.env.VOICEID_MARGIN) || 0.1;
 /** A stranger must not pass as the closest enrolled voice: the threshold sits at least this far above the closest pair. */
 export const CROSS_GAP = 0.1;
+/** Real voices on a phone mic score 0.3-0.6 against their own print (TitaNet-small); a stranger scores about the same
+ *  against someone else's. With >= 2 voices the decision is RELATIVE: best clearly ahead of the runner-up and above a
+ *  low floor. With 1 voice only the absolute threshold can be used. */
+export const REL_FLOOR = Number(process.env.VOICEID_REL_FLOOR) || 0.35;
+export const REL_MARGIN = Number(process.env.VOICEID_REL_MARGIN) || 0.12;
+/** A confidently named live line becomes a new sample: the print adapts to the room and the mic within a minute. */
+export const ADAPT_MIN_SCORE = Number(process.env.VOICEID_ADAPT_MIN) || 0.5;
 export const DEFAULT_MIN_MS = 800;
-export const MAX_SAMPLES_PER_NAME = 3;
+export const MAX_SAMPLES_PER_NAME = 8;
 export const SWITCH_VOTES = 2;
 export const DEFAULT_MODEL = 'nemo_en_titanet_small.onnx';
 
@@ -187,6 +194,22 @@ export function enrollEmbedding(tableToken: string, name: string, e: Float32Arra
   return { name, samples: samples.length, selfScore, ms };
 }
 
+/** Add a confidently identified live clip to `name`'s print (kept alongside the enrollment samples). */
+export function adapt(tableToken: string, name: string, e: Float32Array): void {
+  const t = tables.get(tableToken);
+  const v = t?.voices.get(name);
+  if (!t || !v) return;
+  const samples = [...v.samples, e].slice(-MAX_SAMPLES_PER_NAME);
+  t.voices.set(name, { ...v, samples, centroid: centroidOf(samples) });
+  calibrate(t);
+}
+
+/** Voiced milliseconds in a clip (same gate as the embedding uses). */
+export function voicedMs(pcm16: Buffer, sampleRate = 16000): number {
+  const x = toFloat(pcm16);
+  return Math.round((keepVoiced(x, sampleRate).length / sampleRate) * 1000);
+}
+
 export function removeVoice(tableToken: string, name: string): boolean {
   const t = tables.get(tableToken);
   if (!t) return false;
@@ -232,8 +255,14 @@ export function identifyEmbedding(tableToken: string, e: Float32Array, opts: Ide
   const margin = opts.margin ?? DEFAULT_MARGIN;
   const round = (x: number) => Math.round(x * 1000) / 1000;
   const sec = second ? { name: second.name, score: round(second.score) } : null;
+  if (second) {
+    // Relative rule (2+ voices): ahead of the runner-up by REL_MARGIN and above the floor, or above the absolute threshold.
+    const gap = best.score - second.score;
+    if (best.score >= threshold && gap >= margin) return { name: best.name, score: round(best.score), second: sec };
+    if (best.score >= REL_FLOOR && gap >= REL_MARGIN) return { name: best.name, score: round(best.score), second: sec };
+    return { name: null, score: round(best.score), second: sec, reason: gap < Math.min(margin, REL_MARGIN) ? 'close' : 'low' };
+  }
   if (best.score < threshold) return { name: null, score: round(best.score), second: sec, reason: 'low' };
-  if (second && best.score - second.score < margin) return { name: null, score: round(best.score), second: sec, reason: 'close' };
   return { name: best.name, score: round(best.score), second: sec };
 }
 

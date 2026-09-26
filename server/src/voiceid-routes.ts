@@ -7,8 +7,10 @@
 //   POST   /api/voice/identify?token=       -> identify() result (debug / manual testing)
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { room } from './rooms.ts';
-import { calibration, enroll, identify, pcmMs, removeVoice, roster, voiceIdAvailable, voiceIdError } from './voiceid.ts';
+import { calibration, enroll, identify, pcmMs, removeVoice, roster, voiceIdAvailable, voiceIdError, voicedMs } from './voiceid.ts';
+import { dumpClip } from './voicedump.ts';
 
+const MIN_VOICED_MS = 3000;
 const MIN_ENROLL_MS = 1_500;
 const MAX_BODY = 30 * 16_000 * 2; // 30 s of 16 kHz PCM16
 
@@ -60,9 +62,12 @@ export function registerVoiceId(app: FastifyInstance): void {
       const { pcm, sampleRate } = parseAudio(req.body, Number(req.query.rate));
       const ms = pcmMs(pcm, sampleRate);
       if (ms < MIN_ENROLL_MS) return reply.code(400).send({ ok: false, error: `too short (${Math.round(ms)} ms)` });
+      const voiced = voicedMs(pcm, sampleRate);
+      if (voiced < MIN_VOICED_MS) return reply.code(422).send({ ok: false, error: 'not enough speech', voicedMs: voiced });
       const t0 = Date.now();
+      dumpClip('enroll', pcm, name);
       const r = enroll(t, name, pcm, sampleRate);
-      req.log.info(`[voiceid] enroll "${r.name}" ${Math.round(ms)}ms samples=${r.samples} self=${r.selfScore?.toFixed(3) ?? '-'} ${Date.now() - t0}ms`);
+      req.log.info(`[voiceid] enroll "${r.name}" ${Math.round(ms)}ms voiced=${voiced}ms samples=${r.samples} self=${r.selfScore?.toFixed(3) ?? '-'} ${Date.now() - t0}ms`);
       return { ok: true, name: r.name, samples: r.samples, selfScore: r.selfScore, roster: roster(t), ...calibration(t) };
     });
 

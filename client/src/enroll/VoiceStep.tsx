@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { recordPcm16 } from './record';
 
-const SECONDS = 8;
+const SECONDS = 6; // seconds of SPEECH (silence doesn't count; hard stop at 3x)
 const QUIET_RMS = 0.01;
 const GOT_MS = 1_200;
 const FAIL_MS = 1_800;
@@ -60,10 +60,10 @@ export function VoiceStep({ name, token, onDone, onGesture, onRename }: {
     setLeft(SECONDS);
     setProgress(0);
     let peak = 0;
-    const rec = recordPcm16(SECONDS, (rms, ms) => {
+    const rec = recordPcm16(SECONDS, (rms, voicedMs) => {
       peak = Math.max(peak, rms);
-      setLeft(Math.max(1, Math.ceil(SECONDS - ms / 1000)));
-      setProgress(Math.min(1, ms / (SECONDS * 1000)));
+      setLeft(Math.max(1, Math.ceil(SECONDS - voicedMs / 1000)));
+      setProgress(Math.min(1, voicedMs / (SECONDS * 1000)));
     });
     void (async () => {
       try {
@@ -79,7 +79,8 @@ export function VoiceStep({ name, token, onDone, onGesture, onRename }: {
         const r = await fetch(`/api/voice/enroll?${new URLSearchParams({ token, name })}`, {
           method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body,
         });
-        const j = await r.json().catch(() => ({ ok: false })) as { ok: boolean };
+        const j = await r.json().catch(() => ({ ok: false })) as { ok: boolean; error?: string };
+        if (r.status === 422) { setNote('I need more of your voice. Keep talking until the bar fills.'); setStep('ask'); setProgress(0); return; }
         if (!r.ok || !j.ok) throw new Error(`HTTP ${r.status}`);
         finish('got', GOT_MS);
       } catch {
@@ -96,7 +97,7 @@ export function VoiceStep({ name, token, onDone, onGesture, onRename }: {
       ) : (
         <>
           <h1 className="font-display-italic text-[2.353rem] leading-[1.1] text-ink">Teach the table your voice</h1>
-          <p className="text-[20px] leading-snug text-ink-2">Say your name, then keep talking until the bar fills. Two or three sentences.</p>
+          <p className="text-[20px] leading-snug text-ink-2">Say your name and keep talking until the bar fills. Only your voice fills it, pauses don’t count.</p>
           {editing ? (
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); const n = draft.trim(); if (n) { onRename?.(n); setEditing(false); } }}>
               <input value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus aria-label="Your name" autoComplete="given-name"
