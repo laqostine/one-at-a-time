@@ -15,16 +15,19 @@ interface Props {
   phonesOnlyPref?: boolean | null;
   onPhonesOnly?: (v: boolean) => void;
   table?: { overlap: boolean; avgWpm: number } | null;
+  /** Host's name, carried in the link so the join page can say "Bera sees your name". */
+  hostName?: string;
 }
 
 /** Prefer the origin this page was actually served from (tunnel / LAN) over the server's guess. */
-function joinUrlFor(info: RoomInfo): string {
+function joinUrlFor(info: RoomInfo, hostName?: string): string {
   const local = /^(localhost|127\.|\[?::1\]?)/.test(location.hostname);
-  if (!local) return `${location.origin}/join.html?token=${encodeURIComponent(info.token)}`;
-  return info.joinUrl;
+  const base = local ? info.joinUrl : `${location.origin}/join.html?token=${encodeURIComponent(info.token)}`;
+  const host = hostName?.trim();
+  return host ? `${base}${base.includes('?') ? '&' : '?'}host=${encodeURIComponent(host)}` : base;
 }
 
-export function JoinQr({ participants, colorOf, onClose, phonesOnly = false, phonesOnlyPref = null, onPhonesOnly, table }: Props) {
+export function JoinQr({ participants, colorOf, onClose, phonesOnly = false, phonesOnlyPref = null, onPhonesOnly, table, hostName }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -34,10 +37,10 @@ export function JoinQr({ participants, colorOf, onClose, phonesOnly = false, pho
     let dead = false;
     fetch('/api/room')
       .then((r) => (r.ok ? (r.json() as Promise<RoomInfo>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((info) => { if (!dead) setUrl(joinUrlFor(info)); })
+      .then((info) => { if (!dead) setUrl(joinUrlFor(info, hostName)); })
       .catch((e: unknown) => { if (!dead) setErr(String((e as Error)?.message ?? e)); });
     return () => { dead = true; };
-  }, []);
+  }, [hostName]);
 
   useEffect(() => {
     if (!url || !canvas.current) return;

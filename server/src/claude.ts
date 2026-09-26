@@ -16,7 +16,7 @@ const RESOLVED_TTL_MS = 3 * 60_000;
 
 let client: Anthropic | null = null;
 export const hasAnthropic = () => !!process.env.ANTHROPIC_API_KEY;
-function getClient(): Anthropic {
+export function getClient(): Anthropic {
   if (!client) {
     const ws = process.env.ANTHROPIC_WORKSPACE_ID;
     client = new Anthropic({

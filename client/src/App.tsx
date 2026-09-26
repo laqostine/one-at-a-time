@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AudioEvent } from '../../shared/types';
+import type { AudioEvent, Utterance } from '../../shared/types';
+import { useRepeat } from './state/useRepeat';
+import { postSay } from './state/api';
 import { useSession } from './state/useSession';
 import { around, colorForName, currentUtterance, lastMinutes, speakerColor, speakerName } from './state/session';
 import { useInterject, useLastActivity } from './state/useInterject';
@@ -19,15 +21,17 @@ import { JoinQr } from './ui/JoinQr';
 import { SpeakCard } from './ui/SpeakCard';
 import { useAway, type AwayInterval } from './state/useAway';
 import { AwayIndicator } from './ui/AwayIndicator';
+import type { Seat } from './ui/TableRing';
+import { IconCatchUp } from './ui/icons';
 import { Button } from '@/components/ui/button';
-import { Mic, Sparkles } from 'lucide-react';
+import { Mic } from 'lucide-react';
 
 /** Click gate: the mic's AudioContext needs a user gesture, so a saved name shows one big button instead of auto-starting. */
 function StartGate({ name, onStart }: { name: string; onStart: () => void }) {
   return (
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-6 bg-bg px-6 text-center" role="dialog" aria-modal="true" aria-labelledby="start-gate-title">
-      <div className="card-label text-accent!">I Missed That</div>
-      <h1 id="start-gate-title" className="text-[2rem] leading-tight font-bold tracking-tight">Hi {name}</h1>
+      <div className="wordmark text-[1.6rem]">I Missed That</div>
+      <h1 id="start-gate-title" className="font-display-italic text-[3rem] leading-none">Hi {name}.</h1>
       <Button type="button" size="lg" onClick={onStart} autoFocus data-testid="start-listening"
         className="h-18 w-full max-w-sm text-[1.4rem] font-bold">
         <Mic aria-hidden /> Start listening
@@ -72,6 +76,31 @@ export default function App() {
     onSpoken: s.addLocalUtterance,
   });
 
+  // Text-first "Speak for me": the line always goes to every joined phone as a Say card; it is
+  // also spoken aloud only if the user opted into the synthetic voice. Returns phones reached.
+  const { speakAtGap } = interject;
+  const addLocal = s.addLocalUtterance;
+  const voiceOn = prefs.voice;
+  const sayLine = useCallback(async (text: string): Promise<number | null> => {
+    const t = text.trim();
+    if (!t) return null;
+    const sent = postSay(t).then((r) => r.delivered).catch(() => null);
+    if (voiceOn) speakAtGap(t); // voice path logs the line into the timeline itself (onSpoken)
+    else addLocal(t);
+    return sent;
+  }, [voiceOn, speakAtGap, addLocal]);
+  const sayApi = useMemo(() => ({ speakAtGap: (t: string) => { void sayLine(t); } }), [sayLine]);
+
+  // Doubt words: tapping one asks the speaker to repeat it (on their phones, and aloud if voice is on).
+  const nameOfId = useCallback((id: number) => speakerName(session, id), [session]);
+  const { askRepeat } = useRepeat({ interject: sayApi, nameOf: nameOfId, markRepeat: s.markRepeat });
+  const onAskRepeat = useCallback((u: Utterance) => { askRepeat(u); }, [askRepeat]);
+
+  // Presence flares amber once per new "asked you" nudge.
+  const [flare, setFlare] = useState(0);
+  const nudgeId = s.nudge?.id;
+  useEffect(() => { if (nudgeId) setFlare((f) => f + 1); }, [nudgeId]);
+
   useEffect(() => { applyPrefs(prefs); }, [prefs]);
   useEffect(() => { document.title = 'I Missed That'; }, []);
 
@@ -86,35 +115,43 @@ export default function App() {
   const awayPending = !loading && s.catchup.status === 'idle' && !!awayApi.lastAway && awayApi.lastAway.t1 > session.lastSeenAt;
   const renameSp = renaming != null ? session.speakers[renaming] : undefined;
 
+  // Table ring: joined phones when there are any, else the voices diarization has heard.
+  const talking = now && (!now.final || Date.now() - s.lastTranscriptAt < 2500) ? now.speaker : null;
+  const seatSource: 'phones' | 'voices' = s.participants.length ? 'phones' : 'voices';
+  const seats: Seat[] = s.participants.length
+    ? s.participants.map((p) => ({ id: p.id, name: p.name, color: colorOf(p.id), active: p.speaking }))
+    : Object.values(session.speakers).filter((sp) => sp.id >= 0).map((sp) => ({ id: sp.id, name: nameOf(sp.id), color: colorOf(sp.id), active: sp.id === talking }));
+
   return (
-    <div className="mx-auto flex h-dvh max-w-3xl flex-col">
+    <div className="mx-auto flex h-dvh max-w-4xl flex-col">
       <Header asr={s.asr} latency={s.latency} listening={s.listening}
         onToggleListening={() => s.setListening(!s.listening)} onSettings={() => setSettingsOpen(true)}
         onEveryoneJoins={() => setJoinOpen(true)} participantCount={s.participants.length}
         lastTranscriptAt={s.lastTranscriptAt} requestPending={s.requestPending} micLevel={s.micLevel}
+        flare={flare} seats={seats} seatSource={seatSource}
         badge={<AwayIndicator enabled={awayApi.enabled} active={awayApi.active} away={awayApi.away} sim={awayApi.sim} />} />
 
       <main className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
         <NowCard utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
-          onSpeaker={() => now && setRenaming(now.speaker)} />
+          onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat} />
 
         <div className="relative flex min-h-0 flex-1 flex-col gap-2.5 sm:gap-3">
-          <OpenCard items={session.ledger} colorFor={colorFor} onOpen={setJumpT} />
+          <OpenCard items={session.ledger} threads={s.threads} colorFor={colorFor} onOpen={setJumpT} />
           <ForYouCard items={session.ledger} nudge={s.nudge}
             nudgeColor={s.nudge?.speakerId != null ? colorOf(s.nudge.speakerId) : colorFor(s.nudge?.speaker)}
             colorFor={colorFor} onDismiss={s.dismissNudge} onOpen={setJumpT} />
-          <SpeakCard api={interject} />
+          <SpeakCard api={interject} say={sayLine} voice={prefs.voice} />
           <CatchupCard state={s.catchup} title={awayTitle ?? undefined} colorFor={colorFor} onBullet={setJumpT} onDismiss={s.dismissCatchup} />
         </div>
 
         <Button type="button" size="lg" onClick={manualCatchUp} disabled={loading} aria-busy={loading}
           className={`h-16 w-full shrink-0 text-[1.3rem] font-bold disabled:opacity-70 ${awayPending ? 'imt-invite' : ''}`}>
-          <Sparkles aria-hidden className="size-6" />
+          <IconCatchUp size={26} strokeWidth={2} />
           {loading ? 'Catching you up…' : 'Catch me up'}
         </Button>
 
         <SoundHistory events={events} getNow={s.nowT} />
-        <CaptionsStrip items={session.timeline} nameOf={nameOf} colorOf={colorOf} onSpeaker={setRenaming} />
+        <CaptionsStrip items={session.timeline} nameOf={nameOf} colorOf={colorOf} onSpeaker={setRenaming} onAskRepeat={onAskRepeat} />
       </main>
 
       {jumpT != null && (
@@ -128,10 +165,11 @@ export default function App() {
       )}
       {settingsOpen && (
         <SettingsDrawer me={session.me} prefs={prefs} listening={s.listening} onMe={s.setMe} onPrefs={setPrefs}
-          onListening={s.setListening} onClose={() => setSettingsOpen(false)} away={awayApi} />
+          onListening={s.setListening} onClose={() => setSettingsOpen(false)} away={awayApi}
+          latency={s.latency} captionsOnly={s.asr.source === 'webspeech' && s.listening} />
       )}
       {joinOpen && <JoinQr participants={s.participants} colorOf={colorOf} onClose={() => setJoinOpen(false)}
-        phonesOnly={s.phonesOnly} phonesOnlyPref={s.phonesOnlyPref} onPhonesOnly={s.setPhonesOnly} table={s.table} />}
+        phonesOnly={s.phonesOnly} phonesOnlyPref={s.phonesOnlyPref} onPhonesOnly={s.setPhonesOnly} table={s.table} hostName={session.me.name} />}
       {!session.me.name && <Onboarding onDone={(n) => { s.setMe(n, []); s.start(); }} />}
       {session.me.name && !s.started && <StartGate name={session.me.name} onStart={s.start} />}
     </div>

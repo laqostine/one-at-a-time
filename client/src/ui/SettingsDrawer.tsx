@@ -2,6 +2,9 @@ import { useState } from 'react';
 import type { Session } from '../../../shared/types';
 import { FONT_PX, type FontSize, type Prefs } from './prefs';
 import { Modal } from './Modal';
+import { fmtMs } from './Header';
+import { ColorLegend } from './ColorLegend';
+import { PRESENCE_PROMISE } from './presenceStates';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 
@@ -15,9 +18,12 @@ interface Props {
   onClose: () => void;
   /** Optional look-away section (camera, on-device). */
   away?: { enabled: boolean; sim: boolean; active: boolean; calibrating: boolean; setEnabled: (v: boolean) => void; calibrate: () => Promise<boolean> };
+  /** Latency chips (shown in the header on >=640px, here always). */
+  latency?: { stateMs?: number; catchupMs?: number; stateError?: string };
+  captionsOnly?: boolean;
 }
 
-export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListening, onClose, away }: Props) {
+export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListening, onClose, away, latency, captionsOnly }: Props) {
   const [name, setName] = useState(me.name);
   const [aliases, setAliases] = useState(me.aliases.join(', '));
   const save = () => onMe(name, aliases.split(',').map((a) => a.trim()).filter(Boolean));
@@ -46,6 +52,10 @@ export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListenin
         <Separator />
         <Toggle label="High contrast" on={prefs.contrast} onChange={(v) => onPrefs({ ...prefs, contrast: v })} />
         <Toggle label="Listening" on={listening} onChange={onListening} />
+        <div>
+          <Toggle label="Also say it aloud (synthetic voice)" on={prefs.voice} onChange={(v) => onPrefs({ ...prefs, voice: v })} />
+          <p className="text-meta">Speak for me always shows your line on everyone's phone first. Turn this on to also hear it in the next pause.</p>
+        </div>
         {away && (
           <div className="space-y-2">
             <Toggle label="Notice when I look away (camera, on-device)" on={away.enabled} onChange={away.setEnabled} />
@@ -59,6 +69,31 @@ export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListenin
               {away.sim ? 'Simulator on (?away=1): press A to toggle away.' : 'Video is analysed on this device only. No frames are stored or sent; only "away / not away" is kept.'}
             </p>
           </div>
+        )}
+        <Separator />
+        <section aria-labelledby="imt-colors-h">
+          <h3 id="imt-colors-h" className="mb-1 card-label">What the colors mean</h3>
+          <p className="mb-3 text-[0.95rem] text-muted">{PRESENCE_PROMISE}</p>
+          <ColorLegend detailed className="text-[0.95rem]" />
+        </section>
+        {latency && (
+          <>
+            <Separator />
+            <section aria-label="Speed">
+              <h3 className="mb-2 card-label">Speed</h3>
+              <dl className="grid grid-cols-2 gap-2 font-mono text-[0.85rem] tabular-nums">
+                <div className="rounded-xl border border-border bg-card-2 px-3 py-2">
+                  <dt className="text-muted">ledger</dt>
+                  <dd className={latency.stateError ? 'text-warn' : 'text-fg'}>{latency.stateError ? 'offline' : fmtMs(latency.stateMs)}</dd>
+                </div>
+                <div className="rounded-xl border border-border bg-card-2 px-3 py-2">
+                  <dt className="text-muted">catch-up</dt>
+                  <dd className="text-fg">{fmtMs(latency.catchupMs)}</dd>
+                </div>
+              </dl>
+              {captionsOnly && <p className="mt-2 text-meta text-warn">Browser captions only: no speaker colors.</p>}
+            </section>
+          </>
         )}
         <Separator />
         <p className="text-meta">Audio stays in memory for the last 15 minutes only. Nothing is stored after you close this tab.</p>

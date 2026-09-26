@@ -1,4 +1,4 @@
-import { BellRing } from 'lucide-react';
+import { IconForYou } from './icons';
 import type { LedgerItem } from '../../../shared/types';
 import type { Nudge } from '../state/useSession';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +27,7 @@ export function ForYouCard({ items, nudge, nudgeColor, colorFor, onDismiss, onOp
         {nudge && (
           <div key={nudge.id} className="imt-flash mb-2 rounded-xl border border-warn/70 bg-warn/10 px-4 py-3" data-testid="nudge">
             <p className="flex items-start gap-3 text-body-lg">
-              <BellRing size={24} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+              <IconForYou size={26} className="mt-0.5 shrink-0 text-warn" />
               <span>
                 <strong style={{ color: readable(nudgeColor) }}>{nudge.speaker}</strong> asked you:{' '}
                 <q className="font-semibold">{nudge.question}</q>

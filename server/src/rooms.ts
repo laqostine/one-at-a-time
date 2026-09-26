@@ -129,6 +129,15 @@ export class Room {
     return false;
   }
 
+  /** Show the host user's words on every participant phone (text-first Speak for me). */
+  say(text: string): number {
+    const name = this.meName.trim() || 'They';
+    const m = { type: 'say' as const, name, text, t: Date.now() };
+    let n = 0;
+    for (const ws of this.parts.keys()) { this.sendTo(ws, m); n++; }
+    return n;
+  }
+
   private pushPace(): void {
     const now = Date.now();
     const overlap = this.overlap(now);
@@ -260,6 +269,12 @@ export function registerRooms(app: FastifyInstance): void {
     return reply.code(ok ? 200 : 401).send({ ok });
   });
   // Host tells the room its user's name so phones can say "Good pace for Bera".
+  // Host user's line → text on every phone. Body: {text}. Returns how many phones got it.
+  app.post<{ Body: { text?: unknown } }>('/api/room/say', async (req, reply) => {
+    const t = typeof req.body?.text === 'string' ? req.body.text.trim().slice(0, 240) : '';
+    if (!t) return reply.code(400).send({ ok: false });
+    return { ok: true, delivered: room.say(t) };
+  });
   app.post<{ Body: { name?: unknown } }>('/api/room/me', async (req) => {
     const n = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 40) : '';
     room.meName = n;

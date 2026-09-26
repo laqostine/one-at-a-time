@@ -9,6 +9,7 @@ import { catchUp, extractState, explainLaugh, hasAnthropic } from './claude.ts';
 import { registerAsr } from './asr.ts';
 import { registerRooms, roomInfo } from './rooms.ts';
 import { draftInterjections } from './interject.ts';
+import { registerGate } from './gate.ts';
 
 const app = Fastify({ logger: { level: 'info' }, bodyLimit: 5 * 1024 * 1024 });
 
@@ -33,6 +34,8 @@ app.post<{ Body: StateRequest }>('/api/state', async (req) => {
   const out = await extractState(req.body);
   return { ...out, latencyMs: Date.now() - t0 };
 });
+
+registerGate(app); // POST /api/gate (fast System-One decision gate)
 
 app.post<{ Body: LaughRequest }>('/api/laugh', async (req) => {
   const t0 = Date.now();

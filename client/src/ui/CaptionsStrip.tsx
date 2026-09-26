@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Captions, ChevronDown, ChevronUp } from 'lucide-react';
-import type { TimelineItem } from '../../../shared/types';
+import type { TimelineItem, Utterance } from '../../../shared/types';
+import { UttText } from './UttText';
+import { ReplyTo } from './ReplyTo';
 import { isUtt } from '../state/session';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -13,12 +15,14 @@ interface Props {
   nameOf: (id: number) => string;
   colorOf: (id: number) => string;
   onSpeaker: (id: number) => void;
+  /** Tap a doubt word: ask the speaker to repeat (useRepeat().askRepeat). */
+  onAskRepeat?: (utt: Utterance) => void;
 }
 
 const SHOW = 60;
 
 /** Collapsible diarized live captions with inline event chips. Secondary view: the only scrolling surface. Autoscroll pauses on hover/scroll-up. */
-export function CaptionsStrip({ items, nameOf, colorOf, onSpeaker }: Props) {
+export function CaptionsStrip({ items, nameOf, colorOf, onSpeaker, onAskRepeat }: Props) {
   const [open, setOpen] = useState(false);
   const [hover, setHover] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -59,7 +63,10 @@ export function CaptionsStrip({ items, nameOf, colorOf, onSpeaker }: Props) {
                     <>
                       <span className="pt-0.5"><SpeakerChip size="sm" name={nameOf(i.speaker)} color={colorOf(i.speaker)}
                         onClick={i.speaker >= 0 ? () => onSpeaker(i.speaker) : undefined} /></span>
-                      <span className={cn('text-body', !i.final && 'text-muted italic', i.addressedToMe && 'font-semibold text-warn')}>{i.text}</span>
+                      <span className={cn('text-body', !i.final && 'text-muted italic', i.addressedToMe && 'font-semibold text-warn')}>
+                        {i.replyTo && <ReplyTo name={i.replyTo} />}
+                        <UttText utt={i} speaker={nameOf(i.speaker)} onAskRepeat={onAskRepeat} />
+                      </span>
                     </>
                   ) : <EventChip kind={i.kind} />}
                 </li>

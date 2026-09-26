@@ -9,6 +9,8 @@ import { postCatchup, postState } from './api';
 import { initSession, isUtt, lastMinutes, sessionReducer, speakerName, utterancesByThread, windowSince, type SessionState } from './session';
 import { matchThread } from '../../../shared/threads';
 import { isAddressedToMe } from './addressed';
+import { useGate } from './useGate';
+import type { Utterance } from '../../../shared/types';
 
 export type AsrState = 'idle' | 'connecting' | 'open' | 'closed' | 'error' | 'paused';
 export type Source = 'mic' | 'webspeech' | 'replay';
@@ -100,6 +102,15 @@ export function useSession() {
     try { navigator.vibrate?.(200); } catch { /* unsupported */ }
   }, []);
 
+  // ---- fast decision gate (/api/gate): upgrades the regex nudge + provisional ledger cards ----
+  const coveredT = useRef(-1);
+  const nudgeUtt = useCallback((utt: Utterance, speaker: string) => {
+    dispatch({ type: 'markAddressed', id: utt.id });
+    fireNudge({ id: utt.id, speaker, speakerId: utt.speaker, question: utt.text.trim(), t: utt.tStart });
+  }, [fireNudge]);
+  const getSession = useCallback(() => ref.current, []);
+  const { gateUtterance, gateLatencyMs, lastGate } = useGate({ getSession, dispatch, nudge: nudgeUtt, coveredT });
+
   // ASR times are ms since the *stream* start (reset on reconnect); shift onto the session clock.
   const offset = useRef<number | null>(null);
   const lastRaw = useRef(0);
@@ -161,13 +172,15 @@ export function useSession() {
     if (!msg.final || !msg.text.trim()) return;
     dirty.current = true;
     const me = ref.current.me;
+    const speaker = msg.speaker >= 0 ? (ref.current.merged[msg.speaker] ?? msg.speaker) : -1;
+    const id = `u${speaker}-${msg.tStart}`;
+    // Regex first pass stays instant; the gate below can only add nudges, never delay this one.
     if (me.name && isAddressedToMe(msg.text, me)) {
-      const speaker = msg.speaker >= 0 ? (ref.current.merged[msg.speaker] ?? msg.speaker) : -1;
-      const id = `u${speaker}-${msg.tStart}`;
       dispatch({ type: 'markAddressed', id });
       fireNudge({ id, speaker: speakerName(ref.current, speaker), speakerId: speaker, question: msg.text.trim(), t: msg.tStart });
     }
-  }, [fireNudge]);
+    gateUtterance({ id, type: 'utterance', speaker, text: msg.text.trim(), tStart: msg.tStart, tEnd: msg.tEnd, final: true });
+  }, [fireNudge, gateUtterance]);
 
   const evSeq = useRef(0);
   const onEvent = useCallback((e: { kind: EventKind; score: number }) => {
@@ -193,7 +206,8 @@ export function useSession() {
         fetch(`/replay/${encodeURIComponent(name)}.json`).then((r) => (r.ok ? r.json() : null))
           .then((j) => { if (!cancelled && j?.names) dispatch({ type: 'seedSpeakers', names: j.names }); })
           .catch(() => {});
-        await add(startReplay(name, onMessage, onEvent));
+        const speed = Number(new URLSearchParams(window.location.search).get('speed')) || 1; // ?speed=2 for demos
+        await add(startReplay(name, onMessage, onEvent, speed));
         if (!cancelled) setAsr((a) => (a.state === 'connecting' ? { ...a, state: 'open' } : a));
         return;
       }
@@ -275,10 +289,13 @@ export function useSession() {
       const s = ref.current;
       const t0 = performance.now();
       try {
-        const res = await postState({ me: s.me, speakers: s.speakers, window: lastMinutes(s, 3, nowT()), nowT: nowT(), existing: s.ledger, existing_threads: s.threads });
+        const win = lastMinutes(s, 3, nowT());
+        const covered = win.reduce((m, i) => (isUtt(i) && i.final ? Math.max(m, i.tStart) : m), -1);
+        const res = await postState({ me: s.me, speakers: s.speakers, window: win, nowT: nowT(), existing: s.ledger.filter((i) => !i.provisional), existing_threads: s.threads });
         const ms = Math.round(performance.now() - t0);
         setLatency((l) => ({ ...l, stateMs: res.latencyMs ?? ms, stateError: undefined }));
-        dispatch({ type: 'setLedger', items: res.ledger ?? [] });
+        coveredT.current = Math.max(coveredT.current, covered);
+        dispatch({ type: 'setLedger', items: res.ledger ?? [], coveredT: covered });
         if (res.threads) dispatch({ type: 'applyThreads', threads: res.threads, utteranceThreads: res.utteranceThreads ?? [] });
         const a = res.addressed_to_me_now;
         if (a && ref.current.me.name) fireNudge({ id: `s-${a.t}`, speaker: a.speaker, question: a.question, t: a.t });
@@ -351,6 +368,8 @@ export function useSession() {
     threads: session.threads,
     utterancesByThread: useCallback((threadId: string) => utterancesByThread(ref.current, threadId), []),
     markRepeat: useCallback((id: string) => dispatch({ type: 'markRepeat', id }), []),
+    // Fast decision gate (header latency chip + debug)
+    gateLatencyMs, lastGate,
   };
 }
 export type SessionApi = ReturnType<typeof useSession>;

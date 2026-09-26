@@ -1,4 +1,5 @@
-import { Camera, EyeOff } from 'lucide-react';
+import { Camera } from 'lucide-react';
+import { IconAway } from './icons';
 
 /** Always-visible camera dot while "Notice when I look away" is on, plus an "Away" pill while away. */
 export function AwayIndicator({ enabled, active, away, sim }: { enabled: boolean; active: boolean; away: boolean; sim: boolean }) {
@@ -10,7 +11,7 @@ export function AwayIndicator({ enabled, active, away, sim }: { enabled: boolean
     <span className="flex shrink-0 items-center gap-1.5" data-testid="away-indicator">
       {away && (
         <span role="status" className="flex h-7 items-center gap-1 rounded-full bg-warn px-2.5 text-[0.78rem] font-bold text-black">
-          <EyeOff size={14} aria-hidden /> Away
+          <IconAway size={15} strokeWidth={2.2} /> Away
         </span>
       )}
       <span title={tip} aria-label={tip} role="img"

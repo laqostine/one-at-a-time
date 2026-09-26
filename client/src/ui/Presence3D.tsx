@@ -61,12 +61,20 @@ export function Presence3D({ state, level, size = 96, envelope, envelopeStepMs =
     return () => { cancelled = true; dispose?.(); };
   }, [size, failed]);
 
-  if (failed) return <Presence state={state} level={level} size={size} />;
+  if (failed) {
+    return (
+      <div className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
+        {halo && <PresenceHalo state={state} flare={flare} />}
+        <div className="relative"><Presence state={state} level={level} size={size} /></div>
+      </div>
+    );
+  }
   return (
     <div className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
       {halo && <PresenceHalo state={state} flare={flare} />}
       <div ref={hostRef} className="relative" style={{ width: '100%', height: '100%' }} />
-      <span className="sr-only" role="status" aria-live="polite">{LABEL[state]}</span>
+      {/* not a live region: the header status line already announces changes; this would chatter */}
+      <span className="sr-only">Presence: {LABEL[state]}</span>
     </div>
   );
 }

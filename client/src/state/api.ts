@@ -25,3 +25,8 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
 // "Speak for me" (interjection assist)
 export const postInterject = (req: InterjectRequest, signal?: AbortSignal) =>
   post<InterjectRequest, InterjectResponse>('/api/interject', req, signal);
+
+// "Say" card (text-first Speak for me): shows ME's line full-screen on every joined phone.
+export async function postSay(text: string, signal?: AbortSignal): Promise<{ ok: boolean; delivered: number }> {
+  return post<{ text: string }, { ok: boolean; delivered: number }>('/api/room/say', { text }, signal);
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { BellRing, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { IconCatchUp, IconForYou } from './icons';
 import type { CatchupState } from '../state/useSession';
 import { Badge } from '@/components/ui/badge';
 import { readable } from '@/lib/utils';
@@ -42,7 +43,7 @@ export function CatchupCard({ state, colorFor, onBullet, onDismiss, title }: Pro
       onClick={onDismiss} onFocus={() => setPaused(true)} onMouseEnter={() => setPaused(true)}
       className={`imt-in absolute inset-0 z-10 flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-accent/70 bg-card p-4 shadow-[var(--glow-accent),0_24px_48px_-12px_rgb(0_0_0/0.7)] transition-opacity duration-200 sm:p-5 ${fading ? 'opacity-40' : 'opacity-100'}`}>
       <div className="flex min-h-8 items-center gap-2 pb-3">
-        <h2 className="card-label text-accent!">{title ?? 'You missed'}</h2>
+        <h2 className="card-label flex items-center gap-1.5 text-accent!"><IconCatchUp size={16} strokeWidth={2} />{title ?? 'You missed'}</h2>
         {state.status === 'ready' && (
           <span className="ml-auto flex items-center gap-1.5 text-meta tabular-nums">
             <span className="hidden sm:inline">as of {age}s ago</span>
@@ -72,7 +73,7 @@ export function CatchupCard({ state, colorFor, onBullet, onDismiss, title }: Pro
           <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
             {a && (
               <p className="flex items-start gap-3 rounded-xl border border-warn/70 bg-warn/10 px-4 py-3 text-body-lg shadow-[var(--glow-warn)]">
-                <BellRing size={22} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+                <IconForYou size={24} className="mt-0.5 shrink-0 text-warn" />
                 <span><strong style={{ color: readable(colorFor(a.speaker)) }}>{a.speaker}</strong> asked you: <q>{a.question}</q></span>
               </p>
             )}

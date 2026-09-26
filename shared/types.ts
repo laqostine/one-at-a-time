@@ -29,7 +29,7 @@ export type TimelineItem = Utterance | AudioEvent;
 
 export type LedgerKind = 'decision'|'objection'|'open_question'|'assigned_to_me'|'instruction_change';
 // thread: short label of the conversation thread this belongs to (e.g. "Friday launch"); replyTo: who this was responding to
-export interface LedgerItem { id: string; kind: LedgerKind; text: string; speaker?: string; t: number; resolved?: boolean; reason?: string; thread?: string; replyTo?: string; threadId?: string }
+export interface LedgerItem { id: string; kind: LedgerKind; text: string; speaker?: string; t: number; resolved?: boolean; reason?: string; thread?: string; replyTo?: string; threadId?: string; provisional?: boolean /* from /api/gate; replaced by the next /api/state ledger */ }
 
 export interface Session {
   startedAt: number;
@@ -58,6 +58,17 @@ export interface StateResponse {
   ledger: LedgerItem[]; addressed_to_me_now: { speaker: string; question: string; t: number } | null; latencyMs?: number;
   threads?: Thread[];                    // all known lanes, lastT desc
   utteranceThreads?: UtteranceThread[];  // t = exact tStart of a FINAL utterance in the request window
+}
+
+// POST /api/gate — fast "System One" decision gate: one tiny Haiku call per FINAL utterance
+export type GateKind = LedgerKind | 'chatter';
+export interface GateRequest { me: Session['me']; speakers: Record<number, Speaker>; recent: TimelineItem[] /* last ~6 finals, context */; target: Utterance }
+export interface GateResponse {
+  addressed_to_me: number;   // 0..1
+  kind: GateKind; kind_p: number; // 0..1
+  urgent: boolean;
+  latencyMs: number;
+  source?: 'model'|'fallback'|'cache';
 }
 
 // POST /api/laugh  (stretch)
@@ -90,7 +101,9 @@ export type AsrMessage =
   // participant phones only, every 2s: THIS speaker's pace (rolling 20s, words/min of speech) + table-wide overlap
   | { type: 'pace'; wpm: number; level: PaceLevel; overlap: boolean; listenerName: string }
   // hosts only, every 2s while phones are joined: table-wide overlap + mean wpm of recently active speakers
-  | { type: 'table'; overlap: boolean; avgWpm: number };
+  | { type: 'table'; overlap: boolean; avgWpm: number }
+  // host user's line shown as text on every participant phone (text-first 'Speak for me'; voice is opt-in)
+  | { type: 'say'; name: string; text: string; t: number };
 
 /** DHH caption comprehension drops above ~170 wpm: ok <150, fast 150-170, too_fast >170. */
 export type PaceLevel = 'ok'|'fast'|'too_fast';

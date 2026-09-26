@@ -5,17 +5,19 @@
 // while speaking and straightens up the moment you start talking.
 import * as THREE from 'three';
 import type { PresenceState } from './Presence';
+import { FLARE_HEX, PRESENCE_HEX } from './presenceStates';
 
-// Tuned for the warm-dark identity. Amber is NOT a state color: it is reserved for the
-// "addressed to you" flare (FLARE), so it keeps its meaning everywhere in the app.
+// Tuned for the warm-dark identity (source of truth + meanings: presenceStates.ts). Amber is NOT
+// a state color: it is reserved for the "addressed to you" flare, so it keeps one meaning.
+const hex = (h: string) => parseInt(h.slice(1), 16);
 export const COLOR: Record<PresenceState, number> = {
-  idle: 0xa39a8c,         // warm stone
-  listening: 0x8db6ff,    // brand accent
-  transcribing: 0x7fd8ff, // lighter cyan: "writing"
-  thinking: 0xb99dff,     // violet
-  speaking: 0x6fd6a4,     // green
+  idle: hex(PRESENCE_HEX.idle),
+  listening: hex(PRESENCE_HEX.listening),
+  transcribing: hex(PRESENCE_HEX.transcribing),
+  thinking: hex(PRESENCE_HEX.thinking),
+  speaking: hex(PRESENCE_HEX.speaking),
 };
-export const FLARE = 0xf6b93b;
+export const FLARE = hex(FLARE_HEX);
 
 // Posture vocabulary: lean (toward you), sway (side to side), wave (cloth motion),
 // glow (inner light), eyes (openness — sleepy / wide / narrowed).

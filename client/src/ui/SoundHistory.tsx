@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AudioEvent } from '../../../shared/types';
 import { eventMeta } from './EventChip';
+import { IconSounds } from './icons';
 
 /** Last few non-speech sounds with time-ago, so a sound leaves a trace. */
 export function SoundHistory({ events, getNow }: { events: AudioEvent[]; getNow: () => number }) {
@@ -20,7 +21,7 @@ export function SoundHistory({ events, getNow }: { events: AudioEvent[]; getNow:
   };
   return (
     <div aria-label="Sound history" role="group" className="flex h-7 shrink-0 items-center gap-1.5 overflow-hidden px-1 whitespace-nowrap">
-      <span className="shrink-0 card-label">Sounds</span>
+      <span className="flex shrink-0 items-center gap-1 card-label"><IconSounds size={15} strokeWidth={2} />Sounds</span>
       {last.map((e) => {
         const m = eventMeta(e.kind);
         return (

@@ -25,7 +25,9 @@ export type SessionAction =
   | { type: 'renameSpeaker'; id: number; name: string }
   | { type: 'mergeSpeaker'; from: number; to: number }
   | { type: 'setMe'; name: string; aliases: string[] }
-  | { type: 'setLedger'; items: LedgerItem[] }
+  /** coveredT: max tStart of the finals the /api/state request saw; provisional items at or before it are dropped. */
+  | { type: 'setLedger'; items: LedgerItem[]; coveredT?: number }
+  | { type: 'addProvisional'; item: LedgerItem }
   | { type: 'markSeen'; t: number }
   | { type: 'seedSpeakers'; names: Record<string, string> }
   | { type: 'markAddressed'; id: string }
@@ -159,8 +161,15 @@ export function sessionReducer(s: SessionState, a: SessionAction): SessionState 
     }
     case 'setMe':
       return { ...s, me: { name: a.name.trim(), aliases: a.aliases.map((x) => x.trim()).filter(Boolean) } };
-    case 'setLedger':
-      return { ...s, ledger: mergeLedger(s.ledger, a.items) };
+    case 'setLedger': {
+      // Gate provisionals are replaced by the full server ledger; keep only ones newer than what the server saw.
+      const cov = a.coveredT ?? Infinity;
+      const prov = s.ledger.filter((i) => i.provisional && i.t > cov);
+      return { ...s, ledger: [...mergeLedger(s.ledger.filter((i) => !i.provisional), a.items), ...prov] };
+    }
+    case 'addProvisional':
+      if (s.ledger.some((i) => i.id === a.item.id)) return s;
+      return { ...s, ledger: [...s.ledger, { ...a.item, provisional: true }] };
     case 'markSeen':
       return { ...s, lastSeenAt: Math.max(s.lastSeenAt, a.t) };
     case 'seedSpeakers': {

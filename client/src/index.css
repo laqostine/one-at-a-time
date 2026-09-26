@@ -202,13 +202,51 @@ body {
 @keyframes imt-breathe { 0%, 100% { opacity: .75; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
 .imt-breathe { animation: imt-breathe 4.8s ease-in-out infinite; }
 
+/* ---------- Surfaces: three elevations, hairline borders, restrained glow ----------
+ * 0 = page (--bg + grain) · 1 = cell (--card, hairline, top highlight) · 2 = raised (--card-2 + soft drop). */
+@utility surface-1 {
+  background: var(--card);
+  border: 1px solid color-mix(in oklab, var(--line) 85%, transparent);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / .04);
+}
+@utility surface-2 {
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / .05), 0 12px 32px -18px rgb(0 0 0 / .7);
+}
+@utility surface-hero {
+  background:
+    radial-gradient(120% 80% at 50% 38%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 60%),
+    linear-gradient(180deg, color-mix(in oklab, var(--card) 100%, white 2%), var(--card));
+  border: 1px solid color-mix(in oklab, var(--line) 85%, transparent);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / .05), 0 24px 48px -28px rgb(0 0 0 / .8);
+}
+/* Micro-interaction: hover lift <= 2px, 150 ms. */
+@utility lift {
+  transition: transform 150ms var(--ease-out-soft), background-color 150ms, border-color 150ms, box-shadow 150ms;
+  &:hover { transform: translateY(-2px); }
+  &:active { transform: none; }
+}
+/* Grain: 3% noise over the page so the dark reads as material, not a flat fill. */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:root[data-contrast="high"] body::after { display: none; }
+
+/* Say card countdown ring (10 s): the stroke drains once. */
+@keyframes imt-countdown { from { stroke-dashoffset: 0; } to { stroke-dashoffset: var(--ring-len, 151); } }
+.imt-countdown { animation: imt-countdown var(--ring-ms, 10000ms) linear forwards; }
+@keyframes imt-rise { from { opacity: 0; transform: translateY(24px) scale(.98); } to { opacity: 1; transform: none; } }
+.imt-rise { animation: imt-rise 320ms var(--ease-out-soft) both; }
+
 /* Scroll reveal (landing): hidden only once JS confirmed IntersectionObserver (html.io), so
  * a failed script never leaves content invisible. */
 html.io .reveal { opacity: 0; transform: translateY(18px); transition: opacity 700ms var(--ease-out-soft), transform 700ms var(--ease-out-soft); transition-delay: var(--reveal-delay, 0ms); }
 html.io .reveal.is-in { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .imt-pulse, .imt-skeleton, .imt-flash, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .animate-spin { animation: none !important; }
+  .imt-pulse, .imt-skeleton, .imt-flash, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .animate-spin { animation: none !important; }
   html.io .reveal { opacity: 1; transform: none; }
   *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }
