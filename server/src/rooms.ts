@@ -40,6 +40,8 @@ export class Room {
   private paceTick: NodeJS.Timeout | undefined;
   /** Host's own name (POST /api/room/me) — phones say "Good pace for <name>". */
   meName = '';
+  /** Table language for Deepgram (nova-3 live: en, it, tr verified 2026-09-26). */
+  lang: 'en' | 'it' | 'tr' | 'multi' = 'en';
   private finals = new Map<number, FinalRec[]>();          // participant id -> recent finals
   private voiced = new Map<string, { at: number; ms: number }[]>(); // source -> voiced chunks
 
@@ -275,6 +277,14 @@ export function registerRooms(app: FastifyInstance): void {
     if (!t) return reply.code(400).send({ ok: false });
     return { ok: true, delivered: room.say(t) };
   });
+  // Table language: applies to every NEW audio socket (host + phones). Client reconnects after changing it.
+  app.post<{ Body: { lang?: unknown } }>('/api/room/lang', async (req, reply) => {
+    const l = String(req.body?.lang ?? '');
+    if (!['en', 'it', 'tr', 'multi'].includes(l)) return reply.code(400).send({ ok: false });
+    room.lang = l as Room['lang'];
+    return { ok: true, lang: room.lang };
+  });
+  app.get('/api/room/lang', async () => ({ lang: room.lang }));
   app.post<{ Body: { name?: unknown } }>('/api/room/me', async (req) => {
     const n = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 40) : '';
     room.meName = n;

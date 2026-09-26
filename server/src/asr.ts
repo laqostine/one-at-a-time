@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import WebSocket from 'ws';
 import type { AsrMessage } from '../../shared/types';
-import { isVoice, parseJoin } from './rooms';
+import { isVoice, parseJoin, room } from './rooms';
 
 const DG_URL =
   'wss://api.deepgram.com/v1/listen?model=nova-3&diarize=true&smart_format=true&interim_results=true' +
@@ -101,7 +101,7 @@ export function registerAsr(app: FastifyInstance): void {
       }
 
       send({ type: 'status', state: 'connecting' });
-      const dg = new WebSocket(participant ? DG_URL_SOLO : DG_URL, { headers: { Authorization: `Token ${key}` } });
+      const dg = new WebSocket(`${participant ? DG_URL_SOLO : DG_URL}&language=${room.lang}`, { headers: { Authorization: `Token ${key}` } });
       const pending: Buffer[] = [];
       let closed = false;
       let keepAlive: NodeJS.Timeout | undefined;

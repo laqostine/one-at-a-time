@@ -52,6 +52,23 @@ export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListenin
         <Separator />
         <Toggle label="High contrast" on={prefs.contrast} onChange={(v) => onPrefs({ ...prefs, contrast: v })} />
         <Toggle label="Listening" on={listening} onChange={onListening} />
+        <label className="block">
+          <span className="mb-2 block card-label">Table language</span>
+          <select defaultValue="en" aria-label="Table language"
+            onChange={async (e) => {
+              const lang = e.target.value;
+              try { await fetch('/api/room/lang', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang }) }); } catch { /* offline */ }
+              // New language applies to new audio sockets: bounce listening so the host reconnects.
+              onListening(false); window.setTimeout(() => onListening(true), 400);
+            }}
+            className="h-12 w-full rounded-xl border border-input bg-card-2 px-3 text-[1.1rem] transition-colors duration-150 focus:border-accent">
+            <option value="en">English</option>
+            <option value="it">Italiano</option>
+            <option value="tr">Türkçe</option>
+            <option value="multi">Mixed / auto</option>
+          </select>
+          <p className="text-meta">Phones joining after this use the same language.</p>
+        </label>
         <div>
           <Toggle label="Also say it aloud (synthetic voice)" on={prefs.voice} onChange={(v) => onPrefs({ ...prefs, voice: v })} />
           <p className="text-meta">Speak for me always shows your line on everyone's phone first. Turn this on to also hear it in the next pause.</p>
