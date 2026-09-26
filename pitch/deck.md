@@ -57,13 +57,14 @@ phones on the table
    Deepgram — one stream per phone
         │  server measures pace and overlap
         ▼
-amber on the talkers' phones ──── one sentence, with a name, on the listener's phone
+amber on the talkers' phones ──── one sentence, with a name and how it was said,
+                                  on the listener's phone (warm · teasing · annoyed)
                                           │  one tap
                                           ▼
                               text on every phone at the table
 ```
 
-Sentence under **1 second**. Lamp under **2 seconds**. **Nothing is stored.**
+Sentence under **1 second**. Tone in **0.7 s**. Lamp under **2 seconds**. **Nothing is stored.**
 
 ---
 

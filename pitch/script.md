@@ -17,6 +17,8 @@ deterministically.
 - **Teammate B:** "—wait, is it one or two, because I said I'd bring—"
 *(Their phones turn amber. They stop.)* The judge's phone shows one
 sentence, with a name: **"Dad: Sunday at one, everyone brings a side."**
+- **Teammate B** (dry): "Great, another Sunday at your place, can't wait."
+*(The judge's phone reads **Sam · TEASING** above the line. Presenter: "That word is the part a hearing person gets from the voice. Captions never had it.")*
 
 **0:25** — A teammate says the judge's real name.
 > "…are you coming Sunday?"
