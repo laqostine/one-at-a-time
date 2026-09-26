@@ -161,12 +161,11 @@ export function useSession() {
 
   // Single-phone voice id: enrolled name -> the client speaker id that shows it (one id, one color per name).
   const voiceIds = useRef(new Map<string, number>());
-  const UNKNOWN_VOICE = 'Someone';
   const interimOwner = useRef(new Map<string, number>()); // `${dg speaker}:${raw tStart}` -> client speaker of its interim
   /** Host line stamped with `voiceName`: route it to that name's speaker. First sighting names the Deepgram id's own
    *  speaker (if still unnamed) or gets a fresh id; a second Deepgram id for a known name is merged into it. */
   const voiceSpeaker = useCallback((raw: TranscriptMsg): number => {
-    const name = raw.voiceName?.trim() || (voiceIds.current.size ? UNKNOWN_VOICE : '');
+    const name = raw.voiceName?.trim() || '';
     if (!name) return raw.speaker;
     const s = ref.current;
     const canon = (id: number) => (id >= 0 ? (s.merged[id] ?? id) : id);

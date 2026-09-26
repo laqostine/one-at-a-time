@@ -291,6 +291,12 @@ export function VoiceGate({ name, onDone, onRename }: { name: string; onDone: ()
   return (
     <FullPage label="Teach the table your voice">
       {token != null && <VoiceStep name={name} token={token} onDone={onDone} onRename={onRename} />}
+      {token != null && (
+        <button type="button" onClick={onDone} data-testid="voice-skip"
+          className="mb-6 min-h-14 w-full cursor-pointer rounded-xl text-[1rem] text-ink-2 underline-offset-4 hover:underline">
+          Skip. The table tells voices apart as Speaker 1, 2… and you tap a name to rename it.
+        </button>
+      )}
     </FullPage>
   );
 }

@@ -290,6 +290,9 @@ export function registerAsr(app: FastifyInstance): void {
       let swapDg: WebSocket | null = null;
       let lastVoiceAt = 0, lastWordsAt = 0;
       const offTerms = jroom.onTerms(() => {
+        // Opt-in (KEYTERM_SWAP=1): a swap opens a new Deepgram stream and its speaker ids restart at 0, so a
+        // renamed "Speaker 2" silently becomes someone else a minute in. Stable ids matter more than boosted nouns.
+        if (process.env.KEYTERM_SWAP !== '1') return;
         const have = new Set(dgTerms.map((t) => t.toLowerCase()));
         const fresh = jroom.keyterms().filter((t) => !have.has(t.toLowerCase())).length;
         if (fresh >= KEYTERM_SWAP_MIN_NEW) wantSwap = true;
