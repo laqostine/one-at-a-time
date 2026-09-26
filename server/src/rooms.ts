@@ -35,6 +35,7 @@ export class Room {
   readonly token: string;
   private hosts = new Set<WebSocket>();
   private parts = new Map<WebSocket, PSock>();
+  get participantCount(): number { return this.parts.size; }
   private ids = new Map<string, number>(); // lowercased name -> stable id
   /** Date.now() when the (latest) host Deepgram stream opened: host transcript t=0. */
   hostEpoch: number | null = null;

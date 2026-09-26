@@ -151,7 +151,7 @@ export function registerAsr(app: FastifyInstance): void {
         // Phones on the table: the host device sits in front of the listener, so its mic is THEIR mic.
         // Attribute host transcripts to ME (-2, named) instead of diarization ids; the client's duplicate guard
         // drops the bleed from other people's phones.
-        if (m.type === 'transcript' && join.room.parts.size > 0 && join.room.meName.trim()) {
+        if (m.type === 'transcript' && join.room.participantCount > 0 && join.room.meName.trim()) {
           direct({ ...m, speaker: -2 }); // no `name`: the client keeps its host-path duplicate guard for these lines
           return;
         }
