@@ -16,7 +16,13 @@ const RESOLVED_TTL_MS = 3 * 60_000;
 let client: Anthropic | null = null;
 export const hasAnthropic = () => !!process.env.ANTHROPIC_API_KEY;
 function getClient(): Anthropic {
-  if (!client) client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: TIMEOUT_MS, maxRetries: 0 });
+  if (!client) {
+    const ws = process.env.ANTHROPIC_WORKSPACE_ID;
+    client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY, timeout: TIMEOUT_MS, maxRetries: 0,
+      ...(ws ? { defaultHeaders: { 'anthropic-workspace-id': ws } } : {}),
+    });
+  }
   return client;
 }
 
@@ -45,7 +51,7 @@ export function formatTimeline(window: TimelineItem[], speakers: Record<number, 
 // ---------- shared call helper ----------
 const PROMPT_CORE = `Do NOT summarize the whole conversation. Extract only what the person needs to rejoin RIGHT NOW. Name who said what, never "someone". Preserve disagreements and open questions, do not resolve them. A question directed at the user is always first. If people laughed, say what at, in one clause. <=18 words per bullet, <=3 bullets, no preamble. Empty/unintelligible -> empty list, confidence low.`;
 
-async function callTool<T>(model: string, system: string, user: string, tool: Anthropic.Tool): Promise<T> {
+export async function callTool<T>(model: string, system: string, user: string, tool: Anthropic.Tool): Promise<T> {
   const res = await getClient().messages.create(
     {
       model,

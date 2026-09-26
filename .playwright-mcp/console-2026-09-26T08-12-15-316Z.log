@@ -1,0 +1,6 @@
+[     101ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=6356ce47:15804
+[     152ms] [WARNING] WebSocket connection to 'ws://localhost:5174/ws/audio' failed: WebSocket is closed before the connection is established. @ http://localhost:5174/src/audio/mic.ts:110
+[    3501ms] [INFO] [events] YAMNet ready {laughter: Array(3), cheering: Array(1), applause: Array(1), music: Array(1), doorbell: Array(1)} @ http://localhost:5174/src/audio/events.ts:91
+[    3501ms] [INFO] [events] YAMNet ready {laughter: Array(3), cheering: Array(1), applause: Array(1), music: Array(1), doorbell: Array(1)} @ http://localhost:5174/src/audio/events.ts:91
+[   18860ms] [INFO] [events] YAMNet ready {laughter: Array(3), cheering: Array(1), applause: Array(1), music: Array(1), doorbell: Array(1)} @ http://localhost:5174/src/audio/events.ts:91
+[   18869ms] [ERROR] WebSocket connection to 'ws://localhost:5174/ws/audio' failed: Connection closed before receiving a handshake response @ http://localhost:5174/src/audio/mic.ts:38

@@ -24,6 +24,7 @@ export type SessionAction =
   | { type: 'markSeen'; t: number }
   | { type: 'seedSpeakers'; names: Record<string, string> }
   | { type: 'markAddressed'; id: string }
+  | { type: 'localUtterance'; text: string; t: number; durMs: number }
   | { type: 'reset'; startedAt: number };
 
 export function initSession(me: Session['me'] = { name: '', aliases: [] }, startedAt = Date.now()): SessionState {
@@ -34,11 +35,17 @@ export const isUtt = (i: TimelineItem): i is Utterance => i.type === 'utterance'
 export const itemT = (i: TimelineItem) => (isUtt(i) ? i.tStart : i.t);
 const itemEnd = (i: TimelineItem) => (isUtt(i) ? i.tEnd : i.t);
 
+/** Lines ME spoke via "Speak for me" (TTS). Rendered with ME's name. */
+export const ME_SPEAKER = -2;
+export const ME_COLOR = '#FACC15';
+
 export function speakerName(s: Pick<Session, 'speakers'>, id: number): string {
+  if (id === ME_SPEAKER) return s.speakers[id]?.name?.trim() || 'Me';
   if (id < 0) return 'Unknown';
   return s.speakers[id]?.name?.trim() || `Speaker ${id + 1}`;
 }
 export function speakerColor(s: Pick<Session, 'speakers'>, id: number): string {
+  if (id === ME_SPEAKER) return s.speakers[id]?.color ?? ME_COLOR;
   return id < 0 ? UNKNOWN_COLOR : s.speakers[id]?.color ?? UNKNOWN_COLOR;
 }
 /** Ledger/catch-up items reference speakers by display name; resolve back to a color. */
@@ -160,6 +167,17 @@ export function sessionReducer(s: SessionState, a: SessionAction): SessionState 
     }
     case 'markAddressed':
       return { ...s, timeline: s.timeline.map((i) => (i.id === a.id && isUtt(i) ? { ...i, addressedToMe: true } : i)) };
+    case 'localUtterance': {
+      // ME's spoken-for-me line: a final utterance so it shows in captions and feeds ledger context.
+      const text = a.text.trim();
+      if (!text) return s;
+      const name = s.me.name || 'Me';
+      const speakers = { ...s.speakers, [ME_SPEAKER]: { id: ME_SPEAKER, name, color: ME_COLOR } };
+      const utt: Utterance = {
+        id: `u${ME_SPEAKER}-${a.t}`, type: 'utterance', speaker: ME_SPEAKER, text, tStart: a.t, tEnd: a.t + a.durMs, final: true,
+      };
+      return { ...s, speakers, timeline: trimRing(insertSorted(s.timeline.filter((i) => i.id !== utt.id), utt)) };
+    }
     case 'reset':
       return initSession(s.me, a.startedAt);
   }

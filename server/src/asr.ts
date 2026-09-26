@@ -1,12 +1,15 @@
 // ASR bridge: browser PCM16 (16kHz mono) over /ws/audio -> Deepgram streaming -> AsrMessage JSON back.
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fastifyWebsocket from '@fastify/websocket';
 import WebSocket from 'ws';
 import type { AsrMessage } from '../../shared/types';
+import { isVoice, parseJoin } from './rooms';
 
 const DG_URL =
   'wss://api.deepgram.com/v1/listen?model=nova-3&diarize=true&smart_format=true&interim_results=true' +
   '&utterance_end_ms=1000&vad_events=true&encoding=linear16&sample_rate=16000&channels=1';
+// Participant phones: one voice per stream, so no diarization.
+const DG_URL_SOLO = DG_URL.replace('diarize=true', 'diarize=false');
 
 interface DgWord { word: string; punctuated_word?: string; start: number; end: number; speaker?: number }
 interface DgResults {
@@ -53,20 +56,36 @@ export function registerAsr(app: FastifyInstance): void {
   app.register(async (inst) => {
     if (!inst.hasDecorator('websocketServer')) await inst.register(fastifyWebsocket);
 
-    inst.get('/ws/audio', { websocket: true }, (client, req) => {
-      const send = (m: AsrMessage) => {
+    // ?role=host|participant&name=&token= — bad token => 401 before the upgrade.
+    const preValidation = async (req: FastifyRequest, reply: FastifyReply) => {
+      if (!parseJoin(req.url)) await reply.code(401).send({ error: 'bad room token or missing name' });
+    };
+
+    inst.get('/ws/audio', { websocket: true, preValidation }, (client, req) => {
+      const join = parseJoin(req.url);
+      if (!join) { client.close(4401, 'unauthorized'); return; }
+      const participant = join.role === 'participant' ? join.room.addParticipant(client, join.name) : null;
+      if (!participant) join.room.addHost(client);
+      let dgOpenedAt = Date.now();
+      const direct = (m: AsrMessage) => {
         if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify(m));
+      };
+      // Participant transcripts go to the room's host(s), never back to the phone.
+      const send = (m: AsrMessage) => {
+        if (participant && m.type === 'transcript') join.room.fromParticipant(participant, m, dgOpenedAt);
+        else direct(m);
       };
 
       const key = process.env.DEEPGRAM_API_KEY;
       if (!key) {
         send({ type: 'status', state: 'error', detail: 'no DEEPGRAM_API_KEY' });
         client.close(1011, 'no DEEPGRAM_API_KEY');
+        if (participant) join.room.removeParticipant(client); else join.room.removeHost(client);
         return;
       }
 
       send({ type: 'status', state: 'connecting' });
-      const dg = new WebSocket(DG_URL, { headers: { Authorization: `Token ${key}` } });
+      const dg = new WebSocket(participant ? DG_URL_SOLO : DG_URL, { headers: { Authorization: `Token ${key}` } });
       const pending: Buffer[] = [];
       let closed = false;
       let keepAlive: NodeJS.Timeout | undefined;
@@ -74,6 +93,8 @@ export function registerAsr(app: FastifyInstance): void {
       const shutdown = (why: string) => {
         if (closed) return;
         closed = true;
+        if (participant) join.room.removeParticipant(client);
+        else join.room.removeHost(client);
         if (keepAlive) clearInterval(keepAlive);
         try {
           if (dg.readyState === WebSocket.OPEN) {
@@ -89,6 +110,8 @@ export function registerAsr(app: FastifyInstance): void {
 
       dg.on('open', () => {
         if (closed) { dg.close(); return; }
+        dgOpenedAt = Date.now();
+        if (!participant) join.room.hostEpoch = dgOpenedAt;
         send({ type: 'status', state: 'open' });
         for (const b of pending.splice(0)) dg.send(b);
         keepAlive = setInterval(() => {
@@ -123,6 +146,7 @@ export function registerAsr(app: FastifyInstance): void {
           return;
         }
         const buf = Array.isArray(data) ? Buffer.concat(data) : Buffer.isBuffer(data) ? data : Buffer.from(data);
+        if (participant && isVoice(buf)) join.room.touch(participant);
         if (dg.readyState === WebSocket.OPEN) dg.send(buf);
         else if (dg.readyState === WebSocket.CONNECTING) {
           pending.push(buf);

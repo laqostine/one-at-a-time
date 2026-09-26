@@ -48,12 +48,33 @@ export interface StateResponse { ledger: LedgerItem[]; addressed_to_me_now: { sp
 export interface LaughRequest { speakers: Record<number, Speaker>; window: TimelineItem[]; t: number }
 export interface LaughResponse { line: string | null }
 
+// POST /api/interject — "Speak for me": draft short spoken lines so ME can re-enter the conversation
+export type InterjectIntent = 'object'|'question'|'clarify'|'agree'|'custom';
+export interface InterjectRequest {
+  me: Session['me']; speakers: Record<number, Speaker>;
+  window: TimelineItem[];            // last ~60s is used
+  ledger: LedgerItem[];
+  intent?: InterjectIntent;          // omitted => mix of the most useful kinds
+  custom?: string;                   // with intent 'custom' (or alone): polish into one spoken line
+}
+export interface InterjectOption { label: string; line: string; kind: string } // kind: InterjectIntent
+export interface InterjectResponse { options: InterjectOption[]; latencyMs?: number } // <=3
+/** Speaker id used for lines ME spoke via "Speak for me" (text-to-speech). */
+export const ME_SPEAKER_ID = -2;
+
 // ---------- WS /ws/audio ----------
 // client -> server: binary frames = 16kHz mono PCM16 LE. text frame {"type":"stop"}.
 // server -> client: JSON messages:
 export type AsrMessage =
-  | { type: 'transcript'; speaker: number; text: string; tStart: number; tEnd: number; final: boolean }
-  | { type: 'status'; state: 'connecting'|'open'|'closed'|'error'; detail?: string };
+  // name: set when the line came from an "Everyone joins" participant phone (speaker = stable per-name id >= 100)
+  | { type: 'transcript'; speaker: number; text: string; tStart: number; tEnd: number; final: boolean; name?: string }
+  | { type: 'status'; state: 'connecting'|'open'|'closed'|'error'; detail?: string }
+  // host only: who is connected via /join.html (sent on join/leave/speaking change)
+  | { type: 'participants'; list: Participant[] };
+
+// "Everyone joins" mode: WS /ws/audio?role=participant&name=Alex&token=... ; GET /api/room -> RoomInfo
+export interface Participant { id: number; name: string; speaking: boolean }
+export interface RoomInfo { token: string; joinUrl: string }
 
 export const SPEAKER_COLORS = ['#3B82F6','#F59E0B','#10B981','#EC4899','#8B5CF6','#EF4444','#14B8A6','#F97316'];
 export const fmtT = (ms: number) => { const s = Math.floor(ms/1000); return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; };

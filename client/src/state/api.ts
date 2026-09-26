@@ -1,3 +1,4 @@
+import type { InterjectRequest, InterjectResponse } from '../../../shared/types';
 import type {
   CatchupRequest, CatchupResponse, LaughRequest, LaughResponse, StateRequest, StateResponse,
 } from '../../../shared/types';
@@ -20,3 +21,7 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
   if (!res.ok) throw new Error(`/api/health ${res.status}`);
   return res.json() as Promise<HealthResponse>;
 }
+
+// "Speak for me" (interjection assist)
+export const postInterject = (req: InterjectRequest, signal?: AbortSignal) =>
+  post<InterjectRequest, InterjectResponse>('/api/interject', req, signal);

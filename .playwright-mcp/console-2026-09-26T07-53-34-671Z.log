@@ -1,2 +1,36 @@
 [     150ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=1e5285be:15804
 [   80197ms] [ERROR] Failed to load resource: the server responded with a status of 502 (Bad Gateway) @ http://localhost:5174/api/state:0
+[  885537ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=1e5285be:15804
+[  886146ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=1e5285be:15804
+[  886217ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:5174/@vite/client:1030
+[  886773ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=6356ce47:15804
+[  945407ms] [ERROR] React has detected a change in the order of Hooks called by %s. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+%s   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ App 1. useReducer                 useReducer
+2. useRef                     useRef
+3. useState                   useState
+4. useState                   useState
+5. useState                   useState
+6. useState                   useState
+7. useState                   useState
+8. useCallback                useState
+ @ http://localhost:5174/@vite/client:298
+[  945413ms] Error: Should have a queue. You are likely calling Hooks conditionally, which is not allowed. (https://react.dev/link/invalid-hook-call)
+    at updateReducerImpl (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=6356ce47:4612:30)
+    at updateReducer (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=6356ce47:4608:11)
+    at Object.useState (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=6356ce47:14576:13)
+    at exports.useState (http://localhost:5174/node_modules/.vite/deps/react.js?v=69ee8733:769:31)
+    at useSession (http://localhost:5174/src/state/useSession.ts?t=1790410160034:55:42)
+    at App (http://localhost:5174/src/App.tsx?t=1790410160034:21:12)
+    at Object.react_stack_bottom_frame (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=6356ce47:14142:12)
+    at renderWithHooks (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=6356ce47:4400:19)
+    at updateFunctionComponent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=6356ce47:5775:16)
+    at beginWork (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=6356ce47:6391:20)
+[  945411ms] [WARNING] %s
+
+%s
+ An error occurred in the <App> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://localhost:5174/@vite/client:298

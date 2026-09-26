@@ -1,6 +1,6 @@
 // Wires audio/replay sources -> reducer, runs the ledger loop, exposes catch-up.
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import type { AsrMessage, CatchupResponse, EventKind, Session } from '../../../shared/types';
+import type { AsrMessage, CatchupResponse, EventKind, Participant, Session } from '../../../shared/types';
 import { startMic } from '../audio/mic';
 import { startEvents } from '../audio/events';
 import { startWebSpeech } from '../audio/webspeech';
@@ -55,6 +55,14 @@ export function useSession() {
   const [nudge, setNudge] = useState<Nudge | null>(null);
   const [catchup, setCatchup] = useState<CatchupState>({ status: 'idle' });
   const [latency, setLatency] = useState<{ stateMs?: number; catchupMs?: number; stateError?: string }>({});
+  // "Everyone joins": phones connected to this table (from the server's `participants` message)
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  // Presence indicator inputs: when a transcript (interim or final) last arrived, whether a
+  // /api/state or /api/catchup request is in flight, and the mic's smoothed RMS level (0..1).
+  const [lastTranscriptAt, setLastTranscriptAt] = useState(0);
+  const [requestPending, setRequestPending] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
+  const micFrameCount = useRef(0);
 
   const nowT = useCallback(() => Date.now() - ref.current.startedAt, []);
   const dirty = useRef(false);
@@ -77,11 +85,20 @@ export function useSession() {
       setAsr((a) => ({ ...a, state: raw.state, detail: raw.detail }));
       return;
     }
+    if (raw.type === 'participants') { setParticipants(raw.list); return; }
     const now = Date.now() - ref.current.startedAt;
-    if (offset.current == null || raw.tStart < lastRaw.current - 5_000) offset.current = Math.max(0, now - raw.tEnd);
-    lastRaw.current = raw.tStart;
+    if (raw.name) {
+      // Participant phone line: the server already rebased it onto the host stream clock,
+      // so don't let it trip the reconnect heuristic below. Name the speaker immediately.
+      if (offset.current == null) offset.current = Math.max(0, now - raw.tEnd);
+      if (!ref.current.speakers[raw.speaker]?.name) dispatch({ type: 'seedSpeakers', names: { [raw.speaker]: raw.name } });
+    } else {
+      if (offset.current == null || raw.tStart < lastRaw.current - 5_000) offset.current = Math.max(0, now - raw.tEnd);
+      lastRaw.current = raw.tStart;
+    }
     const msg = { ...raw, tStart: raw.tStart + offset.current, tEnd: raw.tEnd + offset.current };
     dispatch({ type: 'transcript', msg });
+    if (msg.text.trim()) setLastTranscriptAt(Date.now());
     if (!msg.final || !msg.text.trim()) return;
     dirty.current = true;
     const me = ref.current.me;
@@ -150,14 +167,23 @@ export function useSession() {
             if (m.type === 'status' && m.state === 'error') { void fallback(m.detail); return; }
             if (!fellBack) onMessage(m);
           },
-          (pcm) => { try { events?.push(pcm); } catch { /* ignore */ } },
+          (pcm) => {
+            try { events?.push(pcm); } catch { /* ignore */ }
+            // Cheap RMS level for the Presence indicator: every 4th frame is plenty.
+            if (++micFrameCount.current % 4 === 0) {
+              let sum = 0;
+              for (let i = 0; i < pcm.length; i++) sum += pcm[i] * pcm[i];
+              const rms = Math.min(1, Math.sqrt(sum / Math.max(1, pcm.length)) * 6);
+              setMicLevel((p) => p * 0.5 + rms * 0.5);
+            }
+          },
         ));
       } catch (e) {
         await fallback(String((e as Error)?.message ?? e));
       }
     };
     void run();
-    return () => { cancelled = true; stops.splice(0).forEach((s) => { try { s(); } catch { /* ignore */ } }); };
+    return () => { cancelled = true; setParticipants([]); stops.splice(0).forEach((s) => { try { s(); } catch { /* ignore */ } }); };
   }, [listening, onMessage, onEvent]);
 
   // ---- ledger loop: postState every 8s when new finals arrived ----
@@ -167,6 +193,7 @@ export function useSession() {
       if (!dirty.current || inflight || !listening) return;
       dirty.current = false;
       inflight = true;
+      setRequestPending(true);
       const s = ref.current;
       const t0 = performance.now();
       try {
@@ -179,7 +206,7 @@ export function useSession() {
       } catch (e) {
         dirty.current = true;
         setLatency((l) => ({ ...l, stateError: String((e as Error)?.message ?? e) }));
-      } finally { inflight = false; }
+      } finally { inflight = false; setRequestPending(false); }
     }, STATE_EVERY_MS);
     return () => window.clearInterval(id);
   }, [listening, nowT, fireNudge]);
@@ -196,6 +223,7 @@ export function useSession() {
     const now = nowT();
     const sinceT = Math.max(0, now - CATCHUP_MAX_MS, Math.min(s.lastSeenAt, now - CATCHUP_MIN_MS));
     setCatchup({ status: 'loading', startedAt: Date.now() });
+    setRequestPending(true);
     const t0 = performance.now();
     try {
       const data = await postCatchup({ me: s.me, speakers: s.speakers, window: windowSince(s, sinceT), sinceT, nowT: now });
@@ -205,17 +233,23 @@ export function useSession() {
       dispatch({ type: 'markSeen', t: now });
     } catch (e) {
       setCatchup({ status: 'error', message: String((e as Error)?.message ?? e), at: Date.now() });
-    }
+    } finally { setRequestPending(false); }
   }, [nowT]);
 
   const hasFinals = session.timeline.some((i) => isUtt(i) && i.final);
 
   return {
     session,
-    asr, latency, listening, hasFinals,
+    asr, latency, listening, hasFinals, participants,
+    lastTranscriptAt, requestPending, micLevel,
     nudge, dismissNudge: useCallback(() => setNudge(null), []),
     catchup, catchUp, dismissCatchup: useCallback(() => setCatchup({ status: 'idle' }), []),
     setListening,
+    // "Speak for me": ME's TTS line enters the timeline as a final utterance (speaker -2) and dirties the ledger loop.
+    addLocalUtterance: useCallback((text: string, durMs = 2000) => {
+      dispatch({ type: 'localUtterance', text, t: Date.now() - ref.current.startedAt, durMs });
+      dirty.current = true;
+    }, []),
     renameSpeaker: useCallback((id: number, name: string) => dispatch({ type: 'renameSpeaker', id, name }), []),
     mergeSpeaker: useCallback((from: number, to: number) => dispatch({ type: 'mergeSpeaker', from, to }), []),
     setMe: useCallback((name: string, aliases: string[]) => {
