@@ -1,124 +1,104 @@
-// The host's phone, lying flat on the family table (design/BRAND.md, mood board phone-on-table.png).
-// A place setting, top to bottom: the pendant lamp over the table (warm, amber/red with the table's
-// pace), the linen placemat with the sentence being said, ONE object card at a time (Asked you >
-// Plans > Why they laughed; swipe or tap the objects to flip), and two objects to press: the mug
-// (Speak for me) and the placemat (Catch me up). Nothing on this screen scrolls.
+// The host's phone: one person's seat at the table (design/BRAND.md). Three things only: what is
+// being said now (the linen placemat, the one large element), what was asked of you and what was
+// agreed (ONE paper card below it, with a word tab strip: Asked you · Plans · Laughs; swipe or tap
+// to flip), and two objects on a quiet shelf: the mug (Speak for me) and the plate (Catch me up).
+// Everything else is small and quiet. Nothing on this screen scrolls.
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Pause, Play, Settings } from 'lucide-react';
 import type { Utterance } from '../../../shared/types';
 import { usePresenceModel, Wordmark, type HeaderProps } from './Header';
-import { PresenceAuto } from './PresenceAuto';
 import { PRESENCE_WORD } from './presenceStates';
 import type { TableLampState } from './tableLamp';
 import { ObjIcon, type ObjName } from './ObjIcon';
-import { IconCatchUp, IconDecision, IconForYou, IconLaugh, IconRepeat, IconSpeakForMe, IconTable, type IconType } from './icons';
+import { IconCatchUp, IconRepeat, IconSpeakForMe, type IconType } from './icons';
 import { UttText } from './UttText';
 import { hasDoubt } from '../state/confidence';
 import { cn } from '@/lib/utils';
 
-/* ---------- the pendant lamp + the thin top row ---------- */
+/* ---------- the lamp's light + the thin top row ---------- */
 const POOL: Record<TableLampState['tone'], string> = {
-  quiet: 'rgb(241 199 106 / .22)',
-  good: 'rgb(241 199 106 / .26)',
-  amber: 'rgb(217 154 61 / .42)',
-  red: 'rgb(184 80 58 / .5)',
+  quiet: 'rgb(241 199 106 / .16)',
+  good: 'rgb(241 199 106 / .2)',
+  amber: 'rgb(217 154 61 / .34)',
+  red: 'rgb(184 80 58 / .42)',
 };
 
-function Pendant({ lamp }: { lamp: TableLampState }) {
-  const loud = lamp.tone === 'amber' || lamp.tone === 'red';
+/** Only the lamp's pool of light on the table: it warms (amber/red) with the table's pace. No shade, no word. */
+function LampPool({ lamp }: { lamp: TableLampState }) {
   return (
-    <>
-      {/* the pool of light on the table, under the shade */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[70%] transition-[background] duration-700"
-        style={{ background: `radial-gradient(60% 55% at 50% 0%, ${POOL[lamp.tone]}, transparent 75%)` }} />
-      <div className="pointer-events-none absolute top-0 left-1/2 flex -translate-x-1/2 flex-col items-center" role="status"
-        aria-label={`Table lamp: ${lamp.word}. ${lamp.hint}.`}>
-        <span aria-hidden className="h-3 w-px bg-[#8a6a4a]" />
-        <span aria-hidden className="brass h-[18px] w-[62px] rounded-t-[70%] rounded-b-[3px]" />
-        <span aria-hidden className="-mt-px h-[5px] w-[22px] rounded-b-full transition-colors duration-500"
-          style={{ background: loud ? lamp.hex : 'var(--lamplight)' }} />
-        {loud && <span className="mt-1 rounded-full bg-dusk/80 px-2 py-0.5 font-mono text-[0.62rem] font-semibold tracking-[0.14em] text-cream uppercase">{lamp.word}</span>}
-      </div>
-    </>
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[60%] transition-[background] duration-700"
+      style={{ background: `radial-gradient(60% 50% at 50% 0%, ${POOL[lamp.tone]}, transparent 75%)` }} />
   );
 }
 
-const iconBtn = 'flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full text-cream/85 transition-colors duration-150 hover:bg-cream/10 hover:text-cream';
+const iconBtn = 'flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-cream/80 transition-colors duration-150 hover:bg-cream/10 hover:text-cream';
 
 function TopRow(props: HeaderProps & { tableLamp: TableLampState }) {
   const { listening, onToggleListening, onSettings, onEveryoneJoins, participantCount = 0, badge, tableLamp: lamp } = props;
-  const p = usePresenceModel(props);
   return (
-    <header className="relative flex h-14 shrink-0 items-center justify-between gap-2 px-3 [@media(max-height:700px)]:h-12" aria-label="I Missed That: status">
-      <Pendant lamp={lamp} />
-      <div className="relative flex min-w-0 flex-col">
-        <Wordmark height={28} />
-        <span className="mt-0.5 flex items-center gap-1.5 font-mono text-[0.6rem] font-semibold tracking-[0.14em] text-cream/75 uppercase" role="status">
-          <span aria-hidden className={cn('size-1.5 rounded-full', p.status.tone, p.live && 'imt-pulse')} />{p.status.text}
-        </span>
-      </div>
+    <header className="relative flex h-12 shrink-0 items-center justify-between gap-2 pr-2 pl-4" aria-label="I Missed That">
+      <span className="sr-only" role="status">{`Table lamp: ${lamp.word}. ${lamp.hint}.`}</span>
+      <Wordmark height={24} className="relative opacity-90" />
       <div className="relative flex items-center">
         {badge}
         {onEveryoneJoins && (
-          <button type="button" onClick={onEveryoneJoins} aria-label={`Everyone joins (${participantCount} connected)`} className={cn(iconBtn, 'relative')}>
-            <ObjIcon name="table" fallback={IconTable} size={30} />
-            <span className={cn('absolute right-0.5 bottom-0.5 min-w-5 rounded-full px-1 text-center font-mono text-[0.62rem] leading-5 font-bold tabular-nums',
-              participantCount > 0 ? 'bg-tea text-dusk' : 'bg-card-2 text-muted')}>{participantCount}</span>
+          <button type="button" onClick={onEveryoneJoins} aria-label={`Table: ${participantCount} ${participantCount === 1 ? 'phone' : 'phones'} joined`}
+            className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[0.9rem] font-semibold text-cream/85 transition-colors duration-150 hover:bg-cream/10 hover:text-cream">
+            Table<span className="font-mono text-[0.8rem] tabular-nums text-cream/70">{participantCount}</span>
           </button>
         )}
         <button type="button" onClick={onToggleListening} aria-label={listening ? 'Pause listening' : 'Resume listening'} className={iconBtn}>
-          {listening ? <Pause size={20} aria-hidden /> : <Play size={20} aria-hidden />}
+          {listening ? <Pause size={19} aria-hidden /> : <Play size={19} aria-hidden />}
         </button>
-        <button type="button" onClick={onSettings} aria-label="Settings" className={iconBtn}><Settings size={20} aria-hidden /></button>
+        <button type="button" onClick={onSettings} aria-label="Settings" className={iconBtn}><Settings size={19} aria-hidden /></button>
       </div>
     </header>
   );
 }
 
 /* ---------- the placemat ---------- */
-function PlaceCard(props: HeaderProps) {
+/** The clerk's state, printed small in the placemat's corner: a brass dot and one word. */
+function ClerkMark(props: HeaderProps) {
   const p = usePresenceModel(props);
-  const word = p.flaring ? 'Asked you' : PRESENCE_WORD[p.state];
+  const word = p.flaring ? 'asked you' : !props.listening ? 'paused' : PRESENCE_WORD[p.state].toLowerCase();
+  const busy = p.state === 'transcribing' || p.state === 'thinking' || p.state === 'speaking';
   return (
-    // A folded place card standing at the top edge of the mat: the clerk, and what it is doing.
-    <div className="paper absolute -top-5 right-4 z-[3] flex rotate-[2deg] items-center gap-1.5 rounded-[4px] py-1 pr-2.5 pl-1" role="status" aria-label={`The clerk: ${word}`}>
-      {/* the clerk sits on a dark stoneware coaster so its colors read on paper */}
-      <span className="flex size-12 items-center justify-center rounded-full bg-[#2a1d14] shadow-[inset_1px_2px_4px_rgb(0_0_0/.5)]">
-        <PresenceAuto size={48} state={p.state} level={p.level} flare={props.flare ?? 0} halo={false} />
-      </span>
-      <span className={cn('font-display text-[0.95rem] italic max-[360px]:sr-only', p.flaring ? 'text-warn' : 'text-ink-muted')}>{word}</span>
-    </div>
+    <span role="status" aria-label={`The clerk: ${word}`}
+      className={cn('absolute top-3.5 right-5 z-[2] flex items-center gap-1.5 font-mono text-[0.72rem] leading-none font-bold tracking-[0.06em]',
+        p.flaring ? 'text-warn' : 'text-ink-muted')}>
+      <span aria-hidden className={cn('size-2 rounded-full', p.flaring ? 'bg-lamplight ring-1 ring-warn/50' : props.listening ? 'brass' : 'bg-ink-muted/40', busy && 'imt-pulse')} />
+      {word}
+    </span>
   );
 }
 
 export function PhonePlacemat({ utt, name, color, onSpeaker, onAskRepeat, empty, presence, note }: {
   utt?: Utterance; name: string; color: string; onSpeaker: () => void; onAskRepeat?: (u: Utterance) => void;
-  empty: ReactNode; presence: HeaderProps; note: ReactNode;
+  empty?: ReactNode; presence: HeaderProps; note: ReactNode;
 }) {
   const doubt = !!utt && utt.final && hasDoubt(utt);
   return (
-    <section aria-label="On the placemat: what is being said now" role="region"
-      className="linen relative mx-3 mt-6 flex min-h-[10rem] flex-[1_1_38%] [@media(max-height:700px)]:mt-5 [@media(max-height:700px)]:pt-5 -rotate-[0.6deg] flex-col rounded-[6px_8px_7px_5px] px-5 pt-6 pb-4">
-      {/* the hem: a stitched line near the edge, like the mat in the photo */}
+    <section aria-label="What is being said now" role="region"
+      className="linen relative mx-4 mt-2 flex min-h-[11rem] flex-[1_1_48%] -rotate-[0.4deg] flex-col rounded-[6px_8px_7px_5px] px-5 pt-2.5 pb-4">
+      {/* the hem: a stitched line near the edge */}
       <span aria-hidden className="pointer-events-none absolute inset-2 rounded-[6px] border border-dashed border-ink/12" />
-      <PlaceCard {...presence} />
-      <div className="relative flex min-h-11 shrink-0 items-center gap-2 pr-28 max-[360px]:pr-14">
-        {utt ? (
+      <ClerkMark {...presence} />
+      <div className="relative flex min-h-11 shrink-0 items-center pr-28">
+        {utt && (
           <button type="button" onClick={utt.speaker >= 0 ? onSpeaker : undefined} disabled={utt.speaker < 0}
             aria-label={utt.speaker >= 0 ? `${name} ${utt.final ? 'said' : 'is saying'}. Rename speaker.` : name}
-            className="paper flex h-10 min-w-0 -rotate-2 cursor-pointer items-center gap-2 rounded-[3px] px-3 disabled:cursor-default">
-            <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: color }} />
-            <span className="truncate font-display text-[1.15rem] font-semibold italic">{name}</span>
-            <span className="text-[0.85rem] text-ink-muted">{utt.final ? 'said' : 'is saying'}</span>
+            className="-ml-1.5 flex h-11 min-w-0 cursor-pointer items-center gap-2 rounded-lg px-1.5 disabled:cursor-default">
+            <span aria-hidden className="size-3 shrink-0 rounded-full ring-2 ring-ink/15" style={{ background: color }} />
+            <span className="truncate font-display text-[1.25rem] font-semibold text-ink italic">{name}</span>
           </button>
-        ) : <span className="font-mono text-[0.68rem] font-semibold tracking-[0.16em] text-ink-muted uppercase">The placemat</span>}
+        )}
       </div>
-      <div className="relative min-h-0 flex-1 overflow-hidden pt-2" aria-live="off">
+      <div className="relative min-h-0 flex-1 overflow-hidden pt-1" aria-live="off">
         {utt ? (
-          <p key={utt.id} className={cn('imt-line-in line-clamp-6 font-display text-[clamp(1.72rem,8.6vw,2.3rem)] leading-[1.14] italic transition-colors duration-300 [@media(max-height:700px)]:line-clamp-4', utt.final ? 'text-ink' : 'text-ink/75')}>
+          <p key={utt.id} className={cn('imt-line-in line-clamp-6 font-display text-[clamp(1.8rem,8.6vw,2.4rem)] leading-[1.14] font-[560] italic transition-colors duration-300 [@media(max-height:700px)]:line-clamp-4', utt.final ? 'text-ink' : 'text-ink/85')}>
             <UttText utt={utt} speaker={name} onAskRepeat={onAskRepeat} />
           </p>
-        ) : empty}
+        ) : (empty ?? <p className="pt-1 font-display text-[1.45rem] leading-snug text-ink-muted italic">Nobody is talking yet.</p>)}
       </div>
       {doubt && onAskRepeat && !utt.repeatRequested && (
         <button type="button" onClick={() => onAskRepeat(utt)} aria-label={`Didn't catch part of that. Ask ${name} to repeat at the next pause.`}
@@ -131,26 +111,25 @@ export function PhonePlacemat({ utt, name, color, onSpeaker, onAskRepeat, empty,
   );
 }
 
-/* ---------- one object card at a time ---------- */
+/* ---------- one paper card, three words on its tab strip ---------- */
 export type DeckKey = 'asked' | 'plans' | 'laugh';
-const DECK: { key: DeckKey; obj: ObjName; Icon: IconType; label: string }[] = [
-  { key: 'asked', obj: 'bell', Icon: IconForYou, label: 'Asked you' },
-  { key: 'plans', obj: 'note', Icon: IconDecision, label: 'Plans' },
-  { key: 'laugh', obj: 'popper', Icon: IconLaugh, label: 'Why they laughed' },
+const DECK: { key: DeckKey; label: string }[] = [
+  { key: 'asked', label: 'Asked you' },
+  { key: 'plans', label: 'Plans' },
+  { key: 'laugh', label: 'Laughs' },
 ];
 
 export function CardDeck({ cards, ringing, nudgeId }: { cards: Record<DeckKey, ReactNode>; ringing: boolean; nudgeId?: string | number }) {
   const [pick, setPick] = useState<DeckKey>(ringing ? 'asked' : 'plans');
   const [dir, setDir] = useState<'l' | 'r'>('r');
-  const [settled, setSettled] = useState(true); // the paper's shadow filter is only on while nothing moves
-  // A live question for you always turns the bell card face up.
-  useEffect(() => { if (nudgeId) { setDir('l'); setPick('asked'); setSettled(false); } }, [nudgeId]);
+  // A live question for you always turns the card to "Asked you".
+  useEffect(() => { if (nudgeId) { setDir('l'); setPick('asked'); } }, [nudgeId]);
   const idx = DECK.findIndex((d) => d.key === pick);
-  const go = (k: DeckKey) => { const j = DECK.findIndex((d) => d.key === k); if (j === idx) return; setDir(j > idx ? 'r' : 'l'); setPick(k); setSettled(false); };
+  const go = (k: DeckKey) => { const j = DECK.findIndex((d) => d.key === k); if (j === idx) return; setDir(j > idx ? 'r' : 'l'); setPick(k); };
   const step = (d: 1 | -1) => go(DECK[(idx + d + DECK.length) % DECK.length].key);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Drag: the card follows the finger horizontally (rAF-batched), then glides away or back.
+  // Drag: the content follows the finger horizontally (rAF-batched), then glides away or back.
   const drag = useRef<{ x0: number; y0: number; id: number; horiz: boolean | null } | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const raf = useRef(0);
@@ -160,14 +139,13 @@ export function CardDeck({ cards, ringing, nudgeId }: { cards: Record<DeckKey, R
       const el = card.current; if (!el) return;
       if (dx == null) { el.dataset.drag = '0'; el.style.transform = ''; el.style.opacity = ''; return; }
       el.dataset.drag = '1';
-      el.style.transform = `translateX(${dx}px) rotate(${dx / 60}deg)`;
-      el.style.opacity = String(Math.max(0.55, 1 - Math.abs(dx) / 500));
+      el.style.transform = `translateX(${dx}px)`;
+      el.style.opacity = String(Math.max(0.4, 1 - Math.abs(dx) / 320));
     });
   };
   const onDown = (e: React.PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     drag.current = { x0: e.clientX, y0: e.clientY, id: e.pointerId, horiz: null };
-    setSettled(false);
   };
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current; if (!d || d.id !== e.pointerId) return;
@@ -181,60 +159,67 @@ export function CardDeck({ cards, ringing, nudgeId }: { cards: Record<DeckKey, R
   const onUp = (e: React.PointerEvent) => {
     const d = drag.current; drag.current = null;
     window.setTimeout(() => { if (card.current) card.current.dataset.justDragged = '0'; }, 0);
-    if (!d || !d.horiz) { setSettled(true); return; }
+    if (!d || !d.horiz) return;
     const dx = e.clientX - d.x0;
     setX(null);
-    if (Math.abs(dx) > 56) step(dx < 0 ? 1 : -1); else setSettled(true);
+    if (Math.abs(dx) > 56) step(dx < 0 ? 1 : -1);
   };
   // A drag must not also count as a tap on a row inside the card.
   const onClickCapture = (e: React.MouseEvent) => { if (card.current?.dataset.justDragged === '1') { e.stopPropagation(); e.preventDefault(); } };
 
   return (
-    <div className="flex min-h-[10.5rem] flex-[1_1_48%] flex-col px-3 pt-1">
-      <div role="tablist" aria-label="On the table" className="flex h-14 shrink-0 items-center justify-center gap-6 [@media(max-height:700px)]:h-12"
-        onKeyDown={(e) => {
-          if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-          e.preventDefault();
-          const j = (idx + (e.key === 'ArrowRight' ? 1 : -1) + DECK.length) % DECK.length;
-          go(DECK[j].key); tabs.current[j]?.focus();
-        }}>
-        {DECK.map((d, j) => {
-          const on = d.key === pick;
-          return (
-            <button key={d.key} ref={(el) => { tabs.current[j] = el; }} type="button" role="tab" id={`deck-tab-${d.key}`} aria-selected={on} aria-controls="deck-panel"
-              tabIndex={on ? 0 : -1} onClick={() => go(d.key)} aria-label={d.label + (d.key === 'asked' && ringing ? ' (someone asked you)' : '')}
-              className={cn('press relative flex h-14 w-16 cursor-pointer items-center justify-center rounded-full transition-[transform,opacity] duration-200',
-                on ? '-translate-y-0.5 opacity-100' : 'opacity-60 hover:opacity-90')}>
-              <span className={cn('inline-flex transition-transform duration-200', on ? 'scale-110' : 'scale-90', d.key === 'asked' && ringing && 'imt-ring')}><ObjIcon name={d.obj} fallback={d.Icon} size={38} /></span>
-              <span aria-hidden className={cn('absolute bottom-0.5 left-1/2 h-[3px] w-6 -translate-x-1/2 rounded-full bg-cream/80 transition-[opacity,transform] duration-200', on ? 'opacity-100' : 'scale-x-0 opacity-0')} />
-              {d.key === 'asked' && ringing && <span aria-hidden className="absolute top-2 right-1 size-2.5 rounded-full bg-lamplight ring-2 ring-dusk" />}
-            </button>
-          );
-        })}
-      </div>
-      <div id="deck-panel" role="tabpanel" aria-labelledby={`deck-tab-${pick}`}
-        className={cn('relative min-h-0 flex-1 touch-pan-y select-none', settled && 'lay')}
-        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = null; setX(null); setSettled(true); }}
-        onClickCapture={onClickCapture}>
-        <div key={pick} className={cn('flex h-full min-h-0 flex-col', dir === 'r' ? 'imt-slide-r' : 'imt-slide-l')}
-          onAnimationEnd={(e) => { if (e.target === e.currentTarget) setSettled(true); }}>
-          <div ref={card} className="deck-card flex h-full min-h-0 flex-col">{cards[pick]}</div>
+    <div className={cn('relative mx-4 mt-4 mb-3 flex min-h-[9.5rem] flex-col transition-[flex-basis] duration-200', ringing ? 'flex-[1_1_50%]' : 'flex-[1_1_36%]')}>
+      {/* a soft darker shadow under the card, so the paper edge reads cleanly against the wood */}
+      <span aria-hidden className="pointer-events-none absolute -inset-1.5 rounded-[16px] bg-[rgb(18_11_6/.42)] blur-[10px]" />
+      <div className="paper relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[6px_9px_7px_8px] rotate-[0.3deg]">
+        <div role="tablist" aria-label="Your card" className="flex h-12 shrink-0 items-end gap-1 border-b border-line px-3"
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+            e.preventDefault();
+            const j = (idx + (e.key === 'ArrowRight' ? 1 : -1) + DECK.length) % DECK.length;
+            go(DECK[j].key); tabs.current[j]?.focus();
+          }}>
+          {DECK.map((d, j) => {
+            const on = d.key === pick;
+            const loud = d.key === 'asked' && ringing;
+            return (
+              <span key={d.key} className="flex items-end">
+                {j > 0 && <span aria-hidden className="pb-3 text-ink-muted/60 select-none">·</span>}
+                <button ref={(el) => { tabs.current[j] = el; }} type="button" role="tab" id={`deck-tab-${d.key}`} aria-selected={on} aria-controls="deck-panel"
+                  tabIndex={on ? 0 : -1} onClick={() => go(d.key)} aria-label={d.label + (loud ? ' (someone asked you)' : '')}
+                  className={cn('relative flex h-11 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-[0.95rem] font-semibold whitespace-nowrap transition-colors duration-150',
+                    on ? 'text-ink' : 'text-ink-muted hover:text-ink', loud && 'text-warn')}>
+                  {loud && <span aria-hidden className="size-2 rounded-full bg-lamplight ring-1 ring-warn/60" />}
+                  {d.label}
+                  <span aria-hidden className={cn('absolute inset-x-2.5 bottom-1.5 h-[2.5px] rounded-full bg-current transition-[opacity,transform] duration-200', on ? 'opacity-100' : 'scale-x-0 opacity-0')} />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+        <div id="deck-panel" role="tabpanel" aria-labelledby={`deck-tab-${pick}`}
+          className="relative min-h-0 flex-1 touch-pan-y px-3 pt-2 pb-2 select-none"
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = null; setX(null); }}
+          onClickCapture={onClickCapture}>
+          <div key={pick} className={cn('flex h-full min-h-0 flex-col', dir === 'r' ? 'imt-slide-r' : 'imt-slide-l')}>
+            <div ref={card} className="deck-card flex h-full min-h-0 flex-col">{cards[pick]}</div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ---------- objects on the table you can press ---------- */
+/* ---------- objects on the shelf you can press ---------- */
 export function TableObject({ obj, Icon, label, busyLabel, busy, onClick, invite, btnRef }: {
   obj: ObjName; Icon: IconType; label: string; busyLabel?: string; busy?: boolean; onClick: () => void; invite?: boolean; btnRef?: Ref<HTMLButtonElement>;
 }) {
   return (
     <button ref={btnRef} type="button" onClick={onClick} disabled={busy} aria-busy={busy} aria-label={label}
-      className={cn('press group flex min-h-[5.5rem] flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1 disabled:cursor-default [@media(max-height:700px)]:min-h-[4.6rem] [@media(max-height:700px)]:gap-0',
+      className={cn('press group flex min-h-[4.9rem] flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-1 hover:bg-cream/[.05] disabled:cursor-default [@media(max-height:700px)]:min-h-[4.3rem]',
         invite && 'imt-invite')}>
-      <span className="transition-transform duration-200 group-hover:-translate-y-0.5 [@media(max-height:700px)]:scale-[.8]"><ObjIcon name={obj} fallback={Icon} size={64} className="[@media(max-height:700px)]:-my-1.5" /></span>
-      <span className="text-[1rem] font-semibold whitespace-nowrap text-cream [text-shadow:1px_2px_3px_rgb(27_20_16/.8)] max-[360px]:text-[0.9rem]">{busy && busyLabel ? busyLabel : label}</span>
+      <span className="transition-transform duration-200 group-hover:-translate-y-0.5"><ObjIcon name={obj} fallback={Icon} size={50} className="[@media(max-height:700px)]:-my-1" /></span>
+      <span className="text-[0.945rem] font-semibold whitespace-nowrap text-cream [text-shadow:1px_2px_3px_rgb(27_20_16/.8)]">{busy && busyLabel ? busyLabel : label}</span>
     </button>
   );
 }
@@ -244,18 +229,20 @@ export const SpeakObject = ({ onClick, btnRef }: { onClick: () => void; btnRef: 
 export const CatchUpObject = ({ onClick, busy, invite }: { onClick: () => void; busy: boolean; invite: boolean }) =>
   <TableObject obj="placemat" Icon={IconCatchUp} label="Catch me up" busyLabel="Catching up…" busy={busy} invite={invite} onClick={onClick} />;
 
-/* ---------- the whole place setting ---------- */
+/* ---------- the whole seat ---------- */
 export function PhoneTable({ header, lamp, placemat, deck, objects }: {
   header: HeaderProps; lamp: TableLampState; placemat: ReactNode; deck: ReactNode; objects: ReactNode;
 }) {
   return (
-    <div className="relative mx-auto flex h-dvh max-w-xl flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
-      {/* the room beyond the lamp's reach: the top edge of the table falls into shadow */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-dusk/40 to-transparent" />
+    <div className="seat relative mx-auto flex h-dvh max-w-xl flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
+      {/* calm the walnut further on the phone: a warm dark wash, so paper edges read cleanly */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(22_14_8/.34),rgb(22_14_8/.46))]" />
+      <LampPool lamp={lamp} />
       <TopRow {...header} tableLamp={lamp} />
       {placemat}
       {deck}
-      <nav aria-label="On the table in front of you" className="flex shrink-0 items-end gap-3 px-6 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      {/* the shelf: a faint darker band, so the two objects read as one row of actions */}
+      <nav aria-label="Actions" className="relative flex shrink-0 items-stretch gap-3 border-t border-cream/[.07] bg-[rgb(16_10_6/.4)] px-5 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {objects}
       </nav>
     </div>

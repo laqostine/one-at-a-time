@@ -27,7 +27,7 @@ export function KindBadge({ kind, className }: { kind: LedgerKind; className?: s
   );
 }
 
-export function LedgerRow({ item, color, replyColor, onOpen, compact = false }: { item: LedgerItem; color: string; replyColor?: string; onOpen: () => void; compact?: boolean }) {
+export function LedgerRow({ item, color, replyColor, onOpen, compact = false, plain = false }: { item: LedgerItem; color: string; replyColor?: string; onOpen: () => void; compact?: boolean; /** phone card: no object icon, just a small speaker dot */ plain?: boolean }) {
   const k = KIND[item.kind] ?? KIND.open_question;
   const showWhy = !!item.reason && (item.kind === 'decision' || item.kind === 'instruction_change');
   const aria = `${k.label}${item.speaker ? ` from ${item.speaker}` : ''}${item.replyTo ? ` to ${item.replyTo}` : ''}: ${item.text}${showWhy ? `. Because: ${item.reason}` : ''}${item.resolved ? ' (resolved)' : ''}. Show what was said.`;
@@ -39,7 +39,8 @@ export function LedgerRow({ item, color, replyColor, onOpen, compact = false }: 
       <li className={cn('imt-highlight rounded-xl transition-opacity duration-200', faded && 'opacity-45')}>
         <button type="button" onClick={onOpen} aria-label={aria}
           className="flex w-full cursor-pointer items-start gap-3 rounded-xl px-1.5 py-2 text-left transition-colors duration-150 hover:bg-card-2">
-          {OBJ[item.kind] ? <ObjIcon name={OBJ[item.kind]!} fallback={k.Icon} size={36} className="-mt-0.5" />
+          {plain ? <span aria-hidden className="mt-[0.55em] size-2.5 shrink-0 rounded-full" style={{ background: item.speaker ? color : 'var(--line-strong)' }} />
+            : OBJ[item.kind] ? <ObjIcon name={OBJ[item.kind]!} fallback={k.Icon} size={36} className="-mt-0.5" />
             : <span className="flex size-9 shrink-0 items-center justify-center"><k.Icon size={24} strokeWidth={2} className={k.tint} /></span>}
           <span className="min-w-0 flex-1">
             <span className={cn('line-clamp-2 text-body', faded && 'line-clamp-1 line-through decoration-muted')}>{item.text}</span>

@@ -19,7 +19,7 @@ interface Props {
   getNow: () => number;
   onOpen: (t: number) => void;
   /** 'dish' = desktop card; 'strip' = one tappable line (phones), in place of the old sounds strip. */
-  variant?: 'dish' | 'strip';
+  variant?: 'dish' | 'strip' | 'plain';
   className?: string;
 }
 
@@ -83,6 +83,22 @@ export function LaughCard({ items, catchup, nameOf, colorOf, colorFor, getNow, o
         ) : sounds.map((e) => { const m = eventMeta(e.kind); return (
           <span key={e.id} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-change/30 bg-change/10 px-2 py-0.5 text-[0.85rem] text-change"><m.icon size={13} aria-hidden />{m.label} · {ago(e.t)}</span>
         ); })}
+      </div>
+    );
+  }
+
+  if (variant === 'plain') {
+    // Phone card body: the latest laugh only; a single quiet sentence when there is none.
+    return (
+      <div role="region" aria-label="Laughs" aria-live="polite" className={cn('min-h-0 flex-1 overflow-hidden', className)}>
+        {last ? (
+          <button key={last.key} type="button" onClick={() => onOpen(last.t)}
+            aria-label={`The table laughed at ${last.speaker ? `${last.speaker}: ` : ''}${last.text}. Show what was said.`}
+            className="imt-in block w-full cursor-pointer rounded-xl px-1 py-1 text-left transition-colors duration-150 hover:bg-card-2">
+            <span className="block text-meta">{last.speaker ? <strong style={{ color: readable(last.color) }}>{last.speaker}</strong> : null}{last.speaker ? ', ' : ''}{ago(last.t)}</span>
+            <q className="mt-1 line-clamp-3 block font-display text-[1.45rem] leading-[1.18] text-fg">{last.text}</q>
+          </button>
+        ) : <p className="px-1 pt-1 text-body text-muted">No laughs yet.</p>}
       </div>
     );
   }

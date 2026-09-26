@@ -33,7 +33,7 @@ import { Mic } from 'lucide-react';
 /** Click gate: the mic's AudioContext needs a user gesture, so a saved name shows one big button instead of auto-starting. */
 function StartGate({ name, onStart }: { name: string; onStart: () => void }) {
   return (
-    <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-6 px-6 text-center" style={{ background: "radial-gradient(ellipse 90% 45% at 50% 0%, rgb(241 199 106 / .18), transparent 70%), rgb(27 20 16 / .97)" }} role="dialog" aria-modal="true" aria-labelledby="start-gate-title">
+    <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-5 overflow-y-auto px-6 py-6 text-center" style={{ background: "radial-gradient(ellipse 90% 45% at 50% 0%, rgb(241 199 106 / .18), transparent 70%), rgb(27 20 16 / .97)" }} role="dialog" aria-modal="true" aria-labelledby="start-gate-title">
       <Wordmark height={40} />
       <h1 id="start-gate-title" className="font-display-italic text-[3rem] leading-none [text-shadow:2px_3px_6px_rgb(27_20_16/.6)]">Hi {name}.</h1>
       <Button type="button" size="lg" onClick={onStart} autoFocus data-testid="start-listening"
@@ -41,6 +41,7 @@ function StartGate({ name, onStart }: { name: string; onStart: () => void }) {
         <Mic aria-hidden /> Start listening
       </Button>
       <p className="max-w-sm text-body text-cream/85">Audio is transcribed live for this table only. Nothing is stored.</p>
+      <HouseRules host={name} className="w-full max-w-sm text-left [@media(max-height:640px)]:hidden" />
     </div>
   );
 }
@@ -211,14 +212,13 @@ export default function App() {
           placemat={
             <PhonePlacemat utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
               onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat} presence={headerProps}
-              empty={<HouseRules host={host} variant="mat" className="mt-1" />}
-              note={<CatchupCard variant="note" state={s.catchup} title={awayTitle ?? undefined} colorFor={colorFor} onBullet={setJumpT} onDismiss={s.dismissCatchup} />} />
+              note={<CatchupCard variant="note" state={s.catchup} title={awayTitle ?? 'Catch me up'} colorFor={colorFor} onBullet={setJumpT} onDismiss={s.dismissCatchup} />} />
           }
           deck={
             <CardDeck ringing={!!s.nudge} nudgeId={s.nudge?.id} cards={{
-              asked: forYou('min-h-0 flex-1 overflow-hidden rounded-[8px_12px_10px_6px]', true),
-              plans: openCard(false, 'deckle min-h-0 flex-1 rounded-none shadow-none'),
-              laugh: laughs('deckle min-h-0 flex-1 rounded-none shadow-none'),
+              asked: forYou('min-h-0 flex-1 overflow-hidden', true),
+              plans: <OpenCard items={session.ledger} threads={s.threads} colorFor={colorFor} onOpen={setJumpT} plain />,
+              laugh: <LaughCard variant="plain" items={session.timeline} catchup={s.catchup} nameOf={nameOf} colorOf={colorOf} colorFor={colorFor} getNow={s.nowT} onOpen={setJumpT} />,
             }} />
           }
           objects={

@@ -14,6 +14,8 @@ interface Props {
   onOpen: (t: number) => void;
   /** Desktop bento: the cell is tall, so lanes stack vertically and show one more item each. */
   tall?: boolean;
+  /** Phone card body: no header, no lanes, one calm list; a single quiet sentence when empty. */
+  plain?: boolean;
   className?: string;
 }
 
@@ -56,8 +58,19 @@ function pick(items: LedgerItem[], max: number): LedgerItem[] {
 }
 
 /** Decisions / objections / open questions / changes, in parallel conversation lanes. Stable order; resolved items fade. */
-export function OpenCard({ items, threads = [], colorFor, onOpen, tall = false, className }: Props) {
+export function OpenCard({ items, threads = [], colorFor, onOpen, tall = false, plain = false, className }: Props) {
   const open = items.filter((i) => i.kind !== 'assigned_to_me');
+  if (plain) {
+    return (
+      <div role="region" aria-label="Plans" className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>
+        {!open.length ? <p className="px-1 pt-1 text-body text-muted">No plans yet.</p> : (
+          <ul className="min-h-0 flex-1 overflow-hidden">
+            {pick(open, 3).map((i) => <LedgerRow key={i.id} item={i} color={colorFor(i.speaker)} replyColor={colorFor(i.replyTo)} onOpen={() => onOpen(i.t)} compact plain />)}
+          </ul>
+        )}
+      </div>
+    );
+  }
   const unresolved = open.filter((i) => !i.resolved);
   const lanes = buildLanes(open, threads);
   // Conversation lanes need room: the tall desktop dish shows them; phones/tablets get one calm list.
