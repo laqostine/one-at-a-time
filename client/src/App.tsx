@@ -147,6 +147,7 @@ export default function App() {
   }, [finals, mood, session]);
   const moodSent = useRef({ key: '', at: 0 });
   useEffect(() => {
+    if (s.mood) return; // the AI's mood (fresh, from /api/state) is posted by useSession; the client rule is only the fallback
     if (moodKey === moodSent.current.key) return;
     const wait = Math.max(0, 3_000 - (Date.now() - moodSent.current.at));
     const id = window.setTimeout(() => {

@@ -75,9 +75,11 @@ export function useGate({ getSession, dispatch, nudge, coveredT }: Opts) {
         const cur = getSession();
         if (res.tone) {
           const prev = tones.current.get(utt.speaker) ?? { hist: [], shown: undefined };
+          // Measured (B8): smoothing hid a speaker's first teasing line and carried tones onto neutral ones (9/13 -> 8/13).
+          // Show the raw tone; keep the history for the map's per-speaker mood.
           const next = smoothTone(prev.hist, prev.shown, res.tone);
           tones.current.set(utt.speaker, next);
-          dispatch({ type: 'setTone', id: utt.id, tone: next.shown === 'neutral' ? undefined : next.shown, raw: res.tone });
+          dispatch({ type: 'setTone', id: utt.id, tone: res.tone === 'neutral' ? undefined : res.tone, raw: res.tone });
         }
         if (cur.me.name && res.addressed_to_me >= GATE_ADDRESSED_P) nudge(utt, name);
         if (res.kind !== 'chatter' && res.kind_p >= GATE_KIND_P && utt.tStart > coveredT.current) {

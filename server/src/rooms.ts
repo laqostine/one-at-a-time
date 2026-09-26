@@ -49,6 +49,8 @@ const DEDUPE_OVERLAP = 0.55;             // shared tokens / tokens of the shorte
 const LEVEL_KEEP_MS = 30_000;            // per-source chunk RMS ring (also each source's own speaking level)
 const BLEED_OWN_MAX = 0.35;              // a word heard below this fraction of the stream's own speaking level…
 const BLEED_RATIO = 2.5;                 // …while another stream was >= 2.5x more "owned" is the neighbour's (bleed)
+const HOST_PHONE_OWNS = 0.5;             // host-mic word: a phone at >= 0.5 of its speaking level owns it…
+const HOST_OWN_RATIO = 1.6;              // …unless the host mic was >= 1.6x that (ME talking; phones only hear bleed)
 type TranscriptMsg = Extract<AsrMessage, { type: 'transcript' }>;
 const dedupeTokens = (t: string) => new Set(t.toLowerCase().replace(/[^\p{L}\p{N}\s']/gu, ' ').split(/\s+/).filter(Boolean));
 export function tokenOverlap(a: Set<string>, b: Set<string>): number {
@@ -212,25 +214,32 @@ export class Room {
     this.levels.set(k, arr);
   }
   /** A source's own speaking level: 80th percentile of its voiced chunk RMS over the last 30 s (null = too little). */
-  private levelBase(k: string): number | null {
+  private levelBase(k: string, floor = true): number | null {
     const v = (this.levels.get(k) ?? []).filter((x) => x.voiced).map((x) => x.rms).sort((a, b) => a - b);
-    return v.length >= 10 ? v[Math.floor(v.length * 0.8)] : null;
+    const own = v.length >= 10 ? v[Math.floor(v.length * 0.8)] : null;
+    if (!floor) return own;
+    // Floor at 0.8x the other phones' median level: a phone whose owner hasn't spoken yet has only heard its neighbour,
+    // and must not take that bleed as its owner's normal level (measured: Dad's phone kept Mom's first line).
+    const others = [...this.levels.keys()].filter((o) => o !== k && o !== 'host').map((o) => this.levelBase(o, false)).filter((x): x is number => x != null).sort((a, b) => a - b);
+    const med = others.length ? others[Math.floor(others.length / 2)] * 0.8 : null;
+    return own != null && med != null ? Math.max(own, med) : own ?? med;
   }
   /**
    * How loud a source was over [t0, t1] (absolute ms) RELATIVE to its own speaking level: ~1 when its owner talks,
    * ~0.25 when it only hears a neighbour 12 dB down. Raw RMS isn't comparable across phones (mic gain, distance).
    */
-  score(source: Src | string, t0: number, t1: number): number {
+  score(source: Src | string, t0: number, t1: number, peak = false): number {
     const k = String(source);
     const arr = (this.levels.get(k) ?? []).filter((x) => x.at >= t0 && x.at <= t1 + 100);
     if (!arr.length) return 0;
     const base = this.levelBase(k);
-    const mean = arr.reduce((a, x) => a + x.rms, 0) / arr.length;
-    return base ? mean / base : 1;
+    const v = peak ? Math.max(...arr.map((x) => x.rms)) : arr.reduce((a, x) => a + x.rms, 0) / arr.length;
+    return base ? v / base : 1;
   }
 
   /**
-   * Word-level bleed removal: a word this stream heard while it was quiet for its owner (< 0.35 of its speaking level)
+   * Word-level bleed removal (per-word PEAK chunk level: Deepgram stretches words into the silence around them, so a
+   * mean read "Bera," / "time." as quiet): a word this stream heard while it was quiet for its owner (< 0.35 of its speaking level)
    * and another stream was >= 2.5x more "owned" at that moment belongs to the neighbour. Deepgram happily merges the
    * owner's line and the neighbour's bleed into one final ("Fine by me. Less cooking for Everyone brings a side…"),
    * so a sentence-level dedupe alone can't separate them. Returns null when nothing of the owner's is left.
@@ -240,14 +249,22 @@ export class Room {
     const others = [...this.levels.keys()].filter((k) => k !== String(src));
     const keep = m.words.filter((w) => {
       const a = epoch + w.t0, b = epoch + w.t1;
-      const mine = this.score(src, a, b);
+      const mine = this.score(src, a, b, true);
+      if (src === 'host') {
+        // The listener's mic hears everyone at about its normal level; a word is ME's only if no phone owned it.
+        const phone = Math.max(0, ...others.filter((k) => k !== 'host').map((k) => this.score(k, a, b, true)));
+        return !(phone >= HOST_PHONE_OWNS && mine < HOST_OWN_RATIO * phone);
+      }
       if (mine >= BLEED_OWN_MAX) return true;
-      const best = Math.max(0, ...others.map((k) => this.score(k, a, b)));
+      // The host mic scores ~0.8 for anyone's voice: it only takes a phone's word when clearly louder (ME talking).
+      const best = Math.max(0, ...others.map((k) => this.score(k, a, b, true) / (k === 'host' ? HOST_OWN_RATIO * 2 : 1)));
       return best < BLEED_RATIO * Math.max(mine, 0.02);
     });
     if (keep.length === m.words.length) return m;
     this.dedupe.bleedWords += m.words.length - keep.length;
-    if (!keep.some((w) => /[\p{L}\p{N}]/u.test(w.w))) { this.dedupe.bleedFinals++; this.logDedupe(src, 'bleed', m.text, 'all words bleed'); return null; }
+    // Nothing left, or a 1-2 word crumb of a line that was mostly someone else's ("So", "the at"): drop it all.
+    const content = keep.filter((w) => /[\p{L}\p{N}]/u.test(w.w)).length;
+    if (!content || (content <= 2 && keep.length < 0.4 * m.words.length)) { this.dedupe.bleedFinals++; this.logDedupe(src, 'bleed', m.text, 'all words bleed'); return null; }
     const text = keep.map((w) => w.w).join(' ');
     if (process.env.DEDUPE_LOG !== '0') console.log(`[dedupe] ${this.srcName(src)} bleed words removed: "${m.text}" -> "${text}"`);
     return { ...m, text, words: keep, tStart: keep[0].t0, tEnd: keep[keep.length - 1].t1 };
@@ -262,7 +279,14 @@ export class Room {
   holdFinal(src: Src, text: string, t0: number, t1: number, emit: () => void, clear: () => void): void {
     const tokens = dedupeTokens(text);
     const near = (a: { t0: number; t1: number }) => a.t0 <= t1 + DEDUPE_WINDOW_MS && t0 <= a.t1 + DEDUPE_WINDOW_MS;
-    const same = (b: Set<string>) => Math.min(tokens.size, b.size) >= 2 ? tokenOverlap(tokens, b) >= DEDUPE_OVERLAP : [...tokens].join(' ') === [...b].join(' ');
+    /** Share of `loser`'s tokens found in `winner`: only a line that is MOSTLY the other's copy gets dropped
+     *  ("Good luck with that. We're never on time. Are you coming" is not a copy of "Are you coming Sunday?"). */
+    const covered = (loser: Set<string>, winner: Set<string>) => {
+      if (loser.size < 2 || winner.size < 2) return [...loser].join(' ') === [...winner].join(' ');
+      let n = 0; for (const w of loser) if (winner.has(w)) n++;
+      return n / loser.size >= DEDUPE_OVERLAP;
+    };
+    const same = (b: Set<string>) => covered(tokens, b) || covered(b, tokens);
     const now = Date.now();
     this.recentEmitted = this.recentEmitted.filter((r) => now - r.at <= 10_000);
     const mine = this.score(src, t0, t1);
@@ -271,7 +295,7 @@ export class Room {
     /** true when `a` (score sa, source srcA) should win over `b`. */
     const wins = (sa: number, srcA: Src, sb: number, srcB: Src) =>
       srcA === 'host' ? sa >= 1.3 * sb : srcB === 'host' ? sa * 1.3 > sb : sa > sb;
-    const late = this.recentEmitted.find((r) => r.src !== src && near(r) && copy(r.tokens, this.score(r.src, r.t0, r.t1)));
+    const late = this.recentEmitted.find((r) => r.src !== src && near(r) && covered(tokens, r.tokens) && copy(r.tokens, this.score(r.src, r.t0, r.t1)));
     if (late) {
       const theirs = this.score(late.src, late.t0, late.t1);
       if (!(wins(mine, src, theirs, late.src) && mine >= 1.5 * theirs)) { this.dedupe.lateDropped++; this.logDedupe(src, late.src, text, `late ${mine.toFixed(2)}/${theirs.toFixed(2)}`); clear(); return; }
@@ -280,7 +304,9 @@ export class Room {
       if (h.src === src || !near(h)) continue;
       const theirs = this.score(h.src, h.t0, h.t1);
       if (!copy(h.tokens, theirs)) continue;
-      if (!wins(mine, src, theirs, h.src)) { this.dedupe.dropped++; this.logDedupe(src, h.src, text, `${mine.toFixed(2)}<${theirs.toFixed(2)}`); clear(); return; }
+      const iWin = wins(mine, src, theirs, h.src);
+      if (!(iWin ? covered(h.tokens, tokens) : covered(tokens, h.tokens))) continue; // the loser must be mostly a copy
+      if (!iWin) { this.dedupe.dropped++; this.logDedupe(src, h.src, text, `${mine.toFixed(2)}<${theirs.toFixed(2)}`); clear(); return; }
       clearTimeout(h.timer);
       this.held = this.held.filter((x) => x !== h);
       this.dedupe.dropped++; this.dedupe.keptLater++;
