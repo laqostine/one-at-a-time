@@ -4,8 +4,9 @@ import {
   type CatchupBullet, type CatchupRequest, type CatchupResponse,
   type LaughRequest, type LaughResponse, type LedgerItem, type LedgerKind,
   type Session, type Speaker, type StateRequest, type StateResponse,
-  type TimelineItem, type Utterance,
+  type Thread, type TimelineItem, type Utterance, type UtteranceThread,
 } from '../../shared/types.ts';
+import { matchThread, threadSlug } from '../../shared/threads.ts';
 
 export const CATCHUP_MODEL = 'claude-sonnet-5';
 export const FAST_MODEL = 'claude-haiku-4-5-20251001';
@@ -51,11 +52,11 @@ export function formatTimeline(window: TimelineItem[], speakers: Record<number, 
 // ---------- shared call helper ----------
 const PROMPT_CORE = `Do NOT summarize the whole conversation. Extract only what the person needs to rejoin RIGHT NOW. Name who said what, never "someone". Preserve disagreements and open questions, do not resolve them. A question directed at the user is always first. If people laughed, say what at, in one clause. <=18 words per bullet, <=3 bullets, no preamble. Empty/unintelligible -> empty list, confidence low.`;
 
-export async function callTool<T>(model: string, system: string, user: string, tool: Anthropic.Tool): Promise<T> {
+export async function callTool<T>(model: string, system: string, user: string, tool: Anthropic.Tool, maxTokens = MAX_TOKENS): Promise<T> {
   const res = await getClient().messages.create(
     {
       model,
-      max_tokens: MAX_TOKENS,
+      max_tokens: maxTokens,
       system,
       tools: [tool],
       tool_choice: { type: 'tool', name: tool.name },
@@ -162,6 +163,8 @@ export async function catchUp(req: CatchupRequest): Promise<CatchupResponse> {
 }
 
 // ---------- state extraction ----------
+const MAX_UTT_THREADS = 40;
+const STATE_MAX_TOKENS = 1800;
 const LEDGER_KINDS = ['decision', 'objection', 'open_question', 'assigned_to_me', 'instruction_change'] as const;
 
 const stateTool: Anthropic.Tool = {
@@ -190,8 +193,21 @@ const stateTool: Anthropic.Tool = {
         },
       },
       addressed_to_me_now: addressedSchema,
+      utterance_threads: {
+        type: 'array', maxItems: MAX_UTT_THREADS,
+        description: 'One entry per transcript line (most recent lines first if you must drop some): which thread it belongs to and who it replied to',
+        items: {
+          type: 'object', additionalProperties: false,
+          properties: {
+            t: { type: 'number', description: 'ms timestamp of the line (mm*60000 + ss*1000)' },
+            thread: { type: 'string', description: '2-4 word thread label; reuse an EXISTING THREADS label when it is the same conversation' },
+            replyTo: { type: 'string', description: 'Name of the person this line answered, if it was a reply' },
+          },
+          required: ['t', 'thread'],
+        },
+      },
     },
-    required: ['ledger', 'addressed_to_me_now'],
+    required: ['ledger', 'addressed_to_me_now', 'utterance_threads'],
   },
 };
 
@@ -205,6 +221,7 @@ Rules:
 - New items get id "new".
 - speaker = the person's name as shown in the transcript. t = ms since session start (mm*60000 + ss*1000).
 - Do not resolve disagreements yourself; an objection stays open until the people resolve it.
+- utterance_threads: for each transcript line (up to 40, newest first priority) give t, its thread label and replyTo. Use the SAME label for the same conversation; reuse EXISTING THREADS labels verbatim when they still apply. Side conversations get their own label.
 - addressed_to_me_now: only if the LAST utterance(s) put a question/ask to ME (by name/alias or clear second-person address) that is not yet answered; else null.`;
 
 function mergeLedger(raw: unknown[], existing: LedgerItem[], nowT: number): LedgerItem[] {
@@ -241,7 +258,7 @@ function mergeLedger(raw: unknown[], existing: LedgerItem[], nowT: number): Ledg
 
 export async function extractState(req: StateRequest): Promise<StateResponse> {
   const existing = req.existing ?? [];
-  const safe: StateResponse = { ledger: existing, addressed_to_me_now: null };
+  const safe: StateResponse = { ledger: existing, addressed_to_me_now: null, threads: req.existing_threads ?? [], utteranceThreads: [] };
   const window = req.window ?? [];
   if (!window.some((i) => isUtt(i) && i.text.trim())) return safe;
   if (!hasAnthropic()) return mockState(req);
@@ -249,16 +266,99 @@ export async function extractState(req: StateRequest): Promise<StateResponse> {
     const ex = existing.length
       ? existing.map((e) => `- id=${e.id} kind=${e.kind} speaker=${e.speaker ?? '?'} t=${e.t} resolved=${!!e.resolved}: ${e.text}`).join('\n')
       : '(empty)';
-    const user = `EXISTING LEDGER:\n${ex}\n\nNOW: ${fmtT(req.nowT)}\n\nTRANSCRIPT:\n${formatTimeline(window, req.speakers ?? {}, req.me)}`;
-    const out = await callTool<{ ledger?: unknown[]; addressed_to_me_now?: unknown }>(FAST_MODEL, STATE_SYSTEM, user, stateTool);
+    const th = (req.existing_threads ?? []).map((t) => `- ${t.label}`).join('\n') || '(none)';
+    const user = `EXISTING LEDGER:\n${ex}\n\nEXISTING THREADS:\n${th}\n\nNOW: ${fmtT(req.nowT)}\n\nTRANSCRIPT:\n${formatTimeline(window, req.speakers ?? {}, req.me)}`;
+    const out = await callTool<{ ledger?: unknown[]; addressed_to_me_now?: unknown; utterance_threads?: unknown[] }>(
+      FAST_MODEL, STATE_SYSTEM, user, stateTool, STATE_MAX_TOKENS);
+    const ledger = mergeLedger(Array.isArray(out.ledger) ? out.ledger : [], existing, req.nowT);
     return {
-      ledger: mergeLedger(Array.isArray(out.ledger) ? out.ledger : [], existing, req.nowT),
+      ...assignThreads(req, Array.isArray(out.utterance_threads) ? out.utterance_threads : [], ledger),
       addressed_to_me_now: cleanAddressed(out.addressed_to_me_now),
     };
   } catch (err) {
     console.error('[extractState] error:', (err as Error).message);
     return safe;
   }
+}
+
+// ---------- threads (lanes) ----------
+const MAX_THREADS = 8;
+const LEDGER_SNAP_MS = 30_000; // ledger item with no thread label -> lane of the nearest line within 30 s
+
+const finalsOf = (w: TimelineItem[]) =>
+  w.filter((i): i is Utterance => isUtt(i) && i.final !== false && !!i.text.trim()).sort((a, b) => a.tStart - b.tStart);
+
+/**
+ * Turn raw model labels into stable thread ids (fuzzy-merged with existing_threads), snap each
+ * utterance_threads.t to the exact tStart of a final in the window, stamp threadId on ledger items,
+ * and recompute participants / lastT / openCount.
+ */
+export function assignThreads(req: StateRequest, raw: unknown[], ledgerIn: LedgerItem[]): Pick<StateResponse, 'ledger' | 'threads' | 'utteranceThreads'> {
+  const speakers = req.speakers ?? {};
+  const known: Thread[] = (req.existing_threads ?? [])
+    .filter((t) => t && typeof t.id === 'string' && typeof t.label === 'string')
+    .map((t) => ({ ...t, participants: [...(t.participants ?? [])], openCount: 0 }));
+  const byId = new Map(known.map((t) => [t.id, t]));
+  const resolve = (label: string): string => {
+    const hit = matchThread(label, known);
+    if (hit) return hit;
+    let id = threadSlug(label);
+    for (let k = 2; byId.has(id); k++) id = `${threadSlug(label)}-${k}`;
+    const t: Thread = { id, label: label.trim().slice(0, 40), participants: [], lastT: 0, openCount: 0 };
+    known.push(t); byId.set(id, t);
+    return id;
+  };
+  const touch = (id: string, name: string | undefined, t: number) => {
+    const th = byId.get(id);
+    if (!th) return;
+    if (name && name !== 'Unknown' && !th.participants.includes(name)) th.participants.push(name);
+    th.lastT = Math.max(th.lastT, t);
+  };
+
+  const finals = finalsOf(req.window ?? []).slice(-MAX_UTT_THREADS);
+  const used = new Set<Utterance>();
+  const utteranceThreads: UtteranceThread[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue;
+    const o = r as Record<string, unknown>;
+    const label = typeof o.thread === 'string' ? o.thread.trim() : '';
+    const t = Number(o.t);
+    if (!label || !Number.isFinite(t)) continue;
+    // Model sees [mm:ss] (floored), so the real tStart is in [t, t+999]: aim for the middle.
+    let best: Utterance | undefined, bestD = Infinity;
+    for (const u of finals) {
+      if (used.has(u)) continue;
+      const d = Math.abs(u.tStart - (t + 500));
+      if (d < bestD) { best = u; bestD = d; }
+    }
+    if (!best || bestD > 1_500) continue;
+    used.add(best);
+    const threadId = resolve(label);
+    const replyTo = typeof o.replyTo === 'string' && o.replyTo.trim() ? o.replyTo.trim() : undefined;
+    utteranceThreads.push({ t: best.tStart, threadId, ...(replyTo ? { replyTo } : {}) });
+    touch(threadId, speakerName(best.speaker, speakers), best.tStart);
+  }
+  utteranceThreads.sort((a, b) => a.t - b.t);
+
+  const ledger = ledgerIn.map((it) => {
+    let threadId = it.thread ? resolve(it.thread) : undefined;
+    if (!threadId) {
+      let bestD = LEDGER_SNAP_MS;
+      for (const ut of utteranceThreads) { const d = Math.abs(ut.t - it.t); if (d <= bestD) { bestD = d; threadId = ut.threadId; } }
+    }
+    if (!threadId) threadId = it.threadId && byId.has(it.threadId) ? it.threadId : undefined;
+    if (!threadId) return it;
+    touch(threadId, it.speaker, it.t);
+    const th = byId.get(threadId);
+    if (th && !it.resolved) th.openCount++;
+    return { ...it, threadId };
+  });
+
+  const threads = known
+    .filter((t) => t.lastT > 0 || t.openCount > 0)
+    .sort((a, b) => b.lastT - a.lastT)
+    .slice(0, MAX_THREADS);
+  return { ledger, threads, utteranceThreads };
 }
 
 // ---------- laughter ----------
@@ -330,8 +430,15 @@ function mockState(req: StateRequest): StateResponse {
     ledger.push({ id: `ledger-${stamp}-${i}`, kind, text, speaker: speakerName(u.speaker, req.speakers), t: u.tStart, resolved: false });
   });
   const last = lastUtts(req.window, 1)[0];
+  // Mock lanes: everything is one "General" thread; replyTo = previous speaker when it changed.
+  const finals = finalsOf(req.window).slice(-MAX_UTT_THREADS);
+  const raw = finals.map((u, i) => {
+    const prev = finals[i - 1];
+    const replyTo = prev && prev.speaker !== u.speaker ? speakerName(prev.speaker, req.speakers) : undefined;
+    return { t: Math.floor(u.tStart / 1000) * 1000, thread: 'General', ...(replyTo ? { replyTo } : {}) };
+  });
   return {
-    ledger: ledger.slice(-8),
+    ...assignThreads(req, raw, ledger.slice(-8).map((l) => ({ ...l, thread: l.thread ?? 'General' }))),
     addressed_to_me_now: last && mentionsMe(last.text, req.me)
       ? { speaker: speakerName(last.speaker, req.speakers), question: last.text, t: last.tStart } : null,
   };

@@ -27,7 +27,10 @@
    "t": 6800,
    "speaker": 2,
    "text": "Backend's solid, the diarization pass merged this morning.",
-   "durMs": 2800
+   "durMs": 2800,
+   "lowWords": [
+    "diarization"
+   ]
   },
   {
    "t": 9800,
@@ -134,7 +137,11 @@
    "t": 53200,
    "speaker": 1,
    "text": "Okay, comic relief, ship it on a Nokia 3310 and see who complains.",
-   "durMs": 3400
+   "durMs": 3400,
+   "lowWords": [
+    "Nokia",
+    "3310"
+   ]
   },
   {
    "t": 56800,
@@ -223,7 +230,10 @@
    "t": 89000,
    "speaker": 2,
    "text": "Oh wait, pricing review moved to Wednesday, Thursday's fully booked now.",
-   "durMs": 3200
+   "durMs": 3200,
+   "lowWords": [
+    "Wednesday"
+   ]
   },
   {
    "t": 92400,

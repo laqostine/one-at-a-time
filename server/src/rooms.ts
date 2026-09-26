@@ -81,7 +81,10 @@ export class Room {
   fromParticipant(p: PSock, m: AsrMessage, participantEpoch: number): void {
     if (m.type !== 'transcript') return;
     const shift = participantEpoch - (this.hostEpoch ?? participantEpoch);
-    const out: AsrMessage = { ...m, speaker: p.id, name: p.name, tStart: Math.max(0, m.tStart + shift), tEnd: Math.max(0, m.tEnd + shift) };
+    const out: AsrMessage = {
+      ...m, speaker: p.id, name: p.name, tStart: Math.max(0, m.tStart + shift), tEnd: Math.max(0, m.tEnd + shift),
+      ...(m.words ? { words: m.words.map((w) => ({ ...w, t0: Math.max(0, w.t0 + shift), t1: Math.max(0, w.t1 + shift) })) } : {}),
+    };
     if (m.text.trim()) this.touch(p);
     if (m.final) this.recordFinal(p.id, m.text, m.tEnd - m.tStart);
     for (const h of this.hosts) this.sendTo(h, out);

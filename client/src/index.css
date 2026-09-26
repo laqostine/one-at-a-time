@@ -7,23 +7,31 @@
  * (bg-background, text-foreground, bg-primary, border-border, ring-ring, ...).
  * Every text/background pair below is >= 4.5:1 on --card (WCAG AA), most >= 7:1.
  */
+/*
+ * Identity: warm-neutral darks (never pure black), ONE refined blue accent, amber reserved for
+ * "addressed to you". Display = Instrument Serif (italic for the big lines), body = Inter,
+ * meta/labels/timestamps = JetBrains Mono.
+ * Contrast (on --card): fg 16.9:1, muted 8.1:1, accent 8.6:1, warn 10.9:1, good 10.5:1,
+ * bad 7.9:1, change 8.3:1 - every pair >= AA, most >= AAA.
+ */
 :root {
-  --bg: #0a0c10;
-  --card: #12161d;
-  --card-2: #1a2029;
-  --line: #262e3b;
-  --line-strong: #394354;
-  --fg: #f1f4f9;          /* 16.8:1 on card */
-  --muted: #a7b0c2;       /*  8.3:1 on card */
-  --accent: #6cb0ff;      /*  7.9:1 on card - primary actions, links, focus */
-  --accent-fg: #06121f;   /* text on accent fills */
-  --warn: #fbbf24;        /* amber - "for you" / attention, never red */
-  --good: #34d399;
-  --bad: #f87171;
-  --change: #c4a1ff;
+  --bg: #12110f;          /* warm charcoal, not black */
+  --card: #1b1916;
+  --card-2: #25221e;
+  --line: #36312b;
+  --line-strong: #4f483f;
+  --fg: #f5f1e8;          /* warm paper white */
+  --muted: #b8b0a2;
+  --accent: #8db6ff;      /* refined periwinkle blue - actions, links, focus */
+  --accent-deep: #4f7fd9; /* accent on light / gradients */
+  --accent-fg: #0a1628;   /* text on accent fills (9.6:1) */
+  --warn: #f6b93b;        /* amber - ONLY "addressed to you" / attention, never red */
+  --good: #6fd6a4;
+  --bad: #ff9580;
+  --change: #c8a9ff;
   --radius: 1rem;
-  --glow-warn: 0 0 0 1px rgb(251 191 36 / .55), 0 0 28px -4px rgb(251 191 36 / .45);
-  --glow-accent: 0 0 0 1px rgb(108 176 255 / .5), 0 0 26px -6px rgb(108 176 255 / .5);
+  --glow-warn: 0 0 0 1px rgb(246 185 59 / .55), 0 0 28px -4px rgb(246 185 59 / .45);
+  --glow-accent: 0 0 0 1px rgb(141 182 255 / .45), 0 0 26px -6px rgb(141 182 255 / .45);
 
   font-size: 18px; /* base; prefs S/M/L/XL overrides this only, everything else is rem */
   color-scheme: dark;
@@ -39,14 +47,15 @@
   --line-strong: #ffffff;
   --fg: #ffffff;
   --muted: #e5e5e5;
-  --accent: #8cc8ff;
+  --accent: #9cc8ff;
+  --accent-deep: #9cc8ff;
   --accent-fg: #000000;
   --warn: #ffd23f;
   --good: #4ff0b0;
-  --bad: #ff8a8a;
+  --bad: #ff9a8a;
   --change: #d9c2ff;
   --glow-warn: 0 0 0 2px #ffd23f;
-  --glow-accent: 0 0 0 2px #8cc8ff;
+  --glow-accent: 0 0 0 2px #9cc8ff;
 }
 
 @theme inline {
@@ -88,6 +97,16 @@
   --radius-xl: var(--radius);
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* type scale (rem, so S/M/L/XL scales it) */
+  --text-display: 3.2rem;
+  --text-display--line-height: 1.02;
+  --text-title: 1.9rem;
+  --text-title--line-height: 1.1;
+
+  --ease-out-soft: cubic-bezier(.2, .7, .2, 1);
 }
 
 html, body, #root { height: 100%; }
@@ -100,19 +119,38 @@ body {
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "cv11", "ss01";
+  text-rendering: optimizeLegibility;
 }
 
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+::selection { background: color-mix(in oklab, var(--accent) 35%, transparent); color: var(--fg); }
+.tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
 
 /* ---------- Type scale (rem only, so the S/M/L/XL root size scales everything) ---------- */
-/* Card titles: small-caps label. */
+/* Card titles / meta labels: tracked mono caps. */
 @utility card-label {
-  font-size: 0.72rem;
-  font-weight: 650;
-  letter-spacing: 0.09em;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
   line-height: 1.2;
+}
+/* The wordmark: display serif italic, lightly tracked. Text only, never an image. */
+@utility wordmark {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.015em;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--fg);
+}
+@utility font-display-italic {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
 }
 /* Body: 18px on phone, ~21px on desktop at the default M size. */
 @utility text-body {
@@ -124,6 +162,15 @@ body {
   font-size: 1.1rem;
   line-height: 1.34;
   @media (width >= 40rem) { font-size: 1.28rem; }
+}
+/* Doubt words: ASR confidence < 0.6. Dimmed + dotted underline, tappable ("please repeat"). */
+@utility doubt {
+  color: color-mix(in oklab, var(--fg) 62%, var(--card));
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.22em;
+  text-decoration-color: color-mix(in oklab, var(--accent) 75%, transparent);
 }
 /* Quiet secondary line ("why:", thread names, timestamps). */
 @utility text-meta {
@@ -138,19 +185,31 @@ body {
 @keyframes imt-shimmer { 0% { opacity: .45; } 50% { opacity: .9; } 100% { opacity: .45; } }
 .imt-skeleton { animation: imt-shimmer 1.2s ease-in-out infinite; background: var(--card-2); border-radius: 8px; }
 /* The single proactive interrupt: amber glow that breathes three times, then stays lit. */
-@keyframes imt-flash { 0% { box-shadow: 0 0 0 0 rgb(251 191 36 / .7), var(--glow-warn); } 100% { box-shadow: 0 0 0 14px rgb(251 191 36 / 0), var(--glow-warn); } }
+@keyframes imt-flash { 0% { box-shadow: 0 0 0 0 rgb(246 185 59 / .7), var(--glow-warn); } 100% { box-shadow: 0 0 0 14px rgb(246 185 59 / 0), var(--glow-warn); } }
 .imt-flash { animation: imt-flash 1s ease-out 3; box-shadow: var(--glow-warn); }
 /* New/replaced content: fade in + a brief tint that clears. Opacity/background only, no reflow. */
 @keyframes imt-in { from { opacity: .35; } to { opacity: 1; } }
 .imt-in { animation: imt-in 180ms ease-out; }
-@keyframes imt-highlight { from { background-color: rgb(108 176 255 / .16); } to { background-color: transparent; } }
+@keyframes imt-highlight { from { background-color: rgb(141 182 255 / .16); } to { background-color: transparent; } }
 .imt-highlight { animation: imt-highlight 700ms ease-out; }
 /* "Catch me up" invites a press only after an away span ended. */
-@keyframes imt-invite { 0%, 100% { box-shadow: 0 0 0 0 rgb(108 176 255 / .0); } 50% { box-shadow: 0 0 0 6px rgb(108 176 255 / .28); } }
+@keyframes imt-invite { 0%, 100% { box-shadow: 0 0 0 0 rgb(141 182 255 / 0); } 50% { box-shadow: 0 0 0 6px rgb(141 182 255 / .28); } }
 .imt-invite { animation: imt-invite 1.8s ease-in-out infinite; }
 
+/* Presence halo: soft radial glow tinted by state; amber flare when something is aimed at you. */
+@keyframes imt-flare { 0% { opacity: 0; transform: scale(.7); } 18% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0; transform: scale(1.35); } }
+.imt-flare { animation: imt-flare 1.6s var(--ease-out-soft) both; }
+@keyframes imt-breathe { 0%, 100% { opacity: .75; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
+.imt-breathe { animation: imt-breathe 4.8s ease-in-out infinite; }
+
+/* Scroll reveal (landing): hidden only once JS confirmed IntersectionObserver (html.io), so
+ * a failed script never leaves content invisible. */
+html.io .reveal { opacity: 0; transform: translateY(18px); transition: opacity 700ms var(--ease-out-soft), transform 700ms var(--ease-out-soft); transition-delay: var(--reveal-delay, 0ms); }
+html.io .reveal.is-in { opacity: 1; transform: none; }
+
 @media (prefers-reduced-motion: reduce) {
-  .imt-pulse, .imt-skeleton, .imt-flash, .imt-in, .imt-highlight, .imt-invite, .animate-spin { animation: none !important; }
+  .imt-pulse, .imt-skeleton, .imt-flash, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .animate-spin { animation: none !important; }
+  html.io .reveal { opacity: 1; transform: none; }
   *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }
 

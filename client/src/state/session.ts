@@ -2,7 +2,7 @@
 import {
   SPEAKER_COLORS,
   type AsrMessage, type AudioEvent, type LedgerItem, type Session, type Speaker,
-  type TimelineItem, type Utterance,
+  type Thread, type TimelineItem, type Utterance, type UtteranceThread,
 } from '../../../shared/types';
 
 export const RING_MS = 15 * 60 * 1000;
@@ -12,7 +12,12 @@ export const UNKNOWN_COLOR = '#9CA3AF';
 export interface SessionState extends Session {
   /** diarization id -> canonical id after "same person as…" merges */
   merged: Record<number, number>;
+  /** Conversation lanes from /api/state, sorted by lastT desc. */
+  threads: Thread[];
 }
+
+/** An utterance matches a server utteranceThreads entry when tStart is within ±800 ms. */
+export const THREAD_MATCH_MS = 800;
 
 export type SessionAction =
   | { type: 'transcript'; msg: AsrMessage }
@@ -25,10 +30,12 @@ export type SessionAction =
   | { type: 'seedSpeakers'; names: Record<string, string> }
   | { type: 'markAddressed'; id: string }
   | { type: 'localUtterance'; text: string; t: number; durMs: number }
+  | { type: 'applyThreads'; threads: Thread[]; utteranceThreads: UtteranceThread[] }
+  | { type: 'markRepeat'; id: string }
   | { type: 'reset'; startedAt: number };
 
 export function initSession(me: Session['me'] = { name: '', aliases: [] }, startedAt = Date.now()): SessionState {
-  return { startedAt, me, speakers: {}, timeline: [], ledger: [], lastSeenAt: 0, merged: {} };
+  return { startedAt, me, speakers: {}, timeline: [], ledger: [], lastSeenAt: 0, merged: {}, threads: [] };
 }
 
 export const isUtt = (i: TimelineItem): i is Utterance => i.type === 'utterance';
@@ -97,6 +104,7 @@ function applyTranscript(s: SessionState, msg: Extract<AsrMessage, { type: 'tran
     id: `u${speaker}-${msg.tStart}${msg.final ? '' : '-i'}`,
     type: 'utterance', speaker, text, tStart: msg.tStart, tEnd: msg.tEnd, final: msg.final,
   };
+  if (msg.final && msg.words?.length) utt.words = msg.words.map(({ w, c }) => ({ w, c }));
   // Final duplicate guard (same id already present).
   const deduped = msg.final ? timeline.filter((i) => i.id !== utt.id) : timeline;
   return { ...s, speakers, timeline: trimRing(insertSorted(deduped, utt)) };
@@ -178,9 +186,45 @@ export function sessionReducer(s: SessionState, a: SessionAction): SessionState 
       };
       return { ...s, speakers, timeline: trimRing(insertSorted(s.timeline.filter((i) => i.id !== utt.id), utt)) };
     }
+    case 'applyThreads':
+      return applyThreads(s, a.threads, a.utteranceThreads);
+    case 'markRepeat':
+      return { ...s, timeline: s.timeline.map((i) => (i.id === a.id && isUtt(i) ? { ...i, repeatRequested: true } : i)) };
     case 'reset':
       return initSession(s.me, a.startedAt);
   }
+}
+
+// ---- threads (lanes) ----
+/** Stamp threadId/replyTo onto finals whose tStart is within ±800 ms of a server entry (nearest wins). */
+export function applyThreads(s: SessionState, threads: Thread[], uts: UtteranceThread[]): SessionState {
+  const sorted = [...threads].sort((a, b) => b.lastT - a.lastT);
+  if (!uts.length) return { ...s, threads: sorted };
+  const stamp = new Map<string, UtteranceThread>();
+  for (const ut of uts) {
+    let best: Utterance | undefined, bestD = THREAD_MATCH_MS + 1;
+    for (const i of s.timeline) {
+      if (!isUtt(i) || !i.final) continue;
+      const d = Math.abs(i.tStart - ut.t);
+      if (d < bestD) { best = i; bestD = d; }
+    }
+    if (best) stamp.set(best.id, ut);
+  }
+  const timeline = stamp.size
+    ? s.timeline.map((i) => {
+      const ut = stamp.get(i.id);
+      if (!ut || !isUtt(i)) return i;
+      const next: Utterance = { ...i, threadId: ut.threadId };
+      if (ut.replyTo) next.replyTo = ut.replyTo; else delete next.replyTo;
+      return next;
+    })
+    : s.timeline;
+  return { ...s, threads: sorted, timeline };
+}
+
+/** Final utterances in one lane, oldest first. */
+export function utterancesByThread(s: Pick<Session, 'timeline'>, threadId: string): Utterance[] {
+  return s.timeline.filter((i): i is Utterance => isUtt(i) && i.final && i.threadId === threadId);
 }
 
 // ---- selectors ----

@@ -11,7 +11,7 @@ const DG_URL =
 // Participant phones: one voice per stream, so no diarization.
 const DG_URL_SOLO = DG_URL.replace('diarize=true', 'diarize=false');
 
-interface DgWord { word: string; punctuated_word?: string; start: number; end: number; speaker?: number }
+interface DgWord { word: string; punctuated_word?: string; start: number; end: number; speaker?: number; confidence?: number }
 interface DgResults {
   type: 'Results';
   is_final?: boolean;
@@ -34,6 +34,15 @@ export function resultsToMessages(r: DgResults): AsrMessage[] {
         tStart: Math.round(run[0].start * 1000),
         tEnd: Math.round(run[run.length - 1].end * 1000),
         final: !!r.is_final,
+        // Finals only: per-word confidence so the UI can grey out doubtful words.
+        ...(r.is_final ? {
+          words: run.map((w) => ({
+            w: w.punctuated_word ?? w.word,
+            c: typeof w.confidence === 'number' ? Math.round(w.confidence * 1000) / 1000 : 1,
+            t0: Math.round(w.start * 1000),
+            t1: Math.round(w.end * 1000),
+          })),
+        } : {}),
       });
     }
     run = [];

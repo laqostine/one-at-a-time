@@ -22,7 +22,7 @@ const s1 = await timed('extractState (full window, seeded ledger)', () =>
   extractState({ me, speakers, window: timeline, nowT: NOW_T, existing: existingLedger }));
 
 await timed('extractState (re-run with its own output — ids should be stable)', () =>
-  extractState({ me, speakers, window: timeline, nowT: NOW_T + 5000, existing: s1.ledger }));
+  extractState({ me, speakers, window: timeline, nowT: NOW_T + 5000, existing: s1.ledger, existing_threads: s1.threads }));
 
 await timed('explainLaugh', () =>
   explainLaugh({ speakers, window: timeline.filter((i) => (i.type === 'utterance' ? i.tStart : i.t) <= LAUGH_T), t: LAUGH_T }));

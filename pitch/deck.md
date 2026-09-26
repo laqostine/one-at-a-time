@@ -13,85 +13,96 @@ h2 { color: #8ab4f8; }
 .quote { font-style: italic; border-left: 4px solid #8ab4f8; padding-left: 1em; margin: 0.6em 0; }
 .src { font-size: 0.55em; opacity: 0.7; }
 .big { font-size: 1.6em; font-weight: bold; }
-table { font-size: 0.75em; }
+.small { font-size: 0.7em; opacity: 0.85; }
+table { font-size: 0.7em; }
 </style>
 
 # I Missed That
 
-**Transcription tells you what was said.**
-**We tell you what you missed.**
+<p class="big">Accessibility at a table is a contract. We're the clerk that holds both sides to it.</p>
 
-A live decision & commitment ledger for deaf and hard-of-hearing users at the table.
+For hard-of-hearing and late-deafened adults, in hearing rooms — work meetings, family dinners.
 
 ---
 
-## The pain isn't the words. It's what's around them.
+## Every accessibility tool puts the burden on one person
 
-<p class="quote">"I work in marketing and we have these weekly team meetings where everyone just talks over each other... I've started just nodding along even when I have no idea what was decided. My boss mentioned something about a new client project last Thursday and I smiled and agreed but I genuinely don't know what I signed up for."</p>
-<p class="src">— r/deaf</p>
+Read faster. Ask again. Get told "never mind." Today, the deaf person carries the whole contract alone.
 
-<p class="quote">"Not hearing the whole joke or the punchline in the moment at a table full of people so everyone is laughing but you, so you have to either ignore it, fake laugh, or ask them to repeat it while everyone is silent. Totally awkward."</p>
-<p class="src">— r/hardofhearing</p>
+<p class="quote">"I work in marketing and we have these weekly team meetings where everyone just talks over each other... I've started just nodding along even when I have no idea what was decided... I genuinely don't know what I signed up for."</p>
+<p class="src">— r/deaf, 35↑</p>
+
+<p class="quote">"Sometimes I didn't know how to respond because I wasn't even sure what exactly had been said... they assumed I was lying."</p>
+<p class="src">— r/deaf, 25↑</p>
+
+<p class="quote">"Asking people to repeat themselves a couple times and still not totally hearing or understanding them and then they say 'Never mind' or 'It's not important'."</p>
+<p class="src">— r/hardofhearing, 13↑ thread</p>
 
 ---
 
 ## Why "just add captions" isn't enough
 
-- **51.9%** of DHH caption users are frustrated with live captioning quality
+- **51.9%** of DHH live-caption users are frustrated with caption quality
 - ASR lag of **1–2s** is rated *worse* than the errors themselves
 - DHH caption comprehension drops above **170 wpm** — live group speech runs **160–220 wpm**
 - Only **4%** of non-speech info (laughter, tone, applause) ever reaches a caption
-- **96%** of deaf children are born to hearing parents — Dinner Table Syndrome is the default, not the exception
+- **96%** of deaf children are born to hearing parents — this is the default room, not the exception
 
 <p class="src">Sources: pitch/citations.md</p>
 
 ---
 
-## What we built: the moment you missed, recovered
+## The contract
 
-Situation: a meeting or dinner, phone on the table. Three static cards, not a transcript:
+Accessibility at a table is a contract between everyone present. We're the clerk that holds both sides to it — Claude is the clerk any team can hire; the contract and the evidence are ours.
 
-| Now | Open on the table | For you |
+| The table's side | Your side |
+|---|---|
+| Join by phone (QR, no install) | Ledger — decisions **with the reason**, threads (who replied to whom) |
+| Pace bar goes amber on overlap or speed | Addressed-to-you, the moment it happens |
+| One-at-a-time nudge when it flaps | Away detection → catch-up card, on its own |
+| | **Speak for me** — one tap, said in the next gap |
+| | Doubt words — low-confidence words flagged, tap to ask for a repeat |
+
+<p class="small">Ava does the mics. We do what the mics are for.</p>
+
+---
+
+## What's new
+
+| Tool | What they already do | What nobody (before us) does |
 |---|---|---|
-| who's talking, last line | decisions **with the reason**, objections, open questions, **changed instructions**, grouped by **thread** (who replied to whom) | the question **directed at you**, right now |
+| **Ava** | Phones join as named mics, speaker colors, type-to-speak | No ledger — the reason, the objection, the thread all vanish once said |
+| **Otter / Zoom "Catch me up"** | Post-meeting or on-demand summary | Summary *resolves* the debate — drops the live objection while it's still open |
+| **MS Teams** | Live captions + logged-in speaker names | Breaks on overlap; nothing addressed-to-you; no away detection |
+| **Caption glasses** (XRAI, Captify, AirCaps) | Captions in your line of sight | Arms fight hearing aids/CIs; still just words — no state |
+| **I Missed That** | — | Reasons, threads, addressed-to-you, away card, speak-for-me, doubt words |
 
-Plus **Catch me up** (2–3 bullets since you looked away), **Sound history** (knock, phone, laughter, with time-ago), and **laughter recovery** ("they laughed at Sam's Nokia line").
-
-**State, not words.** The reason for a decision, the question aimed at you, the instruction that changed: recoverable in three seconds, without asking anyone to repeat.
-
----|---|---|
-| who's talking + last line | decisions forming, objections, open questions | anything just addressed to you |
-
-Plus **Catch me up** (2–3 bullets since you looked away) and **laughter recovery** ("they laughed at Sam's Nokia line").
-
-**State, not words.** We track what changed, who owns what, and whether you were just asked something — not a wall of scrolling text.
+<p class="src">Sources: research/06-github-landscape.md</p>
 
 ---
 
 ## How it works
 
 ```
-mic → Deepgram Nova-3 (streaming diarization) ─┐
-                                                ├→ rolling 15-min ring buffer
-YAMNet (in-browser, laughter/applause/etc.) ───┘        │
-                                                          ▼
-                                        Claude — structured extraction
-                                    (extract_state / catch_me_up tools)
-                                                          │
-                                                          ▼
-                                        3 static cards + For-you nudge
+phones (per person, named) ──► Deepgram, per-stream ASR ─┐
+                                                          ├──► Claude — structured extraction
+on-device gaze (no cloud) ──► "away" / "back" signal ────┘        (the ledger, never prose)
+                                                                          │
+                                                                          ▼
+                                                        3 static cards + For-you nudge + Speak for me
 ```
 
-Diarized speech and non-speech events feed one shared timeline; Claude turns it into state, never prose.
+Nothing is stored after the session — in-memory only, gone on close.
 
 ---
 
-## What's next — and the honest limits
+## Scope, limits, next
 
-**Next:** persistent speaker memory across sessions, on-device (no-cloud) mode, wearable haptic nudge, multi-language diarization.
+**Built for:** hard-of-hearing and late-deafened adults, in hearing rooms — work meetings, family dinners.
 
-**Limits, honestly:**
-- Diarization still flaps on heavy crosstalk — we bias toward "someone" over a wrong name
-- No Deepgram key → falls back to browser ASR, captions only, no speaker colors
-- Nothing is stored after the session (privacy by design) — also means no long-term history yet
-- Built and tested in 12 hours — this is a proof of the *idea*, not a hardened product
+**Not built for:** sign-first Deaf users, classrooms with interpreters, gamers.
+
+**Tested with:** not yet tested with a hard-of-hearing user.
+
+**Next:** HoH user tests, Turkish, glasses as a display of the same feed.

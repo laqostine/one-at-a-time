@@ -6,7 +6,8 @@ import { startEvents } from '../audio/events';
 import { startWebSpeech } from '../audio/webspeech';
 import { startReplay } from '../replay/replay';
 import { postCatchup, postState } from './api';
-import { initSession, isUtt, lastMinutes, sessionReducer, speakerName, windowSince, type SessionState } from './session';
+import { initSession, isUtt, lastMinutes, sessionReducer, speakerName, utterancesByThread, windowSince, type SessionState } from './session';
+import { matchThread } from '../../../shared/threads';
 import { isAddressedToMe } from './addressed';
 
 export type AsrState = 'idle' | 'connecting' | 'open' | 'closed' | 'error' | 'paused';
@@ -274,10 +275,11 @@ export function useSession() {
       const s = ref.current;
       const t0 = performance.now();
       try {
-        const res = await postState({ me: s.me, speakers: s.speakers, window: lastMinutes(s, 3, nowT()), nowT: nowT(), existing: s.ledger });
+        const res = await postState({ me: s.me, speakers: s.speakers, window: lastMinutes(s, 3, nowT()), nowT: nowT(), existing: s.ledger, existing_threads: s.threads });
         const ms = Math.round(performance.now() - t0);
         setLatency((l) => ({ ...l, stateMs: res.latencyMs ?? ms, stateError: undefined }));
         dispatch({ type: 'setLedger', items: res.ledger ?? [] });
+        if (res.threads) dispatch({ type: 'applyThreads', threads: res.threads, utteranceThreads: res.utteranceThreads ?? [] });
         const a = res.addressed_to_me_now;
         if (a && ref.current.me.name) fireNudge({ id: `s-${a.t}`, speaker: a.speaker, question: a.question, t: a.t });
       } catch (e) {
@@ -306,7 +308,13 @@ export function useSession() {
     setRequestPending(true);
     const t0 = performance.now();
     try {
-      const data = await postCatchup({ me: s.me, speakers: s.speakers, window: windowSince(s, sinceT), sinceT, nowT: now });
+      const raw = await postCatchup({ me: s.me, speakers: s.speakers, window: windowSince(s, sinceT), sinceT, nowT: now });
+      // Lanes: resolve each bullet's thread label to a known Thread.id (same fuzzy match as the server).
+      const lanes = ref.current.threads;
+      const data = { ...raw, bullets: (raw.bullets ?? []).map((b) => {
+        const threadId = matchThread(b.thread, lanes);
+        return threadId ? { ...b, threadId } : b;
+      }) };
       const ms = data.latencyMs ?? Math.round(performance.now() - t0);
       setLatency((l) => ({ ...l, catchupMs: ms }));
       setCatchup({ status: 'ready', data, at: Date.now(), latencyMs: ms });
@@ -339,6 +347,10 @@ export function useSession() {
       try { localStorage.setItem('imt.me', JSON.stringify({ name, aliases })); } catch { /* ignore */ }
     }, []),
     nowT,
+    // Lanes + doubt words (see state/confidence.ts, state/useRepeat.ts)
+    threads: session.threads,
+    utterancesByThread: useCallback((threadId: string) => utterancesByThread(ref.current, threadId), []),
+    markRepeat: useCallback((id: string) => dispatch({ type: 'markRepeat', id }), []),
   };
 }
 export type SessionApi = ReturnType<typeof useSession>;

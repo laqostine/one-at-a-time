@@ -12,6 +12,20 @@ export interface ReplayLine {
   speaker: number;  // diarization id, matches `names`
   text: string;     // full final text of the line
   durMs: number;    // how long the line takes to "finish" (interim -> final)
+  lowWords?: string[]; // words the fake ASR is unsure about (c=0.4 on the final; others 0.95)
+}
+
+const normWord = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+/** Per-word confidences for a replay final, timed evenly across the line (ms since scenario start). */
+export function replayWords(line: ReplayLine): { w: string; c: number; t0: number; t1: number }[] {
+  const words = line.text.split(/\s+/).filter(Boolean);
+  const low = new Set((line.lowWords ?? []).map(normWord));
+  const step = line.durMs / Math.max(1, words.length);
+  return words.map((w, i) => ({
+    w, c: low.has(normWord(w)) ? 0.4 : 0.95,
+    t0: Math.round(line.t + i * step), t1: Math.round(line.t + (i + 1) * step),
+  }));
 }
 
 /** One scripted non-speech audio event in a replay scenario file. */
@@ -113,6 +127,7 @@ export function startReplay(
           tStart: line.t,
           tEnd: line.t + line.durMs,
           final: true,
+          words: replayWords(line),
         });
       });
     }
