@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0d12;
+  --color-card: #151922;
+  --color-card-2: #1d2230;
+  --color-line: #2a3142;
+  --color-fg: #eef1f6;
+  --color-muted: #9aa3b5;
+  --color-accent: #60a5fa;
+  --color-warn: #fbbf24;
+  --color-good: #34d399;
+  --color-bad: #f87171;
+  --color-change: #c084fc;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* High contrast: pure black/white, brighter lines */
+:root[data-contrast="high"] {
+  --color-bg: #000000;
+  --color-card: #000000;
+  --color-card-2: #111111;
+  --color-line: #ffffff;
+  --color-fg: #ffffff;
+  --color-muted: #e5e5e5;
+  --color-accent: #7dd3fc;
+}
+
+:root {
+  font-size: 18px; /* base; SettingsDrawer overrides S/M/L/XL */
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  line-height: 1.35;
+  overscroll-behavior: none;
+}
+
+:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; border-radius: 6px; }
+
+@keyframes imt-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
+.imt-pulse { animation: imt-pulse 1.6s ease-in-out infinite; }
+@keyframes imt-shimmer { 0% { opacity: .45; } 50% { opacity: .9; } 100% { opacity: .45; } }
+.imt-skeleton { animation: imt-shimmer 1.2s ease-in-out infinite; background: var(--color-card-2); border-radius: 8px; }
+@keyframes imt-flash { 0% { box-shadow: 0 0 0 0 rgba(251,191,36,.7); } 100% { box-shadow: 0 0 0 14px rgba(251,191,36,0); } }
+.imt-flash { animation: imt-flash 1s ease-out 3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .imt-pulse, .imt-skeleton, .imt-flash { animation: none; }
+  * { transition: none !important; }
+}
+
+.line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

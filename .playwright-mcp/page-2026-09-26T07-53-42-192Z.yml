@@ -1,0 +1,24 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic [ref=f1e6]:
+      - status [ref=f1e7]: Replay
+      - generic [ref=f1e8]: ledger – · catch-up –
+    - button "Pause listening" [ref=f1e9]
+    - button "Settings" [ref=f1e13]
+  - main [ref=f1e17]:
+    - region "Now speaking" [ref=f1e18]:
+      - generic [ref=f1e19]:
+        - generic [ref=f1e20]: Now
+        - button "Priya, rename speaker" [ref=f1e48]:
+          - generic [ref=f1e47]: Priya
+      - paragraph [ref=f1e21]: Backend's solid,
+    - generic [ref=f1e22]:
+      - region "Open on the table" [ref=f1e23]:
+        - heading "Open on the table" [level=2] [ref=f1e24]
+        - paragraph [ref=f1e25]: Nothing open yet. Decisions, objections and questions show up here.
+      - region "For you" [ref=f1e26]:
+        - heading "For you" [level=2] [ref=f1e27]
+        - paragraph [ref=f1e28]: Nothing asked of you.
+    - button "Catch me up" [ref=f1e29]
+    - region "Live captions" [ref=f1e30]:
+      - button "Live captions" [ref=f1e31]

@@ -1,0 +1,235 @@
+{
+ "names": {
+  "0": "Alex",
+  "1": "Sam",
+  "2": "Priya"
+ },
+ "lines": [
+  {
+   "t": 0,
+   "speaker": 0,
+   "text": "Okay, quick sync before everyone scatters.",
+   "durMs": 2200
+  },
+  {
+   "t": 2000,
+   "speaker": 1,
+   "text": "Go for it, I've got five minutes tops.",
+   "durMs": 2000
+  },
+  {
+   "t": 4200,
+   "speaker": 0,
+   "text": "So captions feature, where are we really.",
+   "durMs": 2400
+  },
+  {
+   "t": 6800,
+   "speaker": 2,
+   "text": "Backend's solid, the diarization pass merged this morning.",
+   "durMs": 2800
+  },
+  {
+   "t": 9800,
+   "speaker": 0,
+   "text": "Nice. I think we ship it Friday.",
+   "durMs": 1800
+  },
+  {
+   "t": 11800,
+   "speaker": 1,
+   "text": "Whoa, hold on, Friday feels fast.",
+   "durMs": 2000
+  },
+  {
+   "t": 14000,
+   "speaker": 0,
+   "text": "We've been saying Friday for two weeks.",
+   "durMs": 1800
+  },
+  {
+   "t": 16000,
+   "speaker": 1,
+   "text": "Diarization still flaps on crosstalk, I watched it swap speakers mid-sentence twice yesterday.",
+   "durMs": 3800
+  },
+  {
+   "t": 20000,
+   "speaker": 2,
+   "text": "He's right, I saw it flip Alex and me during the standup replay.",
+   "durMs": 3200
+  },
+  {
+   "t": 23400,
+   "speaker": 0,
+   "text": "Okay but that's an edge case, most calls are clean.",
+   "durMs": 2600
+  },
+  {
+   "t": 26200,
+   "speaker": 1,
+   "text": "Monday is safer. Give me the weekend to lock the merge logic.",
+   "durMs": 3000
+  },
+  {
+   "t": 29400,
+   "speaker": 0,
+   "text": "Monday pushes the whole announcement though.",
+   "durMs": 2200
+  },
+  {
+   "t": 31800,
+   "speaker": 2,
+   "text": "Can we soft-launch Friday and flip the flag Monday if it's stable?",
+   "durMs": 3600
+  },
+  {
+   "t": 35600,
+   "speaker": 0,
+   "text": "That could work actually.",
+   "durMs": 1400
+  },
+  {
+   "t": 37200,
+   "speaker": 1,
+   "text": "Fine by me, as long as nobody's demoing it live before Monday.",
+   "durMs": 2800
+  },
+  {
+   "t": 40200,
+   "speaker": 2,
+   "text": "Speaking of, what are we charging for this? Free tier or paid add-on?",
+   "durMs": 3400
+  },
+  {
+   "t": 43800,
+   "speaker": 0,
+   "text": "Open question, honestly. Product hasn't decided.",
+   "durMs": 2200
+  },
+  {
+   "t": 46200,
+   "speaker": 1,
+   "text": "I'd put it behind the Pro tier, it's expensive to run.",
+   "durMs": 2600
+  },
+  {
+   "t": 47000,
+   "event": "knock",
+   "score": 0.85
+  },
+  {
+   "t": 49000,
+   "speaker": 2,
+   "text": "We should flag that for Thursday's pricing review.",
+   "durMs": 2400
+  },
+  {
+   "t": 51600,
+   "speaker": 0,
+   "text": "Agreed, noting it as open.",
+   "durMs": 1400
+  },
+  {
+   "t": 53200,
+   "speaker": 1,
+   "text": "Okay, comic relief, ship it on a Nokia 3310 and see who complains.",
+   "durMs": 3400
+  },
+  {
+   "t": 56800,
+   "event": "laughter",
+   "score": 0.92
+  },
+  {
+   "t": 58200,
+   "speaker": 2,
+   "text": "A 3310 would survive the meeting longer than my laptop battery.",
+   "durMs": 2600
+  },
+  {
+   "t": 61000,
+   "speaker": 0,
+   "text": "Bera, can you own the demo script by Friday?",
+   "durMs": 2600
+  },
+  {
+   "t": 63800,
+   "speaker": 1,
+   "text": "Yeah he's good at making it sound better than it is.",
+   "durMs": 2200
+  },
+  {
+   "t": 66200,
+   "speaker": 2,
+   "text": "No offense, Bera.",
+   "durMs": 1200
+  },
+  {
+   "t": 67600,
+   "speaker": 0,
+   "text": "None taken, he'll take that as a compliment.",
+   "durMs": 2000
+  },
+  {
+   "t": 69800,
+   "speaker": 1,
+   "text": "So circling back, Friday soft launch, Monday flag flip, real launch?",
+   "durMs": 3400
+  },
+  {
+   "t": 73400,
+   "speaker": 0,
+   "text": "Yeah let's lock that.",
+   "durMs": 1400
+  },
+  {
+   "t": 75000,
+   "speaker": 2,
+   "text": "I'll write the pricing note for Thursday.",
+   "durMs": 2200
+  },
+  {
+   "t": 77400,
+   "speaker": 1,
+   "text": "I'll finish the diarization fix by Sunday night.",
+   "durMs": 2600
+  },
+  {
+   "t": 80200,
+   "speaker": 0,
+   "text": "And Bera owns the demo script, due Friday.",
+   "durMs": 2400
+  },
+  {
+   "t": 82800,
+   "speaker": 2,
+   "text": "Cool, are we saying Monday out loud or keeping it soft?",
+   "durMs": 2800
+  },
+  {
+   "t": 85800,
+   "speaker": 0,
+   "text": "Keep it soft until it's stable, then announce.",
+   "durMs": 2600
+  },
+  {
+   "t": 88600,
+   "speaker": 1,
+   "text": "Works for me. Same time tomorrow to check the merge?",
+   "durMs": 2800
+  },
+  {
+   "t": 89000,
+   "speaker": 2,
+   "text": "Oh wait, pricing review moved to Wednesday, Thursday's fully booked now.",
+   "durMs": 3200
+  },
+  {
+   "t": 92400,
+   "speaker": 0,
+   "text": "Wednesday then. Bera, that's your slot too, right after the demo run-through.",
+   "durMs": 3400
+  }
+ ]
+}

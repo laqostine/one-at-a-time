@@ -1,0 +1,5 @@
+# Reddit digest: DHH subreddits (dedup, sorted by upvotes)
+
+- **[35↑ 21c] r/deaf — Anyone else struggling with group conversations at work or is it just me being awkward about asking people to repeat themselves constantly?**  
+  I work in marketing and we have these weekly team meetings where everyone just talks over each other. By the end I'm exhausted from trying to lipread four different people and honestly I've started just nodding along even when I have no idea what was decided. My boss mentioned something about a new client project last Thursday and I smiled and agreed but I genuinely don't know what I signed up for. I've tried sitting closer, I've tried the Roger pen thing but it only helps a little when people actually remember to use it. My coworker keeps sending me meeting notes afterward which is sweet but also makes me feel like a burden. I'm 28 and this is my first real corporate job after grad school.   
+  https://www.reddit.com/r/deaf/comments/1r2797f/anyone_else_struggling_with_group_conversations/

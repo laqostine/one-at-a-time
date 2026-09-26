@@ -1,0 +1,77 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic [ref=f1e6]:
+      - status [ref=f1e7]: Replay
+      - generic [ref=f1e8]: ledger 0ms · catch-up 0ms
+    - button "Pause listening" [ref=f1e9]
+    - button "Settings" [ref=f1e13]
+  - main [ref=f1e17]:
+    - region "Now speaking" [ref=f1e18]:
+      - generic [ref=f1e19]:
+        - generic [ref=f1e20]: Now
+        - button "Alex, rename speaker" [ref=f1e107]:
+          - generic [ref=f1e47]: Alex
+      - paragraph [ref=f1e21]: Open
+    - generic [ref=f1e22]:
+      - region "Open on the table" [ref=f1e23]:
+        - heading "Open on the table · +4 more" [level=2] [ref=f1e49]:
+          - text: Open on the table
+          - generic [ref=f1e50]: · +4 more
+        - list [ref=f1e53]:
+          - listitem [ref=f1e54]:
+            - 'button "Decision from Sam: Monday is safer. Give me the weekend to lock the merge logic.. Show what was said." [ref=f1e55]':
+              - generic [ref=f1e62]:
+                - generic [ref=f1e63]: Monday is safer. Give me the weekend to lock the merge logic.
+                - generic [ref=f1e64]:
+                  - generic [ref=f1e65]: Sam
+                  - generic [ref=f1e67]: · decision
+          - listitem [ref=f1e68]:
+            - 'button "Decision from Alex: Monday pushes the whole announcement though.. Show what was said." [ref=f1e69]':
+              - generic [ref=f1e76]:
+                - generic [ref=f1e77]: Monday pushes the whole announcement though.
+                - generic [ref=f1e78]:
+                  - generic [ref=f1e79]: Alex
+                  - generic [ref=f1e81]: · decision
+          - listitem [ref=f1e82]:
+            - 'button "Open question from Priya: Can we soft-launch Friday and flip the flag Monday if it''s stable?. Show what was said." [ref=f1e83]':
+              - generic [ref=f1e87]:
+                - generic [ref=f1e88]: Can we soft-launch Friday and flip the flag Monday if it's stable?
+                - generic [ref=f1e89]:
+                  - generic [ref=f1e90]: Priya
+                  - generic [ref=f1e92]: · open question
+          - listitem [ref=f1e93]:
+            - 'button "Decision from Alex: That could work actually.. Show what was said." [ref=f1e94]':
+              - generic [ref=f1e101]:
+                - generic [ref=f1e102]: That could work actually.
+                - generic [ref=f1e103]:
+                  - generic [ref=f1e104]: Alex
+                  - generic [ref=f1e106]: · decision
+      - region "For you" [ref=f1e26]:
+        - heading "For you" [level=2] [ref=f1e27]
+        - paragraph [ref=f1e28]: Nothing asked of you.
+      - region "Catch-up" [ref=f1e108] [cursor=pointer]:
+        - generic [ref=f1e109]:
+          - heading "You missed" [level=2] [ref=f1e110]
+          - generic [ref=f1e111]: as of 0s ago · 0.0s · low confidence
+          - button "Dismiss catch-up" [ref=f1e112]
+        - generic [ref=f1e116]:
+          - list [ref=f1e117]:
+            - listitem [ref=f1e118]:
+              - 'button "Priya: Priya: Can we soft-launch Friday and flip the flag Monday if it''s stable?. Show what was said." [ref=f1e119]':
+                - generic [ref=f1e122]:
+                  - strong [ref=f1e123]: "Priya:"
+                  - text: "Priya: Can we soft-launch Friday and flip the flag Monday if it's stable?"
+            - listitem [ref=f1e124]:
+              - 'button "Alex: Alex: That could work actually.. Show what was said." [ref=f1e125]':
+                - generic [ref=f1e128]:
+                  - strong [ref=f1e129]: "Alex:"
+                  - text: "Alex: That could work actually."
+            - listitem [ref=f1e130]:
+              - 'button "Sam: Sam: Fine by me, as long as nobody''s demoing it live before Monday.. Show what was said." [ref=f1e131]':
+                - generic [ref=f1e134]:
+                  - strong [ref=f1e135]: "Sam:"
+                  - text: "Sam: Fine by me, as long as nobody's demoing it live before Monday."
+          - paragraph [ref=f1e136]: "Still open: Can we soft-launch Friday and flip the flag Monday if it's stable?"
+    - button "Catch me up" [ref=f1e29]
+    - region "Live captions" [ref=f1e30]:
+      - button "Live captions" [ref=f1e31]
