@@ -147,8 +147,15 @@ export function registerAsr(app: FastifyInstance): void {
       };
       // Participant transcripts go to the room's host(s), never back to the phone.
       const send = (m: AsrMessage) => {
-        if (participant && m.type === 'transcript') join.room.fromParticipant(participant, m, dgOpenedAt);
-        else direct(m);
+        if (participant && m.type === 'transcript') { join.room.fromParticipant(participant, m, dgOpenedAt); return; }
+        // Phones on the table: the host device sits in front of the listener, so its mic is THEIR mic.
+        // Attribute host transcripts to ME (-2, named) instead of diarization ids; the client's duplicate guard
+        // drops the bleed from other people's phones.
+        if (m.type === 'transcript' && join.room.parts.size > 0 && join.room.meName.trim()) {
+          direct({ ...m, speaker: -2 }); // no `name`: the client keeps its host-path duplicate guard for these lines
+          return;
+        }
+        direct(m);
       };
 
       const key = process.env.DEEPGRAM_API_KEY;

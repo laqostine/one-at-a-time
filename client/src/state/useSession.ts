@@ -299,8 +299,9 @@ export function useSession() {
     return () => { cancelled = true; setParticipants([]); stops.splice(0).forEach((s) => { try { s(); } catch { /* ignore */ } }); };
   }, [listening, started, onMessage, onEvent]);
 
-  // ---- phones-only: mute this device's mic while >= 1 phone is joined (default ON) ----
-  const phonesOnly = (phonesOnlyPref ?? true) && participants.length > 0;
+  // ---- phones-only: mute this device's mic while >= 1 phone is joined (default OFF: the listener's own
+  // mic stays on and the server attributes it to ME; bleed from other phones is dropped by the dup guard) ----
+  const phonesOnly = (phonesOnlyPref ?? false) && participants.length > 0;
   useEffect(() => {
     hostMutedRef.current = phonesOnly;
     micRef.current?.setMuted(phonesOnly);
