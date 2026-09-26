@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { IconRepeat } from './icons';
+import { IconPlacemat, IconRepeat } from './icons';
+import { ObjIcon } from './ObjIcon';
 import type { Utterance } from '../../../shared/types';
 import { hasDoubt } from '../state/confidence';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,7 +47,7 @@ export function NowCard({ utt, name, color, onSpeaker, onAskRepeat, variant = 'c
               <span className="truncate">{name}</span>
               <span className="font-normal text-ink-muted">{utt.final ? 'said' : 'is saying'}</span>
             </button>
-          ) : <span className="font-mono text-[0.72rem] font-semibold tracking-[0.16em] text-ink-muted uppercase">The placemat</span>}
+          ) : <span className="flex items-center gap-2 font-mono text-[0.72rem] font-semibold tracking-[0.16em] text-ink-muted uppercase"><ObjIcon name="placemat" fallback={IconPlacemat} size={40} className="-my-2" />The placemat</span>}
           {repeatBtn}
         </div>
         {utt ? (

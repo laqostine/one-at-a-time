@@ -8,6 +8,7 @@ import { PresenceAuto } from '../ui/PresenceAuto';
 import { IconOverlap, IconPace, IconSpeakForMe } from '../ui/icons';
 import { Lamp } from './Lamp';
 import { HouseRules } from '../ui/HouseRules';
+import { ObjIcon } from '../ui/ObjIcon';
 import { SayCard, type SayMsg } from './SayCard';
 import { Toggle } from '@/components/ui/toggle';
 
@@ -227,7 +228,7 @@ export default function JoinPage() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <header>
-        <a href="/landing.html" className="wordmark text-[1.35rem]">I Missed That</a>
+        <div className="flex items-center justify-between"><a href="/landing.html" className="wordmark text-[1.35rem]">I Missed That</a><ObjIcon name="table" fallback={IconPace} size={56} className="-my-2" /></div>
         <h1 className="mt-4 font-display-italic text-[2.6rem] leading-none">{phase === 'live' ? name.trim() : 'Join the table'}</h1>
         <p className="mt-2 text-body text-muted">
           Your phone is your mic. <span className="text-fg">{host}</span> sees your name, not your voice. One at a time helps.
@@ -264,7 +265,7 @@ export default function JoinPage() {
             { Icon: IconSpeakForMe, title: `${host} can answer you here`, body: 'Their typed line fills your screen for 10 seconds.' },
           ].map(({ Icon, title, body }) => (
             <li key={title} className="flex items-start gap-3 rounded-xl px-2.5 py-2.5">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/8 text-accent"><Icon size={22} /></span>
+              <ObjIcon name={Icon === IconPace ? 'lamp' : 'bell'} fallback={Icon} size={48} className="-my-1" />
               <span className="min-w-0"><span className="block font-semibold">{title}</span><span className="block text-[0.95rem] leading-snug text-muted">{body}</span></span>
             </li>
           ))}

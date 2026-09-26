@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { LevelDots } from './LevelDots';
+import { ObjIcon } from './ObjIcon';
 
 interface Props {
   asr: SessionApi['asr'];
@@ -122,7 +123,7 @@ function Controls({ listening, onToggleListening, onSettings, onEveryoneJoins, p
           <TooltipTrigger asChild>
             <button type="button" onClick={onEveryoneJoins} aria-label={`Everyone joins (${participantCount} connected)`}
               className="lift relative flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 text-[0.9rem] font-semibold text-fg transition-colors duration-150 hover:border-input hover:bg-card-2 sm:gap-2 sm:px-3">
-              <IconTable size={20} className="text-accent" />
+              <ObjIcon name="table" fallback={IconTable} size={34} className="-my-2 -ml-1" />
               <span className="hidden md:inline">Everyone joins</span>
               <span className={`min-w-6 rounded-full px-1.5 text-center font-mono text-[0.75rem] leading-6 font-bold tabular-nums ${participantCount > 0 ? 'bg-accent text-accent-fg' : 'bg-card-2 text-muted'}`}>{participantCount}</span>
             </button>

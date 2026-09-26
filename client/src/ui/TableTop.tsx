@@ -7,7 +7,7 @@
 import type { ReactNode } from 'react';
 import type { Seat } from './TableRing';
 import type { TableLampState } from './tableLamp';
-import { IconChair, IconMug } from './icons';
+import { IconChair, IconLamp, IconMug, IconPhoneMic, IconPlate } from './icons';
 import { ObjIcon } from './ObjIcon';
 import { cn, readable } from '@/lib/utils';
 
@@ -70,17 +70,20 @@ export function TableTop({ seats, me, lamp, head, placemat, className }: Props) 
         const pos = at(angle(slot));
         if (!s) {
           return (
-            <div key={`empty-${slot}`} aria-hidden title="An empty chair" className="absolute z-[3] -translate-x-1/2 -translate-y-1/2 text-muted/35" style={pos}>
-              <IconChair size={28} />
+            <div key={`empty-${slot}`} aria-hidden title="An empty chair" className="absolute z-[3] -translate-x-1/2 -translate-y-1/2 opacity-55" style={pos}>
+              <ObjIcon name="chair" fallback={IconChair} size={52} />
             </div>
           );
         }
         return (
           <div key={s.id} className="absolute z-[3] -translate-x-1/2 -translate-y-1/2" style={pos}>
-            <div className={cn('flex max-w-[11rem] items-center gap-2 rounded-2xl border px-3.5 py-2 text-[1.05rem] font-semibold shadow-[0_10px_20px_-8px_rgb(0_0_0/.7)] transition-[box-shadow,background-color,border-color,opacity] duration-300',
+            <div className={cn('flex max-w-[14rem] items-center gap-2 whitespace-nowrap rounded-2xl border px-3.5 py-2 text-[1.05rem] font-semibold shadow-[0_10px_20px_-8px_rgb(0_0_0/.7)] transition-[box-shadow,background-color,border-color,opacity] duration-300',
               s.active ? 'bg-[#45291f] text-fg' : 'border-white/12 bg-[#231915]/92 text-muted', active && !s.active && 'opacity-80')}
               style={s.active ? { borderColor: s.color, boxShadow: `0 0 0 4px color-mix(in oklab, ${s.color} 20%, transparent), 0 0 28px color-mix(in oklab, ${s.color} 55%, transparent)` } : undefined}>
-              <span aria-hidden className={cn('size-3 shrink-0 rounded-full', s.active && 'imt-pulse')} style={{ background: s.color, boxShadow: s.active ? `0 0 10px ${s.color}` : undefined }} />
+              <span className="relative -my-2 -ml-2 shrink-0">
+                <ObjIcon name="phone" fallback={IconPhoneMic} size={40} />
+                <span aria-hidden className={cn('absolute right-0.5 bottom-1 size-3 rounded-full ring-2 ring-[#231915]', s.active && 'imt-pulse')} style={{ background: s.color, boxShadow: s.active ? `0 0 10px ${s.color}` : undefined }} />
+              </span>
               <span className="truncate" style={s.active ? { color: readable(s.color) } : undefined}>{s.name}</span>
               {s.active && <span className="sr-only"> is talking and has the mug</span>}
             </div>
@@ -91,7 +94,7 @@ export function TableTop({ seats, me, lamp, head, placemat, className }: Props) 
       {/* you */}
       <div className="absolute z-[3] -translate-x-1/2 -translate-y-1/2" style={at(angle(0))}>
         <div className="flex items-center gap-2 rounded-2xl border border-accent/55 bg-[#1b1916]/95 px-3.5 py-2 text-[1.05rem] font-semibold text-accent shadow-[var(--glow-accent)]">
-          <span aria-hidden className="size-3 rounded-full border-2 border-accent" />{me || 'You'}<span className="font-mono text-[0.66rem] tracking-[0.14em] text-muted uppercase">you</span>
+          <ObjIcon name="plate" fallback={IconPlate} size={40} className="-my-2 -ml-2" />{me || 'You'}<span className="font-mono text-[0.66rem] tracking-[0.14em] text-muted uppercase">you</span>
         </div>
       </div>
 
@@ -99,8 +102,8 @@ export function TableTop({ seats, me, lamp, head, placemat, className }: Props) 
           render's black background drops out against the wood (a transformed child would isolate it). */}
       {mugA != null && (
         <>
-          <div aria-hidden className="mug-token pointer-events-none absolute z-[4] -translate-x-1/2 -translate-y-1/2 mix-blend-screen" style={at(mugA, RX - 13, RY - 12)} title="The mug: whoever has it has the floor">
-            <ObjIcon name="mug" fallback={IconMug} size={48} blend={false} />
+          <div aria-hidden className="mug-token pointer-events-none absolute z-[4] -translate-x-1/2 -translate-y-1/2" style={at(mugA, RX - 14, RY - 13)} title="The mug: whoever has it has the floor">
+            <ObjIcon name="mug" fallback={IconMug} size={64} />
           </div>
         </>
       )}
@@ -113,9 +116,12 @@ export function TableTop({ seats, me, lamp, head, placemat, className }: Props) 
 export function LampPill({ lamp, className }: { lamp: TableLampState; className?: string }) {
   return (
     <div role="status" aria-label={`Table lamp: ${lamp.word}. ${lamp.hint}.`}
-      className={cn('flex h-11 shrink-0 items-center gap-2.5 rounded-full border px-4 text-[0.95rem] font-semibold transition-colors duration-500', className)}
+      className={cn('flex h-12 shrink-0 items-center gap-2.5 rounded-full border px-4 text-[0.95rem] font-semibold transition-colors duration-500', className)}
       style={{ borderColor: `color-mix(in oklab, ${lamp.hex} 50%, transparent)`, background: `color-mix(in oklab, ${lamp.hex} 12%, var(--card))` }}>
-      <span aria-hidden className="size-3 rounded-full" style={{ background: lamp.hex, boxShadow: `0 0 12px ${lamp.hex}` }} />
+      <span className="relative -my-2 -ml-2">
+        <ObjIcon name="lamp" fallback={IconLamp} size={38} />
+        <span aria-hidden className="absolute bottom-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full" style={{ background: lamp.hex, boxShadow: `0 0 12px 3px ${lamp.hex}` }} />
+      </span>
       <span className="text-fg">{lamp.word}</span>
     </div>
   );

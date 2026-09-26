@@ -10,7 +10,7 @@ import {
   IconForYou, IconLedger, IconName, IconPhoneMic, IconReceipt, IconSpeakForMe, IconTable,
   IconDecision, IconObjection, IconQuestion, IconLaugh, IconLamp, IconMug, IconChanged,
 } from '../ui/icons';
-import { ObjIcon } from '../ui/ObjIcon';
+import { ObjIcon, type ObjName } from '../ui/ObjIcon';
 import { HouseRules } from '../ui/HouseRules';
 import { cn } from '@/lib/utils';
 
@@ -203,7 +203,7 @@ function TableScene({ wide }: { wide: boolean }) {
         <div className="linen absolute top-[30%] left-1/2 w-[46%] -translate-x-1/2 rotate-[-1.5deg] rounded-[46%_54%_50%_48%/14%_12%_14%_12%] px-3 py-2 text-center">
           <p className="font-display text-[clamp(0.8rem,1.6vw,1.1rem)] leading-tight text-ink">“Sunday at one, everyone brings a side.”</p>
         </div>
-        <div className="absolute top-[16%] left-[27%] mix-blend-screen"><ObjIcon name="mug" fallback={IconMug} size={wide ? 44 : 32} blend={false} /></div>
+        <div className="absolute top-[10%] left-[24%]"><ObjIcon name="mug" fallback={IconMug} size={wide ? 64 : 44} /></div>
       </div>
       {/* glowing phone place cards */}
       {HERO_SEATS.map((p) => (
@@ -252,11 +252,11 @@ const STATS = [
   { lead: 'More than 90% of deaf children', rest: ' have hearing parents. The table is where it starts.', src: 'Mitchell & Karchmer 2004' },
 ];
 
-const STEPS = [
-  { Icon: IconPhoneMic, title: 'Phones', body: 'Everyone scans one QR and lays the phone on the table, screen up. It becomes their mic. Nothing to install.' },
-  { Icon: IconName, title: 'Names', body: 'Every line carries a real name, Mom, Dad, Joyce, not “Speaker 2”.' },
-  { Icon: IconLedger, title: 'Plans', body: 'Plans with the why, pushback and questions, one lane per conversation at the table.' },
-  { Icon: IconReceipt, title: 'Receipts', body: 'Catch me up gives you three lines with the exact words one tap away.' },
+const STEPS: { Icon: typeof IconPhoneMic; obj: ObjName; title: string; body: string }[] = [
+  { Icon: IconPhoneMic, obj: 'phone', title: 'Phones', body: 'Everyone scans one QR and lays the phone on the table, screen up. It becomes their mic. Nothing to install.' },
+  { Icon: IconName, obj: 'plate', title: 'Names', body: 'Every line carries a real name, Mom, Dad, Joyce, not “Speaker 2”.' },
+  { Icon: IconLedger, obj: 'note', title: 'Plans', body: 'Plans with the why, pushback and questions, one lane per conversation at the table.' },
+  { Icon: IconReceipt, obj: 'placemat', title: 'Receipts', body: 'Catch me up gives you three lines with the exact words one tap away.' },
 ];
 
 const SAMPLE_SEATS = [
@@ -303,7 +303,7 @@ export default function Landing() {
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a href="/?replay=demo2" className={btnPrimary}><IconLamp size={22} strokeWidth={2} />Watch Sunday lunch</a>
-                <a href="/" className={btnGhost}><IconTable size={22} strokeWidth={2} />Start a table</a>
+                <a href="/" className={btnGhost}><ObjIcon name="table" fallback={IconTable} size={36} className="-my-2 -ml-2" />Start a table</a>
               </div>
               <p className="mt-5 font-mono text-[0.72rem] tracking-wider text-muted uppercase">No wearables · phones on the table · nothing stored</p>
             </div>
@@ -337,7 +337,7 @@ export default function Landing() {
             <p className="mt-5 max-w-xl text-[1.1rem] leading-relaxed text-muted">Three house rules, on the host’s placemat before anyone speaks and on every phone that joins. When two people talk at once, every phone glows amber. Nobody has to say “one at a time” for the hundredth time.</p>
           </Reveal>
           <Reveal delay={120} className="relative mx-auto w-full max-w-md">
-            <div aria-hidden className="absolute -top-10 -right-4 hidden sm:block"><ObjIcon name="lamp" fallback={IconLamp} size={120} /></div>
+            <div aria-hidden className="absolute -top-10 -right-4 hidden sm:block"><ObjIcon name="lamp" fallback={IconLamp} size={150} /></div>
             <HouseRules host="Bera" className="relative p-7!" />
           </Reveal>
         </section>
@@ -352,9 +352,9 @@ export default function Landing() {
           </Reveal>
           <ol className="mt-14 grid gap-6 lg:grid-cols-3">
             {[
-              { n: '01', title: 'Phones on the table, screen up.', body: 'Each phone is its owner’s mic and a lamp. Green: one voice. Amber: two at once. Red: too fast. The hearing people see it, not you.', mock: <LampMock />, obj: <ObjIcon name="lamp" fallback={IconLamp} size={64} /> },
-              { n: '02', title: 'Mom asked you.', body: 'A question aimed at you rings amber: the only interruption the app ever makes. The plans, with the why, wait on their dish.', mock: <AskedMock />, obj: <ObjIcon name="bell" fallback={IconForYou} size={64} /> },
-              { n: '03', title: 'Why they laughed.', body: 'When the table laughs, the line that got the laugh lands on your screen. You get the joke three seconds late, instead of never.', mock: <LaughMock />, obj: <IconLaugh size={48} className="m-2 text-[#edbc8f]" /> },
+              { n: '01', title: 'Phones on the table, screen up.', body: 'Each phone is its owner’s mic and a lamp. Green: one voice. Amber: two at once. Red: too fast. The hearing people see it, not you.', mock: <LampMock />, obj: <ObjIcon name="lamp" fallback={IconLamp} size={96} /> },
+              { n: '02', title: 'Mom asked you.', body: 'A question aimed at you rings amber: the only interruption the app ever makes. The plans, with the why, wait on their dish.', mock: <AskedMock />, obj: <ObjIcon name="bell" fallback={IconForYou} size={96} /> },
+              { n: '03', title: 'Why they laughed.', body: 'When the table laughs, the line that got the laugh lands on your screen. You get the joke three seconds late, instead of never.', mock: <LaughMock />, obj: <ObjIcon name="popper" fallback={IconLaugh} size={96} /> },
             ].map((m, k) => (
               <Reveal as="li" key={m.n} delay={k * 120} className="flex flex-col rounded-3xl border border-line bg-card p-5 sm:p-6">
                 <div className="flex min-h-[25rem] items-center rounded-2xl bg-[radial-gradient(closest-side,rgb(255_207_131/.08),transparent)] py-4">{m.mock}</div>
@@ -396,12 +396,10 @@ export default function Landing() {
             </Reveal>
           </div>
           <ol className="relative mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
-            <span aria-hidden className="absolute top-7 right-[12%] left-[12%] hidden h-px bg-gradient-to-r from-transparent via-line-strong to-transparent lg:block" />
+            <span aria-hidden className="absolute top-11 right-[12%] left-[12%] hidden h-px bg-gradient-to-r from-transparent via-line-strong to-transparent lg:block" />
             {STEPS.map((s, k) => (
               <Reveal as="li" key={s.title} delay={k * 110} className="relative rounded-2xl border border-line bg-card p-5 lg:mx-2 lg:border-0 lg:bg-transparent lg:p-3 lg:text-center">
-                <span className="relative inline-flex size-14 items-center justify-center rounded-2xl border border-accent/35 bg-bg text-accent shadow-[var(--glow-accent)] lg:mx-auto">
-                  <s.Icon size={28} />
-                </span>
+                <span className="relative inline-flex lg:mx-auto"><ObjIcon name={s.obj} fallback={s.Icon} size={88} /></span>
                 <p className="mt-4 font-mono text-[0.7rem] tracking-[0.18em] text-muted">0{k + 1}</p>
                 <h3 className="mt-1 text-[1.3rem] font-semibold">{s.title}</h3>
                 <p className="mt-2 text-[1rem] leading-relaxed text-muted">{s.body}</p>
@@ -427,7 +425,7 @@ export default function Landing() {
             </h2>
             <div className="mt-9 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
               <a href="/?replay=demo2" className={btnPrimary}><IconLamp size={22} strokeWidth={2} />Watch Sunday lunch</a>
-              <a href="/" className={btnGhost}><IconTable size={22} strokeWidth={2} />Start a table</a>
+              <a href="/" className={btnGhost}><ObjIcon name="table" fallback={IconTable} size={36} className="-my-2 -ml-2" />Start a table</a>
               <a href="/?replay=demo1" className={btnGhost}>Watch a standup</a>
             </div>
           </Reveal>

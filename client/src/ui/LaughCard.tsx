@@ -7,6 +7,7 @@ import type { AudioEvent, TimelineItem, Utterance } from '../../../shared/types'
 import type { CatchupState } from '../state/useSession';
 import { eventMeta } from './EventChip';
 import { IconLaugh } from './icons';
+import { ObjIcon } from './ObjIcon';
 import { cn, readable } from '@/lib/utils';
 
 interface Props {
@@ -75,7 +76,7 @@ export function LaughCard({ items, catchup, nameOf, colorOf, colorFor, getNow, o
         {last ? (
           <button type="button" onClick={() => onOpen(last.t)} aria-label={`The table laughed at ${last.speaker ? `${last.speaker}: ` : ''}${last.text}. Show what was said.`}
             className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-xl py-1 text-left">
-            <IconLaugh size={22} strokeWidth={2} className="shrink-0 text-[#edbc8f]" />
+            <ObjIcon name="popper" fallback={IconLaugh} size={36} className="-my-1" />
             <span className="shrink-0 text-[0.9rem] text-muted">They laughed at{last.speaker ? <> <strong style={{ color: readable(last.color) }}>{last.speaker}</strong></> : null}:</span>
             <q className="min-w-0 truncate font-display text-[1.15rem] text-fg">{last.text}</q>
           </button>
@@ -89,7 +90,7 @@ export function LaughCard({ items, catchup, nameOf, colorOf, colorFor, getNow, o
   return (
     <section aria-label="Why they laughed" className={cn('dish flex min-h-0 flex-col overflow-hidden rounded-3xl p-4 sm:p-5', className)}>
       <h2 className="flex items-center gap-2 card-label text-[#efd6b5]!">
-        <span className="flex size-8 items-center justify-center rounded-full bg-[#c68c5b]/20 text-[#edbc8f]"><IconLaugh size={20} strokeWidth={2} /></span>
+        <ObjIcon name="popper" fallback={IconLaugh} size={52} className="-my-3" />
         Why they laughed
         {jokes.length > 1 && <span className="ml-auto font-mono text-[0.7rem] text-muted tabular-nums">{jokes.length} laughs</span>}
       </h2>

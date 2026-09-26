@@ -24,7 +24,7 @@ export function ForYouCard({ items, nudge, nudgeColor, colorFor, onDismiss, onOp
   return (
     <Card role="region" aria-label="Asked you" className={cn('dish shrink-0 px-3 sm:px-4', nudge && 'border-warn/60', className)}>
       <CardHeader className="px-1">
-        <ObjIcon name="bell" fallback={IconForYou} size={34} className="-my-1" />
+        <ObjIcon name="bell" fallback={IconForYou} size={52} className="-my-3" />
         <CardTitle className="text-warn!">Asked you</CardTitle>
       </CardHeader>
       <div aria-live="polite" aria-atomic="true">

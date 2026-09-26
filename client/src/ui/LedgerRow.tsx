@@ -2,6 +2,10 @@ import { IconChanged, IconDecision, IconForYou, IconObjection, IconQuestion, typ
 import type { LedgerItem, LedgerKind } from '../../../shared/types';
 import { cn, readable } from '@/lib/utils';
 import { ReplyTo } from './ReplyTo';
+import { ObjIcon, type ObjName } from './ObjIcon';
+
+/** The table object for each kind (the question keeps its line icon: a question has no object). */
+const OBJ: Partial<Record<LedgerKind, ObjName>> = { decision: 'note', objection: 'hand', instruction_change: 'eraser', assigned_to_me: 'bell' };
 
 /** Semantic kind styling. Family-table labels (kinds in code are unchanged):
  * decision→Plan, objection→Pushback, open_question→Question, instruction_change→Changed, assigned_to_me→Asked you.
@@ -35,7 +39,8 @@ export function LedgerRow({ item, color, replyColor, onOpen, compact = false }: 
       <li className={cn('imt-highlight rounded-xl transition-opacity duration-200', faded && 'opacity-45')}>
         <button type="button" onClick={onOpen} aria-label={aria}
           className="flex w-full cursor-pointer items-start gap-3 rounded-xl px-1.5 py-2 text-left transition-colors duration-150 hover:bg-white/[0.045]">
-          <k.Icon size={22} strokeWidth={2} className={cn('mt-0.5 shrink-0', k.tint)} />
+          {OBJ[item.kind] ? <ObjIcon name={OBJ[item.kind]!} fallback={k.Icon} size={36} className="-mt-0.5" />
+            : <span className="flex size-9 shrink-0 items-center justify-center"><k.Icon size={24} strokeWidth={2} className={k.tint} /></span>}
           <span className="min-w-0 flex-1">
             <span className={cn('line-clamp-2 text-body', faded && 'line-clamp-1 line-through decoration-muted')}>{item.text}</span>
             <span className="mt-0.5 block truncate text-meta">

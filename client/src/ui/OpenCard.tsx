@@ -70,7 +70,7 @@ export function OpenCard({ items, threads = [], colorFor, onOpen, tall = false, 
   return (
     <Card role="region" aria-label="Plans: what is open on the table" className={cn('dish min-h-0 flex-1 overflow-hidden px-3 sm:px-4', className)}>
       <CardHeader className="px-1">
-        <ObjIcon name="note" fallback={IconDecision} size={34} className="-my-1 rounded-lg" />
+        <ObjIcon name="note" fallback={IconDecision} size={52} className="-my-3" />
         <CardTitle className="text-[#efd6b5]!">Plans</CardTitle>
         <CardAction>
           {unresolved.length > 0 && <Badge variant="secondary" className="font-mono tabular-nums">{unresolved.length} open</Badge>}
