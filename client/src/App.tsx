@@ -33,7 +33,7 @@ import { Mic } from 'lucide-react';
 /** Click gate: the mic's AudioContext needs a user gesture, so a saved name shows one big button instead of auto-starting. */
 function StartGate({ name, onStart }: { name: string; onStart: () => void }) {
   return (
-    <div className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-6 px-6 text-center" role="dialog" aria-modal="true" aria-labelledby="start-gate-title">
+    <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-6 px-6 text-center" style={{ background: "radial-gradient(ellipse 90% 45% at 50% 0%, rgb(241 199 106 / .18), transparent 70%), rgb(27 20 16 / .97)" }} role="dialog" aria-modal="true" aria-labelledby="start-gate-title">
       <Wordmark height={40} />
       <h1 id="start-gate-title" className="font-display-italic text-[3rem] leading-none [text-shadow:2px_3px_6px_rgb(27_20_16/.6)]">Hi {name}.</h1>
       <Button type="button" size="lg" onClick={onStart} autoFocus data-testid="start-listening"

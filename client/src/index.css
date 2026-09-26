@@ -175,11 +175,12 @@ body {
   background-color: var(--shadow);
   /* the walnut table (tex/walnut-table.jpg: the mood photo's grain with its lighting flattened),
      a pendant lamp's warm pool at the top, the wood falling into shadow toward you */
+  /* calmer table: a warm walnut wash over the grain so the wood reads as a surface, not a pattern */
   background-image:
-    radial-gradient(ellipse 95% 42% at 50% 0%, rgb(241 199 106 / .2), transparent 72%),
-    linear-gradient(180deg, rgb(27 16 8 / 0), rgb(27 16 8 / .18) 50%, rgb(27 16 8 / .5) 100%),
+    radial-gradient(ellipse 95% 42% at 50% 0%, rgb(241 199 106 / .22), transparent 72%),
+    linear-gradient(180deg, rgb(78 50 30 / .62), rgb(52 33 19 / .74) 55%, rgb(30 18 10 / .86) 100%),
     url("/tex/walnut-table.jpg");
-  background-size: auto, auto, 860px auto;
+  background-size: auto, auto, 1400px auto;
   background-position: 0 0, 0 0, 42% 0;
   background-repeat: no-repeat, no-repeat, repeat;
   color: var(--fg);
