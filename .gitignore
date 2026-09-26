@@ -5,3 +5,4 @@ dist
 research/reddit/*.json
 
 .playwright-mcp
+client/public/icons/raw/
