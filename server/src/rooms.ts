@@ -668,7 +668,13 @@ export function createRoom(): Room {
 export function findRoom(token: string | undefined | null): Room | undefined {
   if (!token) return undefined;
   const t = token.trim();
-  return rooms.get(t) ?? rooms.get(t.toUpperCase());
+  const hit = rooms.get(t) ?? rooms.get(t.toUpperCase());
+  if (hit) return hit;
+  // Tables live in memory: after a server restart a phone still holds its code. Re-open a well-formed code instead of
+  // refusing it, so the listener never sits on "offline" and speakers typing the same code land on the same table.
+  const u = t.toUpperCase();
+  if (/^[A-Z0-9]{4}$/.test(u)) { const r = new Room(u); r.lang = room.lang; rooms.set(u, r); return r; }
+  return undefined;
 }
 /** The room an HTTP call means: its ?token= (or body.token), else the default room (replay / legacy links). */
 export function pickRoom(token: string | undefined | null): Room { return findRoom(token) ?? room; }
