@@ -8,7 +8,19 @@ export interface Utterance {
   tStart: number; tEnd: number; // ms since session start
   final: boolean;
   addressedToMe?: boolean;
+  threadId?: string;          // Thread.id this line belongs to (stamped after /api/state)
+  replyTo?: string;           // display name of the person this line answered
+  words?: WordConf[];         // finals only: per-word ASR confidence (0..1), in text order
+  repeatRequested?: boolean;  // user tapped "please repeat" on this line
 }
+/** One ASR word with confidence c (0..1). */
+export interface WordConf { w: string; c: number }
+/** Wire form of a word (ms since stream start). */
+export interface AsrWord { w: string; c: number; t0: number; t1: number }
+
+/** A parallel conversation lane. id is stable across /api/state calls (fuzzy-merged by label). */
+export interface Thread { id: string; label: string; participants: string[]; lastT: number; openCount: number }
+export interface UtteranceThread { t: number; threadId: string; replyTo?: string }
 
 export type EventKind = 'laughter'|'applause'|'cheering'|'alarm'|'doorbell'|'knock'|'phone'|'music';
 export interface AudioEvent { id: string; type: 'event'; kind: EventKind; t: number; score: number }
@@ -17,7 +29,7 @@ export type TimelineItem = Utterance | AudioEvent;
 
 export type LedgerKind = 'decision'|'objection'|'open_question'|'assigned_to_me'|'instruction_change';
 // thread: short label of the conversation thread this belongs to (e.g. "Friday launch"); replyTo: who this was responding to
-export interface LedgerItem { id: string; kind: LedgerKind; text: string; speaker?: string; t: number; resolved?: boolean; reason?: string; thread?: string; replyTo?: string }
+export interface LedgerItem { id: string; kind: LedgerKind; text: string; speaker?: string; t: number; resolved?: boolean; reason?: string; thread?: string; replyTo?: string; threadId?: string }
 
 export interface Session {
   startedAt: number;
@@ -31,7 +43,7 @@ export interface Session {
 // ---------- Server API ----------
 // POST /api/catchup
 export interface CatchupRequest { me: Session['me']; speakers: Record<number, Speaker>; window: TimelineItem[]; sinceT: number; nowT: number }
-export interface CatchupBullet { text: string; kind: 'decision_in_progress'|'objection'|'open_question'|'joke'|'event'|'info'|'instruction_change'; speaker?: string; t?: number; thread?: string; replyTo?: string }
+export interface CatchupBullet { text: string; kind: 'decision_in_progress'|'objection'|'open_question'|'joke'|'event'|'info'|'instruction_change'; speaker?: string; t?: number; thread?: string; replyTo?: string; threadId?: string /* client-resolved from thread label */ }
 export interface CatchupResponse {
   addressed_to_me: { speaker: string; question: string; t: number } | null;
   bullets: CatchupBullet[];      // <=3
@@ -41,8 +53,12 @@ export interface CatchupResponse {
 }
 
 // POST /api/state
-export interface StateRequest { me: Session['me']; speakers: Record<number, Speaker>; window: TimelineItem[]; nowT: number; existing: LedgerItem[] }
-export interface StateResponse { ledger: LedgerItem[]; addressed_to_me_now: { speaker: string; question: string; t: number } | null; latencyMs?: number }
+export interface StateRequest { me: Session['me']; speakers: Record<number, Speaker>; window: TimelineItem[]; nowT: number; existing: LedgerItem[]; existing_threads?: Thread[] }
+export interface StateResponse {
+  ledger: LedgerItem[]; addressed_to_me_now: { speaker: string; question: string; t: number } | null; latencyMs?: number;
+  threads?: Thread[];                    // all known lanes, lastT desc
+  utteranceThreads?: UtteranceThread[];  // t = exact tStart of a FINAL utterance in the request window
+}
 
 // POST /api/laugh  (stretch)
 export interface LaughRequest { speakers: Record<number, Speaker>; window: TimelineItem[]; t: number }
@@ -67,7 +83,7 @@ export const ME_SPEAKER_ID = -2;
 // server -> client: JSON messages:
 export type AsrMessage =
   // name: set when the line came from an "Everyone joins" participant phone (speaker = stable per-name id >= 100)
-  | { type: 'transcript'; speaker: number; text: string; tStart: number; tEnd: number; final: boolean; name?: string }
+  | { type: 'transcript'; speaker: number; text: string; tStart: number; tEnd: number; final: boolean; name?: string; words?: AsrWord[] /* finals only */ }
   | { type: 'status'; state: 'connecting'|'open'|'closed'|'error'; detail?: string }
   // host only: who is connected via /join.html (sent on join/leave/speaking change)
   | { type: 'participants'; list: Participant[] }

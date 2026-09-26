@@ -9,12 +9,12 @@ export function AwayIndicator({ enabled, active, away, sim }: { enabled: boolean
   return (
     <span className="flex shrink-0 items-center gap-1.5" data-testid="away-indicator">
       {away && (
-        <span role="status" className="flex items-center gap-1 rounded-full bg-warn px-2.5 py-1 text-[0.8rem] font-bold text-black">
+        <span role="status" className="flex h-7 items-center gap-1 rounded-full bg-warn px-2.5 text-[0.78rem] font-bold text-black">
           <EyeOff size={14} aria-hidden /> Away
         </span>
       )}
       <span title={tip} aria-label={tip} role="img"
-        className={`flex items-center gap-1 rounded-full border px-1.5 py-1 text-[0.7rem] ${active ? 'border-good/60 text-good' : 'border-line text-muted'}`}>
+        className={`flex h-7 items-center gap-1 rounded-full border px-2 text-[0.7rem] ${active ? 'border-good/50 bg-good/10 text-good' : 'border-border text-muted'}`}>
         <Camera size={14} aria-hidden />
         <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-good' : 'bg-muted'}`} />
       </span>

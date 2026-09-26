@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BellRing, X } from 'lucide-react';
 import type { CatchupState } from '../state/useSession';
+import { Badge } from '@/components/ui/badge';
+import { readable } from '@/lib/utils';
 
 interface Props {
   state: CatchupState;
@@ -38,26 +40,28 @@ export function CatchupCard({ state, colorFor, onBullet, onDismiss, title }: Pro
   return (
     <section aria-label="Catch-up" aria-live="polite"
       onClick={onDismiss} onFocus={() => setPaused(true)} onMouseEnter={() => setPaused(true)}
-      className={`absolute inset-0 z-10 flex cursor-pointer flex-col overflow-hidden rounded-2xl border-2 border-accent bg-card px-3 py-3 shadow-2xl transition-opacity duration-1000 ${fading ? 'opacity-30' : 'opacity-100'}`}>
-      <div className="flex items-center justify-between gap-2 px-1 pb-2">
-        <h2 className="text-[0.75rem] font-semibold tracking-wider text-accent uppercase">{title ?? 'You missed'}</h2>
+      className={`imt-in absolute inset-0 z-10 flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-accent/70 bg-card p-4 shadow-[var(--glow-accent),0_24px_48px_-12px_rgb(0_0_0/0.7)] transition-opacity duration-200 sm:p-5 ${fading ? 'opacity-40' : 'opacity-100'}`}>
+      <div className="flex min-h-8 items-center gap-2 pb-3">
+        <h2 className="card-label text-accent!">{title ?? 'You missed'}</h2>
         {state.status === 'ready' && (
-          <span className="ml-auto text-[0.75rem] text-muted tabular-nums">
-            as of {age}s ago · {(state.latencyMs / 1000).toFixed(1)}s · {state.data.confidence} confidence
+          <span className="ml-auto flex items-center gap-1.5 text-meta tabular-nums">
+            <span className="hidden sm:inline">as of {age}s ago</span>
+            <Badge variant="outline" className="text-muted">{(state.latencyMs / 1000).toFixed(1)}s</Badge>
+            <Badge variant="outline" className="text-muted">{state.data.confidence}</Badge>
           </span>
         )}
         <button type="button" onClick={(e) => { e.stopPropagation(); onDismiss(); }} aria-label="Dismiss catch-up"
-          className="rounded-lg p-1 text-muted hover:text-fg"><X size={20} aria-hidden /></button>
+          className={`${state.status === 'ready' ? '' : 'ml-auto '}-mr-2 flex size-10 cursor-pointer items-center justify-center rounded-xl text-muted transition-colors duration-150 hover:bg-card-2 hover:text-fg`}><X size={20} aria-hidden /></button>
       </div>
 
       {state.status === 'loading' && (
         <div className="space-y-3 px-1" aria-busy="true" aria-label="Loading catch-up">
-          {[92, 78, 64].map((w) => <div key={w} className="imt-skeleton h-6" style={{ width: `${w}%` }} />)}
+          {[92, 78, 64].map((w) => <div key={w} className="imt-skeleton h-7" style={{ width: `${w}%` }} />)}
         </div>
       )}
 
       {state.status === 'error' && (
-        <p className="px-1 text-[1.1rem] text-bad">Couldn't catch you up ({state.message}). Tap Catch me up to retry.</p>
+        <p className="px-1 text-body text-bad">Couldn't catch you up ({state.message}). Tap Catch me up to retry.</p>
       )}
 
       {state.status === 'ready' && (() => {
@@ -67,22 +71,22 @@ export function CatchupCard({ state, colorFor, onBullet, onDismiss, title }: Pro
         return (
           <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
             {a && (
-              <p className="flex items-start gap-2 rounded-xl border-2 border-warn bg-warn/10 px-3 py-2 text-[1.15rem] leading-snug">
-                <BellRing size={20} className="mt-1 shrink-0 text-warn" aria-hidden />
-                <span><strong style={{ color: colorFor(a.speaker) }}>{a.speaker}</strong> asked you: <q>{a.question}</q></span>
+              <p className="flex items-start gap-3 rounded-xl border border-warn/70 bg-warn/10 px-4 py-3 text-body-lg shadow-[var(--glow-warn)]">
+                <BellRing size={22} className="mt-0.5 shrink-0 text-warn" aria-hidden />
+                <span><strong style={{ color: readable(colorFor(a.speaker)) }}>{a.speaker}</strong> asked you: <q>{a.question}</q></span>
               </p>
             )}
             {bullets.length ? (
-              <ul className="space-y-1.5">
+              <ul className="space-y-1">
                 {bullets.map((b, k) => {
                   const c = colorFor(b.speaker);
                   const inner = (
                     <>
-                      <span aria-hidden className="mt-2 h-3 w-3 shrink-0 rounded-full" style={{ background: c }} />
+                      <span aria-hidden className="w-1 shrink-0 self-stretch rounded-full" style={{ background: c || 'var(--line-strong)' }} />
                       <span className="min-w-0">
-                        {b.thread && <span className="block truncate text-[0.75rem] text-muted">{b.thread}</span>}
-                        <span className="text-[1.2rem] leading-snug">
-                          {b.speaker && <strong style={{ color: c }}>{b.speaker}{b.replyTo ? <span className="font-normal text-muted"> to {b.replyTo}</span> : null}: </strong>}
+                        {b.thread && <span className="block truncate text-meta">{b.thread}</span>}
+                        <span className="text-body-lg">
+                          {b.speaker && <strong style={{ color: readable(c) }}>{b.speaker}{b.replyTo ? <span className="font-normal text-muted"> to {b.replyTo}</span> : null}: </strong>}
                           {b.kind === 'instruction_change' && <span className="font-semibold text-change">Changed: </span>}
                           {b.text}
                         </span>
@@ -93,16 +97,16 @@ export function CatchupCard({ state, colorFor, onBullet, onDismiss, title }: Pro
                     <li key={k}>
                       {b.t != null ? (
                         <button type="button" onClick={(e) => { e.stopPropagation(); onBullet(b.t!); }}
-                          className="flex w-full items-start gap-2.5 rounded-xl px-2 py-1 text-left hover:bg-card-2"
+                          className="flex w-full cursor-pointer items-stretch gap-3 rounded-xl px-2 py-1.5 text-left transition-colors duration-150 hover:bg-card-2"
                           aria-label={`${b.thread ? `${b.thread}. ` : ''}${b.speaker ? `${b.speaker}${b.replyTo ? ` to ${b.replyTo}` : ''}: ` : ''}${b.text}. Show what was said.`}>{inner}</button>
-                      ) : <div className="flex items-start gap-2.5 px-2 py-1">{inner}</div>}
+                      ) : <div className="flex items-stretch gap-3 px-2 py-1.5">{inner}</div>}
                     </li>
                   );
                 })}
               </ul>
-            ) : !a && <p className="px-1 text-[1.1rem] text-muted">Nothing important since you last checked.</p>}
+            ) : !a && <p className="px-1 text-body text-muted">Nothing important since you last checked.</p>}
             {d.open_threads.length > 0 && (
-              <p className="px-2 text-[0.9rem] text-muted">Still open: {d.open_threads.slice(0, 3).join(' · ')}</p>
+              <p className="mt-1 border-t border-border px-2 pt-2 text-meta">Still open: {d.open_threads.slice(0, 3).join(' · ')}</p>
             )}
           </div>
         );

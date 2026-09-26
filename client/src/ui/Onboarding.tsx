@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
-import { Presence } from './Presence';
+import { PresenceAuto } from './PresenceAuto';
 
 /** One-step first run: name is what makes "asked you" detection work. */
 export function Onboarding({ onDone }: { onDone: (name: string) => void }) {
@@ -8,7 +8,7 @@ export function Onboarding({ onDone }: { onDone: (name: string) => void }) {
   return (
     <Modal title="I Missed That" onClose={() => {}} dismissable={false}>
       <div className="mb-2 flex justify-center">
-        <Presence size={72} state="idle" level={0} />
+        <PresenceAuto size={160} state="idle" level={0} />
       </div>
       <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) onDone(name.trim()); }} className="space-y-4">
         <label className="block">

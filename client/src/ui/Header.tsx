@@ -2,7 +2,10 @@ import type { ReactNode } from 'react';
 import { useEffect, useReducer } from 'react';
 import { Settings, Pause, Play, Users } from 'lucide-react';
 import type { SessionApi } from '../state/useSession';
-import { Presence, type PresenceState } from './Presence';
+import type { PresenceState } from './Presence';
+import { PresenceAuto } from './PresenceAuto';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Props {
   asr: SessionApi['asr'];
@@ -83,35 +86,58 @@ export function Header({
   const presenceState = derivePresenceState(asr, listening, lastTranscriptAt, requestPending, speaking, now);
   const presenceLevel = deriveLevel(asr, lastTranscriptAt, micLevel, now);
 
+  const live = listening && asr.state === 'open';
+  const iconBtn = 'relative flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-muted transition-colors duration-150 hover:bg-card-2 hover:text-fg';
+
   return (
-    <header className="flex items-center gap-3 px-3 pt-2 pb-1">
-      <Presence size={56} state={presenceState} level={presenceLevel} />
+    <TooltipProvider delayDuration={300}>
+    <header className="flex h-[84px] shrink-0 items-center gap-2 px-3 sm:gap-3 sm:px-4">
+      <PresenceAuto size={72} state={presenceState} level={presenceLevel} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[0.95rem] font-semibold" role="status">{s.text}</div>
-        <div className="truncate text-[0.75rem] text-muted tabular-nums">
-          {asr.source === 'webspeech' && listening ? 'no speaker colors · ' : ''}
-          ledger {latency.stateError ? 'offline' : fmtMs(latency.stateMs)} · catch-up {fmtMs(latency.catchupMs)}
+        <div className="flex min-w-0 items-center gap-2">
+          <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.tone} ${live ? 'imt-pulse' : ''}`} />
+          <span className="truncate text-[1rem] font-semibold" role="status">{s.text}</span>
+        </div>
+        <div className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden tabular-nums">
+          {asr.source === 'webspeech' && listening && <Badge variant="outline" className="text-warn">no speaker colors</Badge>}
+          <Badge variant="outline" className={latency.stateError ? 'text-warn' : 'text-muted'} title="Time for the ledger to update">
+            ledger {latency.stateError ? 'offline' : fmtMs(latency.stateMs)}
+          </Badge>
+          <Badge variant="outline" className="text-muted" title="Time for the last catch-up">catch-up {fmtMs(latency.catchupMs)}</Badge>
         </div>
       </div>
       {badge}
       {onEveryoneJoins && (
-        <button type="button" onClick={onEveryoneJoins} aria-label={`Everyone joins (${participantCount} connected)`} title="Everyone joins"
-          className="relative rounded-xl p-2.5 text-muted hover:bg-card-2 hover:text-fg">
-          <Users size={22} aria-hidden />
-          {participantCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-5 rounded-full bg-accent px-1 text-center text-[0.7rem] font-bold text-black">{participantCount}</span>
-          )}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" onClick={onEveryoneJoins} aria-label={`Everyone joins (${participantCount} connected)`}
+              className="relative flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-border bg-card px-3 text-[0.9rem] font-semibold text-fg transition-colors duration-150 hover:border-input hover:bg-card-2">
+              <Users size={20} aria-hidden className="text-accent" />
+              <span className="hidden sm:inline">Everyone joins</span>
+              <span className={`min-w-6 rounded-full px-1.5 text-center text-[0.75rem] leading-6 font-bold tabular-nums ${participantCount > 0 ? 'bg-accent text-accent-fg' : 'bg-card-2 text-muted'}`}>{participantCount}</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Show the QR so everyone's phone becomes their mic</TooltipContent>
+        </Tooltip>
       )}
-      <button type="button" onClick={onToggleListening}
-        aria-label={listening ? 'Pause listening' : 'Resume listening'}
-        className="rounded-xl p-2.5 text-muted hover:bg-card-2 hover:text-fg">
-        {listening ? <Pause size={22} aria-hidden /> : <Play size={22} aria-hidden />}
-      </button>
-      <button type="button" onClick={onSettings} aria-label="Settings"
-        className="rounded-xl p-2.5 text-muted hover:bg-card-2 hover:text-fg">
-        <Settings size={22} aria-hidden />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" onClick={onToggleListening}
+            aria-label={listening ? 'Pause listening' : 'Resume listening'} className={iconBtn}>
+            {listening ? <Pause size={22} aria-hidden /> : <Play size={22} aria-hidden />}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>{listening ? 'Pause listening' : 'Resume listening'}</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" onClick={onSettings} aria-label="Settings" className={iconBtn}>
+            <Settings size={22} aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Settings</TooltipContent>
+      </Tooltip>
     </header>
+    </TooltipProvider>
   );
 }

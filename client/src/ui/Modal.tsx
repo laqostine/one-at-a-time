@@ -1,5 +1,9 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { Dialog as DialogPrimitive } from 'radix-ui';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 
 interface Props {
   title: string;
@@ -9,49 +13,53 @@ interface Props {
   dismissable?: boolean;
 }
 
-/** Minimal accessible dialog: Esc closes, focus moves in and is restored, Tab is trapped. */
+/**
+ * Accessible dialog on shadcn/ui (Radix): focus trapped and restored, Esc + outside click close.
+ * `center` = Dialog, `sheet` = bottom Sheet, `drawer` = right Sheet. Mounted = open.
+ */
 export function Modal({ title, onClose, children, variant = 'center', dismissable = true }: Props) {
-  const panel = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    const first = panel.current?.querySelector<HTMLElement>('input, select, textarea, button:not([data-close]), [href]');
-    (first ?? panel.current)?.focus();
-    return () => prev?.focus?.();
-  }, []);
-
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape' && dismissable) { e.stopPropagation(); onClose(); }
-    if (e.key !== 'Tab' || !panel.current) return;
-    const f = [...panel.current.querySelectorAll<HTMLElement>('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])')].filter((el) => !el.hasAttribute('disabled'));
-    if (!f.length) return;
-    const [a, z] = [f[0], f[f.length - 1]];
-    if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
-    else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+  const onOpenChange = (open: boolean) => { if (!open && dismissable) onClose(); };
+  const block = dismissable ? undefined : (e: Event) => e.preventDefault();
+  // Focus the first field/action in the body rather than the header's close button.
+  const onOpenAutoFocus = (e: Event) => {
+    const root = e.currentTarget as HTMLElement;
+    const first = root.querySelector<HTMLElement>('[data-modal-body] :is(input, select, textarea, button, [href]):not([disabled])');
+    if (first) { e.preventDefault(); first.focus(); }
   };
+  const guards = { onOpenAutoFocus, onEscapeKeyDown: block, onPointerDownOutside: block, onInteractOutside: block, 'aria-describedby': undefined };
 
-  const pos = variant === 'sheet'
-    ? 'items-end justify-center'
-    : variant === 'drawer' ? 'items-stretch justify-end' : 'items-center justify-center p-4';
-  const shape = variant === 'sheet'
-    ? 'w-full max-w-2xl max-h-[80dvh] rounded-t-2xl'
-    : variant === 'drawer' ? 'w-full max-w-sm h-full' : 'w-full max-w-md rounded-2xl max-h-[90dvh]';
-
-  return (
-    <div className={`fixed inset-0 z-50 flex bg-black/60 ${pos}`} onKeyDown={onKey}
-      onMouseDown={(e) => { if (dismissable && e.target === e.currentTarget) onClose(); }}>
-      <div ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}
-        className={`flex flex-col bg-card border border-line text-fg shadow-2xl ${shape}`}>
-        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {dismissable && (
-            <button data-close type="button" onClick={onClose} aria-label="Close"
-              className="rounded-lg p-2 text-muted hover:bg-card-2 hover:text-fg">
-              <X size={22} aria-hidden />
-            </button>
-          )}
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{children}</div>
-      </div>
+  const header = (Title: typeof DialogTitle) => (
+    <div className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-3">
+      <Title className="text-[1.15rem] leading-tight font-semibold text-fg">{title}</Title>
+      {dismissable && (
+        <DialogPrimitive.Close aria-label="Close"
+          className="-mr-2 flex size-11 cursor-pointer items-center justify-center rounded-xl text-muted transition-colors duration-150 hover:bg-card-2 hover:text-fg">
+          <X size={22} aria-hidden />
+        </DialogPrimitive.Close>
+      )}
     </div>
+  );
+  const body = <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-5 py-5 text-[1rem]">{children}</div>;
+
+  if (variant === 'center') {
+    return (
+      <Dialog open onOpenChange={onOpenChange}>
+        <DialogContent showCloseButton={false} {...guards}
+          className="flex max-h-[90dvh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 text-fg shadow-2xl sm:max-w-md">
+          {header(DialogTitle)}
+          {body}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  return (
+    <Sheet open onOpenChange={onOpenChange}>
+      <SheetContent side={variant === 'sheet' ? 'bottom' : 'right'} showCloseButton={false} {...guards}
+        className={cn('flex-col gap-0 border-border bg-card p-0 text-fg',
+          variant === 'sheet' ? 'mx-auto max-h-[80dvh] w-full max-w-3xl rounded-t-2xl border-x' : 'h-full w-full max-w-sm sm:max-w-sm')}>
+        {header(SheetTitle)}
+        {body}
+      </SheetContent>
+    </Sheet>
   );
 }

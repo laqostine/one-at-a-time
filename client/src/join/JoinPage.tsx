@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 import type { AsrMessage, PaceLevel } from '../../../shared/types';
 import { startMic, type MicHandle } from '../audio/mic';
-import { Presence } from '../ui/Presence';
+import { PresenceAuto } from '../ui/PresenceAuto';
+import { Toggle } from '@/components/ui/toggle';
 
 type Phase = 'form' | 'starting' | 'live' | 'error';
 type Link = 'connecting' | 'open' | 'reconnecting' | 'lost';
@@ -30,9 +31,10 @@ function PaceBar({ pace }: { pace: Pace | null }) {
   const who = pace?.listenerName || 'the table';
   if (!pace) {
     return (
-      <div className="rounded-2xl border border-line bg-card p-5" data-testid="pace">
-        <div className="text-[1.15rem] font-semibold">Your pace</div>
-        <p className="mt-1 text-muted">Start talking — your speed shows here.</p>
+      <div className="rounded-2xl border border-border bg-card p-5" data-testid="pace">
+        <div className="card-label">Your pace</div>
+        <div className="mt-2 text-[3.5rem] leading-none font-bold text-muted tabular-nums">–</div>
+        <p className="mt-2 text-body text-muted">Start talking — your speed shows here.</p>
       </div>
     );
   }
@@ -47,26 +49,25 @@ function PaceBar({ pace }: { pace: Pace | null }) {
   const pct = Math.min(100, Math.round((wpm / PACE_MAX_WPM) * 100));
   const mark = (w: number) => `${(w / PACE_MAX_WPM) * 100}%`;
   return (
-    <div className={`rounded-2xl border-2 ${border} bg-card p-5`} data-testid="pace" data-level={level} data-overlap={overlap}>
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="text-[1.3rem] leading-tight font-bold" role="status" aria-live="polite">{text}</div>
-        <div className="shrink-0 text-right">
-          <span className="text-[2rem] font-bold tabular-nums" data-testid="pace-wpm">{wpm || '–'}</span>
-          <span className="ml-1 text-sm text-muted">wpm</span>
-        </div>
+    <div className={`rounded-2xl border-2 ${border} bg-card p-5 transition-colors duration-200`} data-testid="pace" data-level={level} data-overlap={overlap}>
+      <div className="card-label">Your pace</div>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className={`text-[4.5rem] leading-none font-bold tracking-tight tabular-nums ${tone === 'bad' ? 'text-bad' : tone === 'warn' ? 'text-warn' : 'text-fg'}`} data-testid="pace-wpm">{wpm || '–'}</span>
+        <span className="text-[1rem] font-semibold text-muted">words / min</span>
       </div>
-      <div className="relative mt-4 h-8 w-full overflow-hidden rounded-full bg-card-2" role="meter" aria-label="Your speaking pace"
+      <div className="mt-2 text-[1.2rem] leading-snug font-semibold" role="status" aria-live="polite">{text}</div>
+      <div className="relative mt-4 h-5 w-full overflow-hidden rounded-full bg-card-2" role="meter" aria-label="Your speaking pace"
         aria-valuemin={0} aria-valuemax={PACE_MAX_WPM} aria-valuenow={wpm} aria-valuetext={`${wpm} words per minute, ${text}`}>
-        <div className={`h-full rounded-full ${bar} transition-[width] duration-500`} style={{ width: `${pct}%` }} />
-        <span aria-hidden className="absolute top-0 h-full w-0.5 bg-fg/40" style={{ left: mark(150) }} />
-        <span aria-hidden className="absolute top-0 h-full w-0.5 bg-fg/70" style={{ left: mark(170) }} />
+        <div className={`h-full origin-left rounded-full ${bar} transition-[width] duration-200`} style={{ width: `${pct}%` }} />
+        <span aria-hidden className="absolute top-0 h-full w-0.5 bg-bg/70" style={{ left: mark(150) }} />
+        <span aria-hidden className="absolute top-0 h-full w-1 -translate-x-1/2 bg-bg" style={{ left: mark(170) }} />
       </div>
-      <div aria-hidden className="relative mt-1 h-4 text-xs text-muted">
+      <div aria-hidden className="relative mt-1.5 h-4 text-[0.72rem] font-semibold text-muted tabular-nums">
         <span className="absolute -translate-x-1/2" style={{ left: mark(150) }}>150</span>
         <span className="absolute -translate-x-1/2" style={{ left: mark(170) }}>170</span>
       </div>
       {overlap && (
-        <div role="alert" className="mt-3 rounded-xl bg-bad/15 px-3 py-2 text-[1.15rem] font-semibold text-bad" data-testid="pace-overlap">
+        <div role="alert" className="mt-4 rounded-xl border border-bad/40 bg-bad/12 px-3.5 py-2.5 text-[1.1rem] font-semibold text-bad" data-testid="pace-overlap">
           Two people talking, one at a time helps {who}
         </div>
       )}
@@ -201,60 +202,66 @@ export default function JoinPage() {
   const dot = muted ? 'bg-muted' : link === 'open' ? (heard ? 'bg-good imt-pulse' : 'bg-good') : 'bg-warn';
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col gap-4 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <header>
-        <div className="text-sm font-semibold tracking-wide text-accent uppercase">I Missed That</div>
-        <h1 className="mt-1 text-2xl font-bold">{phase === 'live' ? name.trim() : 'Join the table'}</h1>
-        {phase !== 'live' && <p className="mt-1 text-muted">Your phone becomes your microphone, so captions show your name.</p>}
+        <div className="card-label text-accent!">I Missed That</div>
+        <h1 className="mt-1 text-[1.75rem] leading-tight font-bold tracking-tight">{phase === 'live' ? name.trim() : 'Join the table'}</h1>
+        {phase !== 'live' && <p className="mt-1 text-body text-muted">Your phone becomes your microphone, so captions show your name.</p>}
       </header>
 
       {phase === 'error' && (
-        <div role="alert" className="rounded-2xl border border-warn/50 bg-card p-4 text-[1.05rem]">{error}
-          {token && <button type="button" onClick={() => setPhase('form')} className="mt-4 h-12 w-full rounded-xl bg-card-2 font-semibold">Try again</button>}
+        <div role="alert" className="rounded-2xl border border-warn/50 bg-card p-5 text-body">{error}
+          {token && <button type="button" onClick={() => setPhase('form')} className="mt-4 h-12 w-full cursor-pointer rounded-xl border border-border bg-card-2 font-semibold">Try again</button>}
         </div>
       )}
 
       {(phase === 'form' || phase === 'starting') && (
-        <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void join(); }}>
+        <form className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5" onSubmit={(e) => { e.preventDefault(); void join(); }}>
           <label className="flex flex-col gap-2">
-            <span className="font-semibold">Your name</span>
+            <span className="card-label">Your name</span>
             <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" maxLength={40}
               placeholder="e.g. Alex" enterKeyHint="go"
-              className="h-14 rounded-xl border border-line bg-card px-4 text-[1.2rem] text-fg outline-none focus:border-accent" />
+              className="h-14 rounded-xl border border-input bg-card-2 px-4 text-[1.2rem] text-fg outline-none transition-colors duration-150 focus:border-accent" />
           </label>
           <button type="submit" disabled={!name.trim() || phase === 'starting'}
-            className="h-16 rounded-2xl bg-accent text-[1.3rem] font-bold text-black disabled:opacity-50">
+            className="h-16 cursor-pointer rounded-2xl bg-accent text-[1.3rem] font-bold text-accent-fg transition-[filter] duration-150 hover:brightness-110 disabled:cursor-default disabled:opacity-50">
             {phase === 'starting' ? 'Starting mic…' : 'Join'}
           </button>
         </form>
       )}
 
       {phase === 'live' && (
-        <section className="flex flex-col gap-5" aria-live="polite">
-          <div className="rounded-2xl border border-line bg-card p-5">
+        <section className="flex flex-col gap-4" aria-live="polite">
+          <PaceBar pace={muted ? null : pace} />
+          <div className="rounded-2xl border border-border bg-card p-4">
             <div className="flex items-center gap-3">
-              <Presence size={32} state={muted ? 'idle' : link === 'open' ? (heard ? 'speaking' : 'listening') : 'idle'} level={level} />
-              <span aria-hidden className={`h-3.5 w-3.5 shrink-0 rounded-full ${dot}`} />
-              <div className="text-[1.15rem] font-semibold" role="status">{statusLine}</div>
+              <PresenceAuto size={96} state={muted ? 'idle' : link === 'open' ? (heard ? 'speaking' : 'listening') : 'idle'} level={level} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span aria-hidden className={`h-3 w-3 shrink-0 rounded-full ${dot}`} />
+                  <div className="text-[1.05rem] leading-snug font-semibold" role="status">{statusLine}</div>
+                </div>
+                <div className="mt-0.5 truncate text-meta">Joined as <b className="text-fg">{name.trim()}</b></div>
+                <div className="mt-2.5 h-2.5 w-full overflow-hidden rounded-full bg-card-2" role="meter" aria-label="Mic level"
+                  aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(level * 100)}>
+                  <div className={`h-full rounded-full transition-[width] duration-100 ${heard ? 'bg-good' : 'bg-accent'}`}
+                    style={{ width: `${Math.round(level * 100)}%` }} />
+                </div>
+              </div>
             </div>
-            <div className="mt-1 text-muted">Joined as <b className="text-fg">{name.trim()}</b></div>
-            <div className="mt-4 h-4 w-full overflow-hidden rounded-full bg-card-2" role="meter" aria-label="Mic level"
-              aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(level * 100)}>
-              <div className={`h-full rounded-full transition-[width] duration-100 ${heard ? 'bg-good' : 'bg-accent'}`}
-                style={{ width: `${Math.round(level * 100)}%` }} />
+            <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+              <Toggle pressed={muted} onPressedChange={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}
+                className={`h-14 cursor-pointer rounded-xl border text-[1.15rem] font-bold [&_svg:not([class*='size-'])]:size-6 ${muted ? 'border-bad bg-bad text-black hover:bg-bad hover:text-black data-[state=on]:bg-bad data-[state=on]:text-black' : 'border-border bg-card-2 text-fg'}`}>
+                {muted ? <MicOff aria-hidden /> : <Mic aria-hidden />}
+                {muted ? 'Unmute' : 'Mute'}
+              </Toggle>
+              <button type="button" onClick={leave} className="h-14 cursor-pointer rounded-xl border border-border px-5 font-semibold text-muted transition-colors duration-150 hover:text-fg">Leave</button>
             </div>
           </div>
-          <PaceBar pace={muted ? null : pace} />
-          <button type="button" onClick={toggleMute} aria-pressed={muted}
-            className={`flex h-16 items-center justify-center gap-3 rounded-2xl text-[1.2rem] font-bold ${muted ? 'bg-bad text-black' : 'bg-card-2 text-fg'}`}>
-            {muted ? <MicOff size={24} aria-hidden /> : <Mic size={24} aria-hidden />}
-            {muted ? 'Unmute' : 'Mute'}
-          </button>
-          <button type="button" onClick={leave} className="h-12 rounded-xl border border-line text-muted">Leave</button>
         </section>
       )}
 
-      <p className="mt-auto text-sm text-muted">Your voice is transcribed with your name for this table only. Nothing is stored.</p>
+      <p className="mt-auto text-meta">Your voice is transcribed with your name for this table only. Nothing is stored.</p>
     </div>
   );
 }

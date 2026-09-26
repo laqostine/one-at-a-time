@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Speaker } from '../../../shared/types';
 import { Modal } from './Modal';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   speaker: Speaker;
@@ -23,27 +24,27 @@ export function RenameDialog({ speaker, current, others, onRename, onMerge, onCl
     <Modal title={`Who is ${current}?`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <label className="block">
-          <span className="mb-1 flex items-center gap-2 text-[0.9rem] text-muted">
+          <span className="mb-1.5 flex items-center gap-2 card-label">
             <span aria-hidden className="h-3 w-3 rounded-full" style={{ background: speaker.color }} /> Name
           </span>
           <input value={name} onChange={(e) => setName(e.target.value)} disabled={into !== ''} placeholder="e.g. Alex"
-            className="w-full rounded-xl border border-line bg-card-2 px-3 py-2.5 text-[1.1rem] disabled:opacity-40" />
+            className="h-12 w-full rounded-xl border border-input bg-card-2 px-3 text-[1.1rem] transition-colors duration-150 focus:border-accent disabled:opacity-40" />
         </label>
         {others.length > 0 && (
           <label className="block">
-            <span className="mb-1 block text-[0.9rem] text-muted">Or: same person as…</span>
+            <span className="mb-1.5 block card-label">Or: same person as…</span>
             <select value={into} onChange={(e) => setInto(e.target.value)}
-              className="w-full rounded-xl border border-line bg-card-2 px-3 py-2.5 text-[1.1rem]">
+              className="h-12 w-full rounded-xl border border-input bg-card-2 px-3 text-[1.1rem]">
               <option value="">— different person —</option>
               {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </label>
         )}
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-xl px-4 py-2.5 text-muted hover:text-fg">Cancel</button>
-          <button type="submit" className="rounded-xl bg-accent px-5 py-2.5 font-semibold text-black">
+          <Button type="button" variant="ghost" onClick={onClose} className="text-[1rem]">Cancel</Button>
+          <Button type="submit" className="px-6 text-[1rem]">
             {into !== '' ? 'Merge' : 'Save'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

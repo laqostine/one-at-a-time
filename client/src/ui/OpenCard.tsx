@@ -1,4 +1,6 @@
 import type { LedgerItem } from '../../../shared/types';
+import { Card, CardAction, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { LedgerRow } from './LedgerRow';
 
 interface Props {
@@ -23,15 +25,25 @@ export function OpenCard({ items, colorFor, onOpen }: Props) {
   }
   const showHeaders = groups.size > 1 || !groups.has(GENERAL);
   return (
-    <section aria-label="Open on the table" className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-card px-2 py-3">
-      <h2 className="px-2 pb-1 text-[0.75rem] font-semibold tracking-wider text-muted uppercase">
-        Open on the table {unresolved.length > MAX && <span className="normal-case">· +{unresolved.length - MAX} more</span>}
-      </h2>
+    <Card role="region" aria-label="Open on the table" className="min-h-0 flex-1 overflow-hidden px-3 sm:px-4">
+      <CardHeader className="px-1">
+        <CardTitle>Open on the table</CardTitle>
+        <CardAction>
+          {unresolved.length > 0 && <Badge variant="secondary" className="tabular-nums">{unresolved.length} open</Badge>}
+          {unresolved.length > MAX && <span className="text-meta">+{unresolved.length - MAX} more</span>}
+        </CardAction>
+      </CardHeader>
       {shown.length ? (
-        <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden">
+        <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
           {[...groups].map(([thread, list]) => (
             <div key={thread}>
-              {showHeaders && <h3 className="truncate px-2 text-[0.75rem] text-muted">{thread}</h3>}
+              {showHeaders && (
+                <h3 className="flex items-center gap-2 px-1 pb-0.5 text-[0.78rem] font-semibold text-muted">
+                  <span aria-hidden className="h-px w-3 bg-line-strong" />
+                  <span className="truncate">{thread}</span>
+                  <span aria-hidden className="h-px flex-1 bg-line" />
+                </h3>
+              )}
               <ul className="space-y-0.5">
                 {list.map((i) => <LedgerRow key={i.id} item={i} color={colorFor(i.speaker)} onOpen={() => onOpen(i.t)} />)}
               </ul>
@@ -39,8 +51,8 @@ export function OpenCard({ items, colorFor, onOpen }: Props) {
           ))}
         </div>
       ) : (
-        <p className="px-2 text-[1rem] text-muted">Nothing open yet. Decisions, objections and questions show up here.</p>
+        <p className="px-1 text-body text-muted">Nothing open yet. Decisions, objections and questions show up here.</p>
       )}
-    </section>
+    </Card>
   );
 }

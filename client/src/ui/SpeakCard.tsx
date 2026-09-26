@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, Megaphone, Square, Volume2, X } from 'lucide-react';
 import type { InterjectIntent } from '../../../shared/types';
 import { MAX_WAIT_MS, type InterjectApi } from '../state/useInterject';
+import { Button } from '@/components/ui/button';
 
 interface Props { api: InterjectApi }
 
@@ -57,33 +58,34 @@ export function SpeakCard({ api }: Props) {
 
   if (!open) {
     return (
-      <button ref={openBtn} type="button" onClick={openAndDraft} aria-keyshortcuts="S"
-        className="flex h-14 w-full shrink-0 items-center justify-center gap-2 rounded-2xl border-2 border-accent bg-card text-[1.2rem] font-bold text-accent hover:bg-card-2">
-        <Megaphone size={22} aria-hidden /> Speak for me <kbd className="ml-1 rounded border border-line px-1.5 text-[0.75rem] font-normal text-muted">S</kbd>
-      </button>
+      <Button ref={openBtn} type="button" variant="outline" size="lg" onClick={openAndDraft} aria-keyshortcuts="S"
+        className="w-full shrink-0 border-accent/45 text-accent hover:border-accent hover:bg-accent/10">
+        <Megaphone aria-hidden /> Speak for me
+        <kbd className="ml-1 hidden rounded-md border border-border px-1.5 py-0.5 text-[0.72rem] font-normal text-muted sm:inline">S</kbd>
+      </Button>
     );
   }
 
   return (
-    <section aria-label="Speak for me" className="shrink-0 rounded-2xl border-2 border-accent bg-card px-3 py-3">
-      <div className="flex items-center gap-2 pb-2">
-        <h2 className="text-[0.75rem] font-semibold tracking-wider text-accent uppercase">Speak for me</h2>
+    <section aria-label="Speak for me" className="imt-in shrink-0 rounded-2xl border border-accent/60 bg-card p-4 shadow-[var(--glow-accent)] sm:p-5">
+      <div className="flex min-h-8 items-center gap-2 pb-3">
+        <h2 className="card-label text-accent!">Speak for me</h2>
         <p role="status" aria-live="polite" aria-atomic="true"
-          className={`ml-auto flex items-center gap-1.5 text-[0.9rem] ${busy ? 'font-semibold text-warn' : status === 'error' ? 'text-bad' : 'text-muted'}`}>
+          className={`ml-auto flex min-w-0 items-center gap-1.5 truncate text-[0.85rem] ${busy ? 'font-semibold text-warn' : status === 'error' ? 'text-bad' : 'text-muted'}`}>
           {(status === 'drafting' || status === 'waiting') && <Loader2 size={16} className="animate-spin" aria-hidden />}
           {status === 'speaking' && <Volume2 size={16} aria-hidden />}
           {statusText}
         </p>
-        <button type="button" onClick={close} aria-label="Close Speak for me" className="rounded-lg p-1 text-muted hover:text-fg">
+        <button type="button" onClick={close} aria-label="Close Speak for me" className="-mr-2 flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-muted transition-colors duration-150 hover:bg-card-2 hover:text-fg">
           <X size={20} aria-hidden />
         </button>
       </div>
 
       {busy && line && (
-        <div className="mb-2 flex items-center gap-2 rounded-xl border-2 border-warn bg-warn/10 px-3 py-2">
-          <q className="min-w-0 flex-1 text-[1.15rem] font-semibold leading-snug">{line}</q>
+        <div className="mb-2 flex items-center gap-3 rounded-xl border border-warn/70 bg-warn/10 px-4 py-2.5">
+          <q className="min-w-0 flex-1 text-body-lg font-semibold">{line}</q>
           <button type="button" onClick={api.stop} aria-label="Stop speaking"
-            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-bad px-3 py-2 text-[1rem] font-bold text-black hover:brightness-110">
+            className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-bad px-4 text-[1rem] font-bold text-black transition-[filter] duration-150 hover:brightness-110">
             <Square size={16} aria-hidden /> Stop
           </button>
         </div>
@@ -91,7 +93,7 @@ export function SpeakCard({ api }: Props) {
       {status === 'waiting' && <p className="sr-only">Will speak within {MAX_WAIT_MS / 1000} seconds.</p>}
 
       {status === 'drafting' && !options.length && (
-        <div className="space-y-2" aria-hidden>{[88, 72, 80].map((w) => <div key={w} className="imt-skeleton h-12" style={{ width: `${w}%` }} />)}</div>
+        <div className="space-y-2" aria-hidden>{[88, 72, 80].map((w) => <div key={w} className="imt-skeleton h-13" style={{ width: `${w}%` }} />)}</div>
       )}
 
       {options.length > 0 && (
@@ -100,9 +102,9 @@ export function SpeakCard({ api }: Props) {
             <li key={`${o.kind}-${k}-${o.line}`}>
               <button ref={k === 0 ? firstChip : undefined} type="button" disabled={busy} onClick={() => api.speakAtGap(o.line)}
                 aria-label={`${o.label}: ${o.line}. Say it at the next pause.`}
-                className="flex w-full items-start gap-3 rounded-xl border border-line bg-card-2 px-3 py-2.5 text-left hover:border-accent disabled:opacity-50">
-                <span className="mt-0.5 shrink-0 rounded-md bg-accent/15 px-2 py-0.5 text-[0.8rem] font-semibold text-accent">{o.label}</span>
-                <span className="text-[1.2rem] leading-snug">{o.line}</span>
+                className="flex w-full cursor-pointer items-start gap-3 rounded-xl border border-border bg-card-2 px-3.5 py-3 text-left transition-colors duration-150 hover:border-accent disabled:cursor-default disabled:opacity-50">
+                <span className="mt-0.5 inline-flex h-6 shrink-0 items-center rounded-full border border-accent/35 bg-accent/12 px-2 text-[0.72rem] font-semibold tracking-wide text-accent uppercase">{o.label}</span>
+                <span className="text-body-lg">{o.line}</span>
               </button>
             </li>
           ))}
@@ -112,7 +114,7 @@ export function SpeakCard({ api }: Props) {
       <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Draft a different kind of line">
         {INTENTS.map((i) => (
           <button key={i.intent} type="button" disabled={status === 'drafting' || busy} onClick={() => void api.draft(i.intent)}
-            className="rounded-full border border-line px-3 py-1 text-[0.9rem] text-muted hover:border-fg hover:text-fg disabled:opacity-50">
+            className="h-9 cursor-pointer rounded-full border border-border px-3.5 text-[0.88rem] font-medium text-muted transition-colors duration-150 hover:border-fg hover:text-fg disabled:cursor-default disabled:opacity-50">
             {i.label}
           </button>
         ))}
@@ -122,11 +124,11 @@ export function SpeakCard({ api }: Props) {
         <label htmlFor="imt-speak-custom" className="sr-only">Your own line</label>
         <input id="imt-speak-custom" value={custom} onChange={(e) => setCustom(e.target.value)} maxLength={200}
           placeholder="Type your own line…" autoComplete="off"
-          className="min-w-0 flex-1 rounded-xl border border-line bg-card-2 px-3 py-2 text-[1.1rem] placeholder:text-muted focus:border-accent" />
+          className="h-12 min-w-0 flex-1 rounded-xl border border-input bg-card-2 px-3 text-[1.05rem] transition-colors duration-150 placeholder:text-muted focus:border-accent" />
         <button type="button" disabled={!custom.trim() || status === 'drafting' || busy} onClick={() => void api.draft('custom', custom)}
-          className="rounded-xl border border-line px-3 text-[0.95rem] text-muted hover:text-fg disabled:opacity-50">Polish</button>
+          className="h-12 cursor-pointer rounded-xl border border-border px-3 text-[0.95rem] font-medium text-muted transition-colors duration-150 hover:text-fg disabled:cursor-default disabled:opacity-50">Polish</button>
         <button type="submit" disabled={!custom.trim() || busy}
-          className="rounded-xl bg-accent px-4 text-[1rem] font-bold text-black hover:brightness-110 disabled:opacity-50">Say it</button>
+          className="h-12 cursor-pointer rounded-xl bg-accent px-4 text-[1rem] font-bold text-accent-fg transition-[filter] duration-150 hover:brightness-110 disabled:cursor-default disabled:opacity-50">Say it</button>
       </form>
     </section>
   );

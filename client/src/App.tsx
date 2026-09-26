@@ -19,18 +19,20 @@ import { JoinQr } from './ui/JoinQr';
 import { SpeakCard } from './ui/SpeakCard';
 import { useAway, type AwayInterval } from './state/useAway';
 import { AwayIndicator } from './ui/AwayIndicator';
+import { Button } from '@/components/ui/button';
+import { Mic, Sparkles } from 'lucide-react';
 
 /** Click gate: the mic's AudioContext needs a user gesture, so a saved name shows one big button instead of auto-starting. */
 function StartGate({ name, onStart }: { name: string; onStart: () => void }) {
   return (
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-6 bg-bg px-6 text-center" role="dialog" aria-modal="true" aria-labelledby="start-gate-title">
-      <div className="text-sm font-semibold tracking-wide text-accent uppercase">I Missed That</div>
-      <h1 id="start-gate-title" className="text-2xl font-bold">Hi {name}</h1>
-      <button type="button" onClick={onStart} autoFocus data-testid="start-listening"
-        className="h-20 w-full max-w-sm rounded-2xl bg-accent text-[1.5rem] font-bold text-black hover:brightness-110">
-        Start listening
-      </button>
-      <p className="max-w-sm text-muted">Audio is transcribed live for this table only. Nothing is stored.</p>
+      <div className="card-label text-accent!">I Missed That</div>
+      <h1 id="start-gate-title" className="text-[2rem] leading-tight font-bold tracking-tight">Hi {name}</h1>
+      <Button type="button" size="lg" onClick={onStart} autoFocus data-testid="start-listening"
+        className="h-18 w-full max-w-sm text-[1.4rem] font-bold">
+        <Mic aria-hidden /> Start listening
+      </Button>
+      <p className="max-w-sm text-body text-muted">Audio is transcribed live for this table only. Nothing is stored.</p>
     </div>
   );
 }
@@ -80,21 +82,23 @@ export default function App() {
   const now = currentUtterance(session);
   const events = useMemo(() => session.timeline.filter((i): i is AudioEvent => i.type === 'event'), [session.timeline]);
   const loading = s.catchup.status === 'loading';
+  // Styling only: invite a press (subtle pulse) when an away span ended after the last catch-up.
+  const awayPending = !loading && s.catchup.status === 'idle' && !!awayApi.lastAway && awayApi.lastAway.t1 > session.lastSeenAt;
   const renameSp = renaming != null ? session.speakers[renaming] : undefined;
 
   return (
-    <div className="mx-auto flex h-dvh max-w-2xl flex-col">
+    <div className="mx-auto flex h-dvh max-w-3xl flex-col">
       <Header asr={s.asr} latency={s.latency} listening={s.listening}
         onToggleListening={() => s.setListening(!s.listening)} onSettings={() => setSettingsOpen(true)}
         onEveryoneJoins={() => setJoinOpen(true)} participantCount={s.participants.length}
         lastTranscriptAt={s.lastTranscriptAt} requestPending={s.requestPending} micLevel={s.micLevel}
         badge={<AwayIndicator enabled={awayApi.enabled} active={awayApi.active} away={awayApi.away} sim={awayApi.sim} />} />
 
-      <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-3">
+      <main className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
         <NowCard utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
           onSpeaker={() => now && setRenaming(now.speaker)} />
 
-        <div className="relative flex min-h-0 flex-1 flex-col gap-2">
+        <div className="relative flex min-h-0 flex-1 flex-col gap-2.5 sm:gap-3">
           <OpenCard items={session.ledger} colorFor={colorFor} onOpen={setJumpT} />
           <ForYouCard items={session.ledger} nudge={s.nudge}
             nudgeColor={s.nudge?.speakerId != null ? colorOf(s.nudge.speakerId) : colorFor(s.nudge?.speaker)}
@@ -103,10 +107,11 @@ export default function App() {
           <CatchupCard state={s.catchup} title={awayTitle ?? undefined} colorFor={colorFor} onBullet={setJumpT} onDismiss={s.dismissCatchup} />
         </div>
 
-        <button type="button" onClick={manualCatchUp} disabled={loading} aria-busy={loading}
-          className="h-16 w-full shrink-0 rounded-2xl bg-accent text-[1.3rem] font-bold text-black transition-opacity hover:brightness-110 disabled:opacity-60">
+        <Button type="button" size="lg" onClick={manualCatchUp} disabled={loading} aria-busy={loading}
+          className={`h-16 w-full shrink-0 text-[1.3rem] font-bold disabled:opacity-70 ${awayPending ? 'imt-invite' : ''}`}>
+          <Sparkles aria-hidden className="size-6" />
           {loading ? 'Catching you up…' : 'Catch me up'}
-        </button>
+        </Button>
 
         <SoundHistory events={events} getNow={s.nowT} />
         <CaptionsStrip items={session.timeline} nameOf={nameOf} colorOf={colorOf} onSpeaker={setRenaming} />

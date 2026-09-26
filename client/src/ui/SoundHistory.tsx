@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AudioEvent } from '../../../shared/types';
-import { EVENT_META } from './EventChip';
+import { eventMeta } from './EventChip';
 
 /** Last few non-speech sounds with time-ago, so a sound leaves a trace. */
 export function SoundHistory({ events, getNow }: { events: AudioEvent[]; getNow: () => number }) {
@@ -19,13 +19,13 @@ export function SoundHistory({ events, getNow }: { events: AudioEvent[]; getNow:
     return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`;
   };
   return (
-    <div aria-label="Sound history" className="flex shrink-0 items-center gap-1.5 overflow-hidden px-1 text-[0.8rem] whitespace-nowrap text-muted">
-      <span className="shrink-0 font-semibold tracking-wider uppercase">Sounds</span>
+    <div aria-label="Sound history" role="group" className="flex h-7 shrink-0 items-center gap-1.5 overflow-hidden px-1 whitespace-nowrap">
+      <span className="shrink-0 card-label">Sounds</span>
       {last.map((e) => {
-        const m = EVENT_META[e.kind] ?? { icon: '•', label: e.kind };
+        const m = eventMeta(e.kind);
         return (
-          <span key={e.id} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-line bg-card-2 px-2 py-0.5 tabular-nums">
-            <span aria-hidden>{m.icon}</span>{m.label} · {ago(e.t)}
+          <span key={e.id} className="imt-in inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card-2 px-2.5 text-[0.78rem] text-muted tabular-nums">
+            <m.icon size={13} className="text-change" aria-hidden />{m.label} · {ago(e.t)}
           </span>
         );
       })}
