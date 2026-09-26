@@ -13,6 +13,7 @@ import { TablePage, openPlans } from './ui/TablePage';
 import { MapPage } from './ui/MapPage';
 import { speakerMood, tableMood } from './lib/mood';
 import type { CatchupResponse } from '../../shared/types';
+import type { CatchupState } from './state/useSession';
 import { Asked, CaptionList, FirstRun, Missed, Sentence, StartGate, TopLine, stateWord, useTick } from './ui/Listener';
 
 const LAUGH_MS = 6_000;
@@ -49,11 +50,21 @@ export default function App() {
   useEffect(() => {
     if (s.catchup.status === 'ready') setLastCatchup({ data: s.catchup.data, title: awayTitle ?? undefined });
   }, [s.catchup]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Rolling catch-up (useSession refreshes `missed` every 10 s): a tap shows it instantly when fresher than 25 s,
+  // then a fresh catch-up runs in the background and swaps in when it returns.
+  const [instant, setInstant] = useState<CatchupState | null>(null);
   const manualCatchUp = () => {
     const la = awayApi.lastAway;
+    const m = s.missed;
+    if (m && Date.now() - m.at < 25_000) {
+      setInstant({ status: 'ready', data: m.data, at: Date.now(), latencyMs: 0 });
+      setLastCatchup({ data: m.data });
+    } else setInstant(null);
     if (la && la.t1 > session.lastSeenAt) catchUpSince(la);
     else { setAwayTitle(null); void s.catchUp(); }
   };
+  const shownCatchup: CatchupState = s.catchup.status === 'ready' || !instant ? s.catchup : instant;
+  const dismissMissed = useCallback(() => { setInstant(null); s.dismissCatchup(); }, [s.dismissCatchup]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // "Say something": the line goes to every joined phone; spoken aloud here only if the user opted in.
   const lastActivityAt = useLastActivity(session.timeline);
@@ -98,7 +109,7 @@ export default function App() {
     }
     return undefined;
   }, [session.timeline, now?.id, now?.tStart]); // eslint-disable-line react-hooks/exhaustive-deps
-  const loading = s.catchup.status === 'loading';
+  const loading = s.catchup.status === 'loading' && !instant;
   const renameSp = renaming != null ? session.speakers[renaming] : undefined;
   const word = stateWord(s.asr, s.listening, s.lastTranscriptAt, s.requestPending, interject.status === 'speaking', Date.now());
   // The first "asked you" can fire on an interim line ("Bera, are"): show the utterance it grew into.
@@ -159,8 +170,8 @@ export default function App() {
       <main className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden py-4">
         {nudge ? (
           <Asked nudge={nudge} color={nudgeColor} onAnswer={s.dismissNudge} />
-        ) : s.catchup.status !== 'idle' ? (
-          <Missed state={s.catchup} title={awayTitle ?? undefined} onDone={s.dismissCatchup} />
+        ) : shownCatchup.status !== 'idle' ? (
+          <Missed state={shownCatchup} title={awayTitle ?? undefined} onDone={dismissMissed} />
         ) : (
           <>
             <Sentence utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
@@ -200,7 +211,7 @@ export default function App() {
       </div>
 
       {tableOpen && (
-        <TablePage ledger={session.ledger} nudge={nudge} lastCatchup={lastCatchup}
+        <TablePage ledger={session.ledger} nudge={nudge} lastCatchup={lastCatchup} missed={s.missed}
           onAnswerNudge={s.dismissNudge} onClose={() => setTableOpen(false)} />
       )}
       {mapOpen && <MapPage session={session} onClose={() => setMapOpen(false)} />}

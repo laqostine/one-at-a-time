@@ -29,10 +29,11 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 const Empty = ({ children }: { children: ReactNode }) => <p className="text-[1.06rem] text-ink-2">{children}</p>;
 
-export function TablePage({ ledger, nudge, lastCatchup, onAnswerNudge, onClose }: {
+export function TablePage({ ledger, nudge, lastCatchup, missed: rolling, onAnswerNudge, onClose }: {
   ledger: LedgerItem[];
   nudge: Nudge | null;
   lastCatchup: { data: CatchupResponse; title?: string } | null;
+  missed?: { data: CatchupResponse; at: number; sinceT: number } | null;
   onAnswerNudge: () => void;
   onClose: () => void;
 }) {
@@ -52,7 +53,12 @@ export function TablePage({ ledger, nudge, lastCatchup, onAnswerNudge, onClose }
     if (a.live) onAnswerNudge();
   };
 
-  const missed = lastCatchup ? [
+  // The rolling catch-up (refreshed every 10 s) wins; the last manual catch-up is the fallback.
+  const rollingLines = rolling ? rolling.data.bullets.map((b) => ({ speaker: b.speaker, text: b.text })).slice(0, 3) : [];
+  const missedTitle = rolling && rollingLines.length
+    ? `Since you looked away · updated ${Math.max(0, Math.round((Date.now() - rolling.at) / 1000))}s ago`
+    : lastCatchup?.title ?? 'Since you looked away';
+  const missed = rollingLines.length ? rollingLines : lastCatchup ? [
     ...(lastCatchup.data.addressed_to_me ? [{ speaker: lastCatchup.data.addressed_to_me.speaker, text: lastCatchup.data.addressed_to_me.question }] : []),
     ...lastCatchup.data.bullets.map((b) => ({ speaker: b.speaker, text: b.text })),
   ].slice(0, 3) : [];
@@ -109,7 +115,7 @@ export function TablePage({ ledger, nudge, lastCatchup, onAnswerNudge, onClose }
           ) : <Empty>Nothing asked of you.</Empty>}
         </Section>
 
-        <Section title={lastCatchup?.title ?? 'Since you looked away'}>
+        <Section title={missedTitle}>
           {missed.length ? (
             <ul className="space-y-4">
               {missed.map((m, k) => <li key={k} className="text-[1.176rem] leading-[1.35]">{m.speaker && <b>{m.speaker}: </b>}{m.text}</li>)}
