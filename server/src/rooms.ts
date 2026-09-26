@@ -181,6 +181,15 @@ export class Room {
     return both * OVERLAP_SLOT_MS >= OVERLAP_MIN_VOICED_MS;
   }
 
+  /** Host-computed mood → every phone (each gets its owner's own tone, positive ones only). */
+  setMood(table: 'warm'|'tense'|'light'|'quiet', byName: Record<string, string>): void {
+    for (const [ws, p] of this.parts) {
+      const mine = byName[p.name] ?? byName[p.name.toLowerCase()];
+      const ok = mine === 'warm' || mine === 'light' || mine === 'excited' || mine === 'teasing';
+      this.sendTo(ws, { type: 'mood', table, ...(ok ? { mine: mine as never } : {}) });
+    }
+  }
+
   /** Show the host user's words on every participant phone (text-first Speak for me). */
   say(text: string, audio?: string, voice = false): number {
     const name = this.meName.trim() || 'They';
@@ -359,6 +368,14 @@ export function registerRooms(app: FastifyInstance): void {
     return { ok: true, lang: room.lang };
   });
   app.get('/api/room/lang', async () => ({ lang: room.lang }));
+  // Host posts the table mood + per-speaker recent tone (by name); phones get a `mood` message.
+  app.post<{ Body: { table?: unknown; speakers?: unknown } }>('/api/room/mood', async (req) => {
+    const t = String(req.body?.table ?? 'quiet');
+    const table = (['warm', 'tense', 'light', 'quiet'] as const).includes(t as never) ? (t as 'warm'|'tense'|'light'|'quiet') : 'quiet';
+    const sp = (req.body?.speakers && typeof req.body.speakers === 'object') ? req.body.speakers as Record<string, string> : {};
+    room.setMood(table, sp);
+    return { ok: true };
+  });
   app.post<{ Body: { name?: unknown } }>('/api/room/me', async (req) => {
     const n = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 40) : '';
     room.meName = n;

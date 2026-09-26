@@ -112,7 +112,9 @@ export type AsrMessage =
   // host user's line shown as text on every participant phone (text-first 'Speak for me'; voice is opt-in)
   | { type: 'say'; name: string; text: string; t: number; audio?: string /* base64 mp3 from ElevenLabs when the table has voice on */; voice?: boolean }
   // ≥2 phones loud at once with no words recognized ≈ the table laughed (no audio model needed)
-  | { type: 'laugh'; t: number; sources: number };
+  | { type: 'laugh'; t: number; sources: number }
+  // host → phones: how the table feels (from recent tones) and, per phone, its owner's own recent tone
+  | { type: 'mood'; table: 'warm'|'tense'|'light'|'quiet'; mine?: Tone };
 
 /** DHH caption comprehension drops above ~170 wpm: ok <150, fast 150-170, too_fast >170. */
 export type PaceLevel = 'ok'|'fast'|'too_fast';
