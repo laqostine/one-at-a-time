@@ -7,10 +7,11 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: {
     rollupOptions: {
-      // multi-page: host app + "Everyone joins" participant page
+      // multi-page: host app + "Everyone joins" participant page + pitch landing
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         join: fileURLToPath(new URL('./join.html', import.meta.url)),
+        landing: fileURLToPath(new URL('./landing.html', import.meta.url)),
       },
     },
   },

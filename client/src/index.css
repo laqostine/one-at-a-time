@@ -11,8 +11,8 @@
  * Identity: warm-neutral darks (never pure black), ONE refined blue accent, amber reserved for
  * "addressed to you". Display = Instrument Serif (italic for the big lines), body = Inter,
  * meta/labels/timestamps = JetBrains Mono.
- * Contrast (on --card): fg 16.9:1, muted 8.1:1, accent 8.6:1, warn 10.9:1, good 10.5:1,
- * bad 7.9:1, change 8.3:1 - every pair >= AA, most >= AAA.
+ * Contrast (on --card): fg 15.6:1, muted 8.2:1, accent 8.6:1, warn 10.0:1, good 9.9:1,
+ * bad 8.2:1, change 8.8:1, accent-fg on accent 8.9:1 - every pair >= AA, most >= AAA.
  */
 :root {
   --bg: #12110f;          /* warm charcoal, not black */
@@ -24,7 +24,7 @@
   --muted: #b8b0a2;
   --accent: #8db6ff;      /* refined periwinkle blue - actions, links, focus */
   --accent-deep: #4f7fd9; /* accent on light / gradients */
-  --accent-fg: #0a1628;   /* text on accent fills (9.6:1) */
+  --accent-fg: #0a1628;   /* text on accent fills (8.9:1) */
   --warn: #f6b93b;        /* amber - ONLY "addressed to you" / attention, never red */
   --good: #6fd6a4;
   --bad: #ff9580;

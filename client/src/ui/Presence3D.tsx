@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Presence, type PresenceState } from './Presence';
 import type { SceneInputs } from './presence3dScene';
+import { PresenceHalo } from './PresenceHalo';
 
 const LABEL: Record<PresenceState, string> = {
   idle: 'waiting',
@@ -28,18 +29,22 @@ export function hasWebGL(): boolean {
   return webglCache;
 }
 
-export function Presence3D({ state, level, size = 96, envelope, envelopeStepMs = 20 }: {
+export function Presence3D({ state, level, size = 96, envelope, envelopeStepMs = 20, flare = 0, halo = true }: {
   state: PresenceState;
   level: number;
   size?: number;
   envelope?: Float32Array;
   envelopeStepMs?: number;
+  /** Increment to fire a brief amber "addressed to you" flare. */
+  flare?: number;
+  /** Soft radial glow behind the figure, tinted by state. */
+  halo?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(() => !hasWebGL());
-  const inputs = useRef<SceneInputs>({ state, level, envelope, envelopeStart: 0, envelopeStepMs });
+  const inputs = useRef<SceneInputs>({ state, level, envelope, envelopeStart: 0, envelopeStepMs, flare });
   if (inputs.current.envelope !== envelope) inputs.current.envelopeStart = performance.now();
-  Object.assign(inputs.current, { state, level, envelope, envelopeStepMs });
+  Object.assign(inputs.current, { state, level, envelope, envelopeStepMs, flare });
 
   useEffect(() => {
     const el = hostRef.current;
@@ -59,7 +64,8 @@ export function Presence3D({ state, level, size = 96, envelope, envelopeStepMs =
   if (failed) return <Presence state={state} level={level} size={size} />;
   return (
     <div className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
-      <div ref={hostRef} style={{ width: '100%', height: '100%' }} />
+      {halo && <PresenceHalo state={state} flare={flare} />}
+      <div ref={hostRef} className="relative" style={{ width: '100%', height: '100%' }} />
       <span className="sr-only" role="status" aria-live="polite">{LABEL[state]}</span>
     </div>
   );

@@ -1,96 +1,117 @@
 # Demo script (90 seconds) + judge Q&A cheat sheet
 
 Roles: **Presenter** narrates and holds the phone/laptop. **Alex, Sam, Priya**
-are the three teammates playing the meeting (use your real names/voices —
-diarization will pick up whoever is nearest the mic; tap-to-rename on stage
-if it mislabels anyone). If room audio is too hostile, say so out loud and
-switch to `?replay=demo1` — it reproduces the exact same cards.
+are the three teammates playing the meeting (use real names/voices; each
+phone is its owner's mic, so attribution needs no diarization guessing). If
+Deepgram or the camera acts up, say so and press **A** to switch to
+`?replay=demo1` — it reproduces the exact same cards deterministically.
 
 ## Timed script
 
-**0:00–0:10 — Presenter (the problem)**
-> "51.9% of deaf and hard-of-hearing caption users say they're frustrated with
-> live captions. Not because the words are wrong — because captions don't
-> tell you who said it, whether people just laughed at something, or that
-> someone just asked *you* a question. Transcription tells you what was
-> said. We built the thing that tells you what you missed."
+**0:00–0:15 — the flip (before any card is on screen)**
+> "Every accessibility tool puts the whole burden on the deaf person. Read
+> faster. Ask again. Get told never mind. We built the other side."
 
-**0:10–0:35 — live meeting (Alex / Sam / Priya talk over each other)**
+*(A hearing teammate's phone is already visible on screen. As the presenter
+says this line, two teammates start talking over each other — that phone's
+pace bar goes amber. This happens before a single ledger card appears. The
+burden flips first; the product shows up second.)*
+
+**0:15–0:35 — the ledger fills**
 - **Alex:** "Okay, quick sync — I think we ship the captions feature Friday."
 - **Sam:** "Whoa, hold on — diarization still flaps, Monday is safer."
 - **Priya:** "Also, open question — what are we charging for this?"
-- **Presenter** (to camera, while captions render with speaker colors): "Watch
-  the captions — colored by speaker, live. If it mislabels someone—" *(taps
-  Sam's caption)* "—one tap, done. Sam's now Sam, not Speaker 1."
-- **Priya:** "Can we soft-launch Friday and flip the flag Monday if it's stable?"
-- **Presenter:** "Two threads at once now — the launch date and the pricing.
-  'Open on the table' keeps them apart and shows who replied to whom, and
-  the decision carries its *reason*: diarization still flaps."
-- *(someone knocks on the table — a 'knock' chip lands in Sound history)*
-- **Sam** (the joke): "Ship it on a Nokia 3310 and see who complains."
-- *(laughter in the room — a 😂 chip appears on the timeline, unprompted)*
+- *(On the deaf user's screen, cards fill live, no scrolling: a decision
+  **with its reason** — "Ship Friday: diarization stable" — Sam's objection
+  tagged **"Sam → to Alex,"** an open question, and a moment later a
+  **"Changed"** tag when Priya moves the pricing review.)*
+- **Presenter:** "Not a transcript. A decision with its reason. An
+  objection addressed to a person, not the room. A question still open.
+  And when something changes, it says so."
 
-**0:35–0:50 — addressed-to-me nudge**
-- **Presenter** looks away from the screen, note-taking.
+**0:35–0:55 — away, then back on its own**
+- **Presenter** looks down at their phone. A pill on screen reads **"Away."**
+- *(On-device camera, nothing sent anywhere, notices the presenter look back
+  up.)*
+- **Presenter** looks up. A card opens **by itself**: *"While you looked
+  away (8s): Sam objected to Friday — wants Monday."*
+- **Presenter:** "I didn't ask for that. It opened because I looked away and
+  came back — that's the whole trigger."
+
+**0:55–0:70 — addressed to you, then Speak for me**
 - **Alex:** "Bera, can you own the demo script by Friday?"
-- *(phone buzzes, "For you" card pulses)* **Presenter:** "I wasn't even
-  looking at the screen. It just told me Alex asked me something — not
-  after the meeting, right now."
+- *(Phone buzzes. A "For you" card pulses: Alex asked you, right now.)*
+- **Presenter** taps **Speak for me**, picks a line already queued —
+  "Before we lock Friday, I want to flag the diarization bug" — and the
+  laptop says it out loud in the next gap in the conversation.
+- **Presenter:** "I didn't interrupt. It waited for the gap and said it for
+  me."
 
-**0:50–0:75 — Catch me up**
-- **Presenter** presses **Catch me up**. Card fills in under 3 seconds:
-  1. "Alex asked you to own the demo script by Friday."
-  2. "Sam objected to Friday — diarization still flaps, wants Monday."
-  3. "Priya: pricing review moved to Wednesday, Thursday is booked" (Changed).
-- *(the laughter line shows as the joke bullet if the window is short)*
-- **Presenter** taps the objection bullet → jumps to the verbatim line ±15s.
-  "Every bullet is a receipt, not a guess."
-
-**0:75–0:90 — close**
-> "No wearables. Nothing for anyone else to install. Works for any meeting,
-> any table, same mic. Not a transcript — what you missed, in three lines."
+**0:70–0:90 — close**
+> "Not a transcript. The reason, the question aimed at you, the change, and
+> a way back in. Ava does the mics. We do what the mics are for."
 
 ---
 
-## 60-second judge Q&A cheat sheet
+## Judge Q&A cheat sheet
 
-**Q1: What about bystander privacy — you're recording other people without consent?**
-> Nothing is stored after the session — in-memory ring buffer, last 15
-> minutes only, gone on refresh/close. There's an always-visible listening
-> indicator and a pause button, same disclosure bar as any live-caption app
-> (Otter, Teams) already uses in the room. We're not building a surveillance
-> log — the ledger self-destructs by design, which is also why we can say
+**Q1: Who's speaking for me — what if the AI says something I didn't mean?**
+> It never speaks anything you haven't picked and can edit first. Speak for
+> me queues candidate lines from what's actually being said; you tap the one
+> you want, you can edit it, and only then does it go out in the next gap.
+> It's autocomplete for the moment you're locked out of, not autopilot.
+
+**Q2: Doesn't the pace bar shame the fast talker?**
+> It goes amber, never red, and it's framed as "pace, for [name]" not "you
+> talk too fast." It's the same category of nudge Speaker Coach gives a
+> presenter about themselves — we just point it at the room instead, since
+> nobody else in that room needs to be told to slow down for themselves.
+
+**Q3: Why not build for sign-first Deaf users?**
+> Scoped out on purpose. Sign-first Deaf users are often better served by an
+> interpreter or a full visual language — that's a different, well-served
+> problem. We target the group stuck in between: hard-of-hearing and
+> late-deafened adults who rely on spoken English in rooms full of hearing
+> people, where nobody brings an interpreter to a Tuesday standup or a
+> family dinner.
+
+**Q4: What if phones aren't possible — a formal meeting, a doctor's office?**
+> The clerk still works with one shared mic and the laptop screen; you lose
+> per-person pace bars and named join, not the ledger, the reasons, the
+> away detection, or catch-up. QR join is the frictionless path, not a hard
+> requirement.
+
+**Q5: You're recording other people without their consent — bystander privacy?**
+> Nothing is stored after the session — in-memory ring buffer only, gone on
+> refresh or close. There's an always-visible listening indicator and a
+> pause button, the same disclosure bar Otter or Teams already puts in a
+> room. The ledger self-destructs by design, which is also why we can say
 > "nothing is stored" with a straight face.
 
-**Q2: Why not just use Otter.ai or Teams captions?**
-> Those give you a transcript after the fact, or a scrolling wall of text
-> during. Neither tracks state — a decision forming, a live objection, a
-> question aimed at you — post-hoc summaries specifically drop the parts
-> where people disagreed while it was still unresolved. Our extraction never
-> resolves an open thread for you; it surfaces it. And Teams/Otter don't
-> catch non-speech events (laughter, applause) at all — only ~4% of that
-> info ever reaches a caption anywhere.
+**Q6: Three cards is a lot to track while also trying to follow a room.**
+> They replace in place — no scrolling, no jitter — and each one has one
+> job: Now is who's talking, Open on the table is state, For you is
+> anything addressed to you. That split exists because a single scrolling
+> transcript is exactly what caption comprehension research says breaks
+> down above 170 wpm, which live group speech blows past routinely.
 
-**Q3: How accurate is this in a noisy room?**
-> Deepgram Nova-3 streaming diarization is what we lean on for speaker ID;
-> it flaps on heavy crosstalk like any ASR does, which is exactly why the
-> product doesn't trust the transcript alone — the ledger biases toward
-> "someone at the table" over guessing wrong, and a one-tap rename/merge
-> fixes a flapped speaker instantly. Worst case, captions degrade gracefully
-> to ungrouped speech; the "for you" and catch-up logic still work off names
-> people actually used in the sentence.
+**Q7: This is all English — what about other languages?**
+> Deepgram's streaming diarization supports dozens of languages, and
+> Claude's extraction prompt doesn't hardcode English syntax — it's a
+> config swap, not a rebuild. Turkish is the named next step, not a fantasy.
 
-**Q4: What happens without a Deepgram key — is this a hard dependency?**
-> It falls back to the browser's Web Speech API — you keep live captions,
-> you lose speaker colors and diarization-based cards. That's a deliberate
-> degrade path, not a crash. And `?replay=` mode needs neither key nor a
-> mic at all — it's how we're demoing insurance against a bad room today.
+**Q8: Why not just use Ava or Otter?**
+> Ava gets you named, colored mics from every phone — genuinely good
+> infrastructure, and we don't pretend to compete on it. Otter and Zoom's
+> "catch me up" give you a transcript or a summary after the fact. Neither
+> tracks state while it's still open: a decision's reason, a live
+> objection, a question aimed at you. Post-hoc summaries specifically
+> resolve the disagreement you needed to see while it was still unresolved.
+> Ava does the mics. We do what the mics are for.
 
-**Q5: What's the business model / what's next?**
-> Freemium: live captions + the three cards free, "Catch me up" and history
-> beyond one session behind a subscription — this is the same shape as
-> Otter's model, but built around state instead of a transcript archive.
-> Next: persistent per-person speaker memory across meetings, a proper
-> on-device mode for privacy-sensitive settings (legal, medical), and a
-> wearable haptic nudge so the "for you" alert doesn't require looking at a
-> screen at all.
+**Q9: What happens if Deepgram or Claude is down mid-demo?**
+> Two fallbacks, both rehearsed: `?replay=` needs neither key nor a mic and
+> reproduces the exact same cards deterministically — that's our live-demo
+> insurance. Short of that, it degrades to the browser's Web Speech API:
+> you keep live captions, you lose speaker colors and ledger extraction
+> until the connection's back. Neither is a crash.
