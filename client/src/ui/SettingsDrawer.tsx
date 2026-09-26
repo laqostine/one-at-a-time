@@ -6,6 +6,7 @@ import { Modal } from './Modal';
 import { JoinLink } from './JoinQr';
 import { goToPhone } from './Listener';
 import { listTables, locate, type TableRow } from '@/lib/notesDb';
+import { NotesPage } from './NotesPage';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -31,6 +32,7 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
   const [location, setLocation] = useState(prefs.location);
   const [pos, setPos] = useState<'idle' | 'busy' | 'ok' | 'no'>('idle');
   const [past, setPast] = useState<TableRow[] | null>(null);
+  const [openTable, setOpenTable] = useState<string | null>(null);
   useEffect(() => { let dead = false; listTables().then((t) => { if (!dead) setPast(t); }).catch(() => { if (!dead) setPast([]); }); return () => { dead = true; }; }, []);
   const [name, setName] = useState(me.name);
   const [aliases, setAliases] = useState(me.aliases.join(', '));
@@ -57,6 +59,7 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
     return () => { dead = true; };
   }, []);
   return (
+    <>
     <Modal title="Settings" onClose={() => { save(); onClose(); }} variant="sheet">
       <div className="space-y-6">
         <label className="block">
@@ -134,9 +137,11 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
           {past && past.length > 0 && (
             <ul className="mt-3 divide-y divide-rule border-t border-rule" aria-label="Past tables">
               {past.slice(0, 5).map((t) => (
-                <li key={t.id} className="flex items-baseline justify-between gap-3 py-2 text-[1rem]">
-                  <span className="min-w-0 truncate font-bold text-ink">{t.location || 'Somewhere'}{t.me ? ` · ${t.me}` : ''}</span>
-                  <span className="oat-label shrink-0">{new Date(t.startedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · {t.notes ?? 0} notes</span>
+                <li key={t.id}>
+                  <button type="button" onClick={() => setOpenTable(t.id)} className="flex min-h-14 w-full cursor-pointer items-center justify-between gap-3 py-2 text-left text-[1rem]">
+                    <span className="min-w-0 truncate font-bold text-ink">{t.location || 'Somewhere'}{t.me ? ` · ${t.me}` : ''}</span>
+                    <span className="oat-label shrink-0">{new Date(t.startedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · {t.notes ?? 0} notes ›</span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -162,6 +167,8 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
         <p className="oat-label">Nothing is stored · audio stays in memory 15 min</p>
       </div>
     </Modal>
+    {openTable && <NotesPage id={openTable} onClose={() => setOpenTable(null)} />}
+    </>
   );
 }
 
