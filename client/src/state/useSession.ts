@@ -1,3 +1,4 @@
+import { api, roomToken } from '../lib/room';
 // Wires audio/replay sources -> reducer, runs the ledger loop, exposes catch-up.
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type { AsrMessage, CatchupResponse, EventKind, Participant, Session, StateMood } from '../../../shared/types';
@@ -361,6 +362,7 @@ export function useSession() {
               setMicLevel((p) => p * 0.5 + rms * 0.5);
             }
           },
+          { role: 'host', token: roomToken() || undefined, maxReconnects: 1000 },
         );
         micRef.current = mic;
         mic.setMuted(hostMutedRef.current);
@@ -387,7 +389,7 @@ export function useSession() {
   const aliasKey = session.me.aliases.join('|');
   useEffect(() => {
     if (!session.me.name || replayName()) return;
-    void fetch('/api/room/me', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: session.me.name, aliases: session.me.aliases }) }).catch(() => {});
+    void fetch(api('/api/room/me'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: session.me.name, aliases: session.me.aliases }) }).catch(() => {});
   }, [session.me.name, aliasKey, asrOpen]);
 
   // ---- Deepgram keyterms: proper nouns from thread labels + ledger text (the server keeps <= 10 of them) ----
@@ -397,7 +399,7 @@ export function useSession() {
     if (replayName() || !termsKey || termsKey === sentTerms.current) return;
     const id = window.setTimeout(() => {
       sentTerms.current = termsKey;
-      void fetch('/api/room/terms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ terms: termsKey.split('|') }) }).catch(() => { sentTerms.current = ''; });
+      void fetch(api('/api/room/terms'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ terms: termsKey.split('|') }) }).catch(() => { sentTerms.current = ''; });
     }, 1_500);
     return () => window.clearTimeout(id);
   }, [termsKey]);
@@ -432,7 +434,7 @@ export function useSession() {
           // Phones' lamps show the AI's judgement: POST /api/room/mood, at most every 3 s (skip in replay: no room).
           if (!replayName()) {
             const body = JSON.stringify({ table: m.table, speakers: Object.fromEntries(m.speakers.map((sp) => [sp.name, sp.mood])) });
-            const send = () => { moodPost.current.at = Date.now(); void fetch('/api/room/mood', { method: 'POST', headers: { 'content-type': 'application/json' }, body }).catch(() => {}); };
+            const send = () => { moodPost.current.at = Date.now(); void fetch(api('/api/room/mood'), { method: 'POST', headers: { 'content-type': 'application/json' }, body }).catch(() => {}); };
             window.clearTimeout(moodPost.current.timer);
             const wait = MOOD_POST_MIN_MS - (Date.now() - moodPost.current.at);
             if (wait <= 0) send(); else moodPost.current.timer = window.setTimeout(send, wait);

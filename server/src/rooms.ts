@@ -655,6 +655,24 @@ function bootToken(): string {
 export const room = new Room(bootToken());
 const rooms = new Map<string, Room>([[room.token, room]]);
 
+/** Table codes: 4 characters people can read out across a table (no 0/O, 1/I/L). Lookup is case-insensitive. */
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export function createRoom(): Room {
+  let code = '';
+  do { code = Array.from(randomBytes(4), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join(''); } while (rooms.has(code));
+  const r = new Room(code);
+  r.lang = room.lang;
+  rooms.set(code, r);
+  return r;
+}
+export function findRoom(token: string | undefined | null): Room | undefined {
+  if (!token) return undefined;
+  const t = token.trim();
+  return rooms.get(t) ?? rooms.get(t.toUpperCase());
+}
+/** The room an HTTP call means: its ?token= (or body.token), else the default room (replay / legacy links). */
+export function pickRoom(token: string | undefined | null): Room { return findRoom(token) ?? room; }
+
 export interface JoinParams { role: Role; name: string; room: Room }
 
 /**
@@ -667,12 +685,12 @@ export function parseJoin(url: string | undefined): JoinParams | null {
   const token = q.get('token');
   const name = (q.get('name') ?? '').trim().slice(0, 40);
   if (role === 'participant') {
-    const r = token ? rooms.get(token) : undefined;
+    const r = findRoom(token);
     if (!r || !name) return null;
     return { role, name, room: r };
   }
   if (token == null || token === '') return { role, name, room };
-  const r = rooms.get(token);
+  const r = findRoom(token);
   return r ? { role, name, room: r } : null;
 }
 
@@ -690,15 +708,18 @@ export function roomInfo(r: Room = room): RoomInfo {
 }
 
 export function registerRooms(app: FastifyInstance): void {
-  app.get('/api/room', async (): Promise<RoomInfo> => roomInfo());
+  app.get<{ Querystring: { token?: string } }>('/api/room', async (req): Promise<RoomInfo> => roomInfo(pickRoom(req.query.token)));
+  // A new table with its own code. The listener's phone calls this once; everyone else types the code.
+  app.post('/api/rooms', async () => roomInfo(createRoom()));
   // Lets the join page tell "wrong/stale link" apart from a network drop (WS upgrade 401s are opaque in browsers).
   app.get<{ Querystring: { token?: string } }>('/api/room/verify', async (req, reply) => {
-    const ok = !!req.query.token && rooms.has(req.query.token);
+    const ok = !!findRoom(req.query.token);
     return reply.code(ok ? 200 : 401).send({ ok });
   });
   // Host tells the room its user's name so phones can say "Good pace for Bera".
   // Host user's line → text on every phone. Body: {text}. Returns how many phones got it.
-  app.post<{ Body: { text?: unknown; voice?: unknown } }>('/api/room/say', async (req, reply) => {
+  app.post<{ Querystring: { token?: string }; Body: { text?: unknown; voice?: unknown } }>('/api/room/say', async (req, reply) => {
+    const room = pickRoom(req.query.token);
     const t = typeof req.body?.text === 'string' ? req.body.text.trim().slice(0, 240) : '';
     if (!t) return reply.code(400).send({ ok: false });
     const voice = req.body?.voice === true;
@@ -706,29 +727,33 @@ export function registerRooms(app: FastifyInstance): void {
     return { ok: true, delivered: room.say(t, audio, voice), spoken: !!audio };
   });
   // Table language: applies to every NEW audio socket (host + phones). Client reconnects after changing it.
-  app.post<{ Body: { lang?: unknown } }>('/api/room/lang', async (req, reply) => {
+  app.post<{ Querystring: { token?: string }; Body: { lang?: unknown } }>('/api/room/lang', async (req, reply) => {
+    const room = pickRoom(req.query.token);
     const l = String(req.body?.lang ?? '');
     if (!['en', 'it', 'tr', 'multi'].includes(l)) return reply.code(400).send({ ok: false });
     room.lang = l as Room['lang'];
     return { ok: true, lang: room.lang };
   });
-  app.get('/api/room/lang', async () => ({ lang: room.lang }));
+  app.get<{ Querystring: { token?: string } }>('/api/room/lang', async (req) => ({ lang: pickRoom(req.query.token).lang }));
   // Host posts the table mood + per-speaker recent tone (by name); phones get a `mood` message.
-  app.post<{ Body: { table?: unknown; speakers?: unknown } }>('/api/room/mood', async (req) => {
+  app.post<{ Querystring: { token?: string }; Body: { table?: unknown; speakers?: unknown } }>('/api/room/mood', async (req) => {
+    const room = pickRoom(req.query.token);
     const t = String(req.body?.table ?? 'quiet');
     const table = (['warm', 'tense', 'light', 'quiet'] as const).includes(t as never) ? (t as 'warm'|'tense'|'light'|'quiet') : 'quiet';
     const sp = (req.body?.speakers && typeof req.body.speakers === 'object') ? req.body.speakers as Record<string, string> : {};
     room.setMood(table, sp);
     return { ok: true };
   });
-  app.post<{ Body: { name?: unknown; aliases?: unknown } }>('/api/room/me', async (req) => {
+  app.post<{ Querystring: { token?: string }; Body: { name?: unknown; aliases?: unknown } }>('/api/room/me', async (req) => {
+    const room = pickRoom(req.query.token);
     const n = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 40) : '';
     const aliases = Array.isArray(req.body?.aliases) ? (req.body.aliases as unknown[]).filter((a): a is string => typeof a === 'string') : undefined;
     room.setMe(n, aliases);
     return { ok: true, name: n, keyterms: room.keyterms() };
   });
   // Host client pushes proper nouns from its ledger/thread labels; they become Deepgram keyterms (<= 10 of the 20).
-  app.post<{ Body: { terms?: unknown } }>('/api/room/terms', async (req, reply) => {
+  app.post<{ Querystring: { token?: string }; Body: { terms?: unknown } }>('/api/room/terms', async (req, reply) => {
+    const room = pickRoom(req.query.token);
     if (!Array.isArray(req.body?.terms)) return reply.code(400).send({ ok: false });
     return { ok: true, keyterms: room.setTerms(req.body.terms as unknown[]) };
   });

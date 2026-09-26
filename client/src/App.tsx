@@ -1,3 +1,4 @@
+import { api } from '@/lib/room';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AudioEvent, Utterance } from '../../shared/types';
 import { useRepeat } from './state/useRepeat';
@@ -7,6 +8,7 @@ import { useInterject, useLastActivity } from './state/useInterject';
 import { useAway, type AwayInterval } from './state/useAway';
 import { applyPrefs, loadPrefs, type Prefs } from './ui/prefs';
 import { useNotesDb } from './lib/notesDb';
+import { ensureRoom } from './lib/room';
 import { PlacesPage } from './ui/PlacesPage';
 import { RenameDialog } from './ui/RenameDialog';
 import { SettingsDrawer } from './ui/SettingsDrawer';
@@ -30,8 +32,9 @@ export default function App() {
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Joining = name, then "Teach the table your voice", then Start listening.
-  const [voiceDone, setVoiceDone] = useState(false);
+  const [voiceDone, setVoiceDone] = useState(true); // one phone = Deepgram speakers + tap to rename; voice prints are opt-in (Settings)
   const [role, setRole] = useState(loadRole);
+  useEffect(() => { if (role === 'listener') void ensureRoom(); }, [role]);
   const [renaming, setRenaming] = useState<number | null>(null);
   // The second page ("The table"): opened by swipe up or the PLANS label, never on its own.
   const [tableOpen, setTableOpen] = useState(false);
@@ -88,7 +91,7 @@ export default function App() {
     const t = text.trim();
     if (!t) return null;
     // voice: the table's phones read the line aloud (server attaches audio, else phones use speechSynthesis).
-    const sent = fetch('/api/room/say', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: t, voice: clerkOn }) })
+    const sent = fetch(api('/api/room/say'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: t, voice: clerkOn }) })
       .then((r) => (r.ok ? (r.json() as Promise<{ delivered?: number }>) : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((r) => r.delivered ?? null).catch(() => null);
     if (voiceOn) speakAtGap(t); // the voice path logs the line into the timeline itself (onSpoken)
@@ -159,7 +162,7 @@ export default function App() {
     const wait = Math.max(0, 3_000 - (Date.now() - moodSent.current.at));
     const id = window.setTimeout(() => {
       moodSent.current = { key: moodKey, at: Date.now() };
-      void fetch('/api/room/mood', { method: 'POST', headers: { 'content-type': 'application/json' }, body: moodKey }).catch(() => {});
+      void fetch(api('/api/room/mood'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: moodKey }).catch(() => {});
     }, wait);
     return () => window.clearTimeout(id);
   }, [moodKey]);

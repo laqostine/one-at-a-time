@@ -1,10 +1,11 @@
+import { api } from '@/lib/room';
 import { useEffect, useState } from 'react';
 import { hasSpeech, voicesFor } from '@/lib/clerkVoice';
 import type { Session } from '../../../shared/types';
 import { FONT_PX, type FontSize, type Prefs } from './prefs';
 import { Modal } from './Modal';
 import { JoinLink } from './JoinQr';
-import { goToPhone } from './Listener';
+import { roomToken as myTableCode } from '@/lib/room';
 import { listTables, locate, type TableRow } from '@/lib/notesDb';
 import { NotesPage } from './NotesPage';
 import { cn } from '@/lib/utils';
@@ -40,7 +41,7 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
   const [lang, setLang] = useState('en');
   useEffect(() => {
     let dead = false;
-    fetch('/api/room/lang').then((r) => (r.ok ? r.json() : null)).then((j: { lang?: string } | null) => { if (!dead && j?.lang) setLang(j.lang); }).catch(() => {});
+    fetch(api('/api/room/lang')).then((r) => (r.ok ? r.json() : null)).then((j: { lang?: string } | null) => { if (!dead && j?.lang) setLang(j.lang); }).catch(() => {});
     return () => { dead = true; };
   }, []);
   // speechSynthesis voices load asynchronously on most browsers.
@@ -55,7 +56,7 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
   const [roomToken, setRoomToken] = useState('');
   useEffect(() => {
     let dead = false;
-    fetch('/api/room').then((r) => (r.ok ? r.json() : null)).then((j: { token?: string } | null) => { if (!dead && j?.token) setRoomToken(j.token); }).catch(() => {});
+    fetch(api('/api/room')).then((r) => (r.ok ? r.json() : null)).then((j: { token?: string } | null) => { if (!dead && j?.token) setRoomToken(j.token); }).catch(() => {});
     return () => { dead = true; };
   }, []);
   return (
@@ -87,7 +88,7 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
                 onClick={async () => {
                   if (lang === v) return;
                   setLang(v);
-                  try { await fetch('/api/room/lang', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang: v }) }); } catch { /* offline */ }
+                  try { await fetch(api('/api/room/lang'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang: v }) }); } catch { /* offline */ }
                   // New language applies to new audio sockets: bounce listening so the host reconnects.
                   onListening(false); window.setTimeout(() => onListening(true), 400);
                 }}
@@ -155,13 +156,11 @@ export function SettingsDrawer({ me, prefs, onMe, onPrefs, onListening, onClose,
           </span>
           <span aria-hidden className="text-ink-2">›</span>
         </a>
-        <button type="button" onClick={() => void goToPhone()} className="flex w-full cursor-pointer items-center justify-between border-t border-rule py-4 text-left">
-          <span>
-            <span className="block text-[1.06rem] font-bold text-ink">Use this phone as a speaker instead</span>
-            <span className="block text-[0.94rem] leading-snug text-ink-2">Goes to the lamp page. Someone else reads.</span>
-          </span>
-          <span aria-hidden className="text-ink-2">›</span>
-        </button>
+        <p className="border-t border-rule py-4" data-testid="settings-table-code">
+          <span className="oat-label block">This table’s code</span>
+          <span className="mt-1 block font-mono text-[2rem] tracking-[.3em] text-ink">{myTableCode() || '—'}</span>
+          <span className="mt-1 block text-[0.94rem] leading-snug text-ink-2">Others open the site, tap “I’m talking” and type it. Or scan the code below.</span>
+        </p>
         <JoinLink hostName={me.name} clerkSpeaks={prefs.clerkSpeaks} clerkVoice={prefs.clerkVoice} count={participantCount} />
         {captionsOnly && <p className="oat-label">Browser captions only · speakers not told apart</p>}
         <p className="oat-label">Nothing is stored · audio stays in memory 15 min</p>

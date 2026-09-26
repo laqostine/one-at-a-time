@@ -1,3 +1,4 @@
+import { api, ensureRoom, roomToken } from '@/lib/room';
 // "One at a time": the listener's phone. One sentence, one button, nothing else.
 // Pure presentation: every piece of state comes from useSession / useInterject via App.
 import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
@@ -205,34 +206,41 @@ export function loadRole(): Role | null {
   } catch { return null; }
 }
 export function saveRole(role: Role) { try { localStorage.setItem('imt.role', role); } catch { /* ignore */ } }
-export async function goToPhone(): Promise<void> {
-  let token = '';
-  try {
-    const r = await fetch('/api/room');
-    if (r.ok) token = ((await r.json()) as { token?: string }).token ?? '';
-  } catch { /* offline */ }
-  const q = new URLSearchParams();
-  if (token) q.set('token', token);
-  q.set('voice', '1');
+export function goToPhone(code: string): void {
+  const q = new URLSearchParams({ token: code.trim().toUpperCase(), voice: '1' });
   window.location.href = `/join.html?${q.toString()}`;
 }
 export function RoleGate({ onListener }: { onListener: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [code, setCode] = useState('');
   return (
     <FullPage label="Who is this phone for?">
       <div className="my-auto flex flex-col gap-6 py-10">
         <h1 className="font-display-italic text-[2.353rem] leading-none">Who is this phone for?</h1>
         <p className="text-[1.176rem] text-ink-2">One phone reads. Every other phone goes on the table and becomes a lamp.</p>
-        <button type="button" onClick={onListener} data-testid="role-listener"
+        <button type="button" disabled={busy} onClick={() => { setBusy(true); void ensureRoom().finally(onListener); }} data-testid="role-listener"
           className="flex h-20 w-full cursor-pointer flex-col items-center justify-center rounded-full bg-amber text-ink">
-          <span className="text-[1.176rem] font-bold">I’m reading</span>
+          <span className="text-[1.176rem] font-bold">{busy ? 'Opening your table…' : 'I’m reading'}</span>
           <span className="text-[0.94rem]">the hard-of-hearing person</span>
         </button>
-        <button type="button" disabled={busy} onClick={() => { setBusy(true); void goToPhone(); }} data-testid="role-speaker"
-          className="flex h-20 w-full cursor-pointer flex-col items-center justify-center rounded-full border-2 border-ink text-ink disabled:opacity-50">
-          <span className="text-[1.176rem] font-bold">{busy ? 'Opening…' : 'I’m talking'}</span>
-          <span className="text-[0.94rem]">put my phone on the table</span>
-        </button>
+        {asking ? (
+          <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (code.trim().length >= 4) goToPhone(code); }}>
+            <label className="block">
+              <span className="oat-label mb-2 block">Table code · on the reader’s screen</span>
+              <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))} autoFocus
+                inputMode="text" autoCapitalize="characters" autoComplete="off" placeholder="K7PM" aria-label="Table code" data-testid="table-code"
+                className="h-16 w-full rounded-xl border border-rule bg-cream px-4 text-center font-mono text-[1.6rem] tracking-[.3em] text-ink placeholder:text-ink-2" />
+            </label>
+            <button type="submit" disabled={code.length < 4} className="h-16 w-full cursor-pointer rounded-full border-2 border-ink text-[1.176rem] font-bold text-ink disabled:opacity-40">Put me on the table</button>
+          </form>
+        ) : (
+          <button type="button" disabled={busy} onClick={() => setAsking(true)} data-testid="role-speaker"
+            className="flex h-20 w-full cursor-pointer flex-col items-center justify-center rounded-full border-2 border-ink text-ink disabled:opacity-50">
+            <span className="text-[1.176rem] font-bold">I’m talking</span>
+            <span className="text-[0.94rem]">put my phone on the table</span>
+          </button>
+        )}
         <p className="oat-label">Nothing is stored</p>
       </div>
     </FullPage>
@@ -259,11 +267,19 @@ export function FirstRun({ onDone }: { onDone: (name: string) => void }) {
 
 /** The mic's AudioContext needs a user gesture: a saved name shows one button instead of auto-starting. */
 export function StartGate({ name, onStart }: { name: string; onStart: () => void }) {
+  const [code, setCode] = useState(roomToken());
+  useEffect(() => { let dead = false; void ensureRoom().then((c) => { if (!dead) setCode(c); }); return () => { dead = true; }; }, []);
   return (
     <FullPage label="Start listening">
       <div className="my-auto flex flex-col gap-6 py-10">
         <h1 className="font-display-italic text-[2.353rem] leading-none">Hi {name}.</h1>
-        <p className="text-[1.176rem] text-ink-2">Put the phone on the table. Nothing is stored.</p>
+        <p className="text-[1.176rem] text-ink-2">Put the phone on the table. Voices show as Speaker 1, 2… tap a name to rename it. Nothing is stored.</p>
+        {code && (
+          <p className="border-y border-rule py-4" data-testid="table-code-shown">
+            <span className="oat-label block">Table code · others tap “I’m talking” and type it</span>
+            <span className="mt-1 block font-mono text-[2.2rem] tracking-[.3em] text-ink">{code}</span>
+          </p>
+        )}
         <button type="button" onClick={onStart} autoFocus data-testid="start-listening"
           className="h-16 w-full cursor-pointer rounded-full bg-amber text-[1.176rem] font-bold text-ink">Start listening</button>
       </div>
@@ -279,7 +295,7 @@ export function VoiceGate({ name, onDone, onRename }: { name: string; onDone: ()
     void (async () => {
       let t = '';
       try {
-        const r = await fetch('/api/room');
+        const r = await fetch(api('/api/room'));
         if (r.ok) t = ((await r.json()) as { token?: string }).token ?? '';
       } catch { /* offline: the POST will fail and we continue */ }
       if (dead) return;

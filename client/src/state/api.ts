@@ -1,3 +1,4 @@
+import { api } from '../lib/room';
 import type { InterjectRequest, InterjectResponse } from '../../../shared/types';
 import type {
   CatchupRequest, CatchupResponse, LaughRequest, LaughResponse, StateRequest, StateResponse,
@@ -39,5 +40,5 @@ export const postInterject = (req: InterjectRequest, signal?: AbortSignal) =>
 
 // "Say" card (text-first Speak for me): shows ME's line full-screen on every joined phone.
 export async function postSay(text: string, signal?: AbortSignal): Promise<{ ok: boolean; delivered: number }> {
-  return post<{ text: string }, { ok: boolean; delivered: number }>('/api/room/say', { text }, signal);
+  return post<{ text: string }, { ok: boolean; delivered: number }>(api('/api/room/say'), { text }, signal);
 }

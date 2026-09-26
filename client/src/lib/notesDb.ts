@@ -1,3 +1,4 @@
+import { roomToken } from '@/lib/room';
 // Tables + notes taken (server SQLite, /api/tables). The listener's session opens a table row on Start, upserts the
 // clerk's notes (ledger + catch-up bullets) as they change, and closes the row on leave. Location is a label from
 // Settings plus, if the person taps "Use my position", the browser's coordinates.
@@ -37,7 +38,7 @@ export function useNotesDb(opts: { started: boolean; me: string; location: strin
   useEffect(() => {
     if (!started || id.current) return;
     let dead = false;
-    fetch('/api/tables', { method: 'POST', ...json({ me, location }) })
+    fetch('/api/tables', { method: 'POST', ...json({ me, location, token: roomToken() }) })
       .then((r) => (r.ok ? r.json() : null))
       .then((j: { id?: string } | null) => { if (!dead && j?.id) id.current = j.id; })
       .catch(() => { /* offline: nothing is saved */ });

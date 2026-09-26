@@ -84,9 +84,9 @@ export function getTable(id: string): { table: TableRow; notes: Note[] } | null 
 }
 
 export function registerNotes(app: FastifyInstance, roomToken: () => string): void {
-  app.post<{ Body: { me?: string; location?: string; lat?: number; lng?: number } }>('/api/tables', async (req) => {
+  app.post<{ Body: { me?: string; location?: string; lat?: number; lng?: number; token?: string } }>('/api/tables', async (req) => {
     const b = req.body ?? {};
-    return { id: createTable({ token: roomToken(), me: b.me ?? '', location: b.location, lat: b.lat, lng: b.lng }) };
+    return { id: createTable({ token: (b.token ?? '').trim() || roomToken(), me: b.me ?? '', location: b.location, lat: b.lat, lng: b.lng }) };
   });
   app.patch<{ Params: { id: string }; Body: { location?: string; lat?: number; lng?: number; ended?: boolean } }>('/api/tables/:id', async (req, reply) => {
     if (!patchTable(req.params.id, req.body ?? {})) return reply.code(404).send({ ok: false });

@@ -1,3 +1,4 @@
+import { api } from '@/lib/room';
 // "Add phones" modal: QR + link for participants' phones, and who's connected right now.
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
@@ -41,7 +42,7 @@ export function JoinQr({ participants, colorOf, onClose, phonesOnly = false, pho
 
   useEffect(() => {
     let dead = false;
-    fetch('/api/room')
+    fetch(api('/api/room'))
       .then((r) => (r.ok ? (r.json() as Promise<RoomInfo>) : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((info) => { if (!dead) setUrl(joinUrlFor(info, hostName, clerkSpeaks, clerkVoice)); })
       .catch((e: unknown) => { if (!dead) setErr(String((e as Error)?.message ?? e)); });
@@ -111,7 +112,7 @@ export function JoinLink({ hostName, clerkSpeaks = false, clerkVoice = '', count
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     let dead = false;
-    fetch('/api/room')
+    fetch(api('/api/room'))
       .then((r) => (r.ok ? (r.json() as Promise<RoomInfo>) : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((info) => { if (!dead) setUrl(joinUrlFor(info, hostName, clerkSpeaks, clerkVoice)); })
       .catch((e: unknown) => { if (!dead) setErr(String((e as Error)?.message ?? e)); });
