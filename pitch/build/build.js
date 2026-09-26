@@ -111,7 +111,7 @@ const sup = (n) => ({ text: String(n), options: { superscript: true, color: C.mu
 // ---------- 4. How it works ----------
 {
   const s = base(
-    'Sentence under 1 second. Lamp under 2 seconds. Nothing is stored.\n\n' +
+    'Sentence under 1 second. Tone in 0.7 s. Lamp under 2 seconds. Nothing is stored.\n\n' +
     'Q9: What if Deepgram is down mid-demo? ?replay= needs neither key nor mic and reproduces the exact same cards deterministically.');
   overline(s, 'HOW IT WORKS');
   headline(s, 'One diagram.', { y: 0.8, h: 0.7 });
@@ -159,7 +159,7 @@ const sup = (n) => ({ text: String(n), options: { superscript: true, color: C.mu
   ], { x: M + 0.25, y: ty, w: W - 2 * M - 0.5, h: tapBh, fontFace: SANS, fontSize: 19, margin: 0, valign: 'middle' });
 
   s.addText([
-    { text: 'Sentence under 1 second. Lamp under 2 seconds. ', options: { color: C.text, bold: true } },
+    { text: 'Sentence under 1 second. Tone in 0.7 s. Lamp under 2 seconds. ', options: { color: C.text, bold: true } },
     { text: 'Nothing is stored.', options: { color: C.muted } },
   ], { x: M, y: ty + tapBh + 0.15, w: W - 2 * M, h: 0.4, fontFace: SANS, fontSize: 16, margin: 0 });
 }
