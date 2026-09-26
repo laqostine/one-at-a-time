@@ -118,8 +118,8 @@ export type AsrMessage =
 
 /** DHH caption comprehension drops above ~170 wpm: ok <150, fast 150-170, too_fast >170. */
 export type PaceLevel = 'ok'|'fast'|'too_fast';
-export const PACE_FAST_WPM = 150;
-export const PACE_TOO_FAST_WPM = 170;
+export const PACE_FAST_WPM = 185;  // group speech runs 160–220; the lamp must stay green most of the time
+export const PACE_TOO_FAST_WPM = 210;
 export const paceLevel = (wpm: number): PaceLevel => (wpm > PACE_TOO_FAST_WPM ? 'too_fast' : wpm >= PACE_FAST_WPM ? 'fast' : 'ok');
 // POST /api/room/me {name}: the host's own name, shown on phones ("Good pace for Bera")
 

@@ -222,7 +222,7 @@ const stateTool: Anthropic.Tool = {
             speaker: { type: 'string', description: 'Name of the person who raised it' },
             t: { type: 'number', description: 'ms timestamp of the source line' },
             resolved: { type: 'boolean' },
-            reason: { type: 'string', description: 'For decisions/instruction changes: the WHY given, <=12 words, or omit' },
+            reason: { type: 'string', description: 'For decisions/instruction changes ONLY: the reason a person actually said, as they said it, <=6 plain words (e.g. "nonna can\'t do evenings"); omit if nobody gave one' },
             thread: { type: 'string', description: '2-4 word label of the conversation thread (parallel conversations get different labels)' },
             replyTo: { type: 'string', description: 'Name of the person this item was responding to, if any' },
           },

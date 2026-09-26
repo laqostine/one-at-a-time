@@ -165,8 +165,12 @@ export class Room {
    * voiced >= 300 ms anywhere in the window) fired on every quick turn change: 24 false overlap flags in a clean
    * sequential run. The host mic is excluded: it hears everyone, so host + the talking phone is not crosstalk.
    */
-  overlap(now = Date.now()): boolean {
-    const slots = new Map<number, number>();
+  overlap(now = Date.now()): boolean { return this.overlappingIds(now).size > 0; }
+
+  /** The participant ids that were voiced in the same 100 ms slots as someone else for >= OVERLAP_MIN_VOICED_MS. */
+  overlappingIds(now = Date.now()): Set<number> {
+    const slots = new Map<number, Set<string>>();
+    const perSource = new Map<string, Set<number>>();
     for (const [k, arr] of this.voiced) {
       if (k === HOST_SOURCE) continue;
       const mine = new Set<number>();
@@ -174,11 +178,16 @@ export class Room {
         if (now - v.at > OVERLAP_WINDOW_MS) continue;
         for (let t = v.at - v.ms; t < v.at; t += OVERLAP_SLOT_MS) mine.add(Math.floor(t / OVERLAP_SLOT_MS));
       }
-      for (const sl of mine) slots.set(sl, (slots.get(sl) ?? 0) + 1);
+      perSource.set(k, mine);
+      for (const sl of mine) { if (!slots.has(sl)) slots.set(sl, new Set()); slots.get(sl)!.add(k); }
     }
-    let both = 0;
-    for (const n of slots.values()) if (n >= 2) both++;
-    return both * OVERLAP_SLOT_MS >= OVERLAP_MIN_VOICED_MS;
+    const out = new Set<number>();
+    for (const [k, mine] of perSource) {
+      let shared = 0;
+      for (const sl of mine) if ((slots.get(sl)?.size ?? 0) >= 2) shared++;
+      if (shared * OVERLAP_SLOT_MS >= OVERLAP_MIN_VOICED_MS) out.add(Number(k));
+    }
+    return out;
   }
 
   /** Host-computed mood → every phone (each gets its owner's own tone, positive ones only). */
@@ -202,14 +211,16 @@ export class Room {
 
   private pushPace(): void {
     const now = Date.now();
-    const overlap = this.overlap(now);
+    const overlapping = this.overlappingIds(now);
+    const overlap = overlapping.size > 0;
     const listenerName = this.meName.trim() || 'the table';
     const active: number[] = [];
     const seen = new Set<number>();
     for (const [ws, p] of this.parts) {
       const wpm = this.wpmOf(p.id, now);
       if (!seen.has(p.id)) { seen.add(p.id); if (wpm > 0) active.push(wpm); }
-      this.sendTo(ws, { type: 'pace', wpm, level: paceLevel(wpm), overlap, listenerName });
+      // Only the phones that were actually talking over someone get the "one at a time" state.
+      this.sendTo(ws, { type: 'pace', wpm, level: paceLevel(wpm), overlap: overlapping.has(p.id), listenerName });
     }
     const avgWpm = active.length ? Math.round(active.reduce((a, b) => a + b, 0) / active.length) : 0;
     for (const h of this.hosts) this.sendTo(h, { type: 'table', overlap, avgWpm });
