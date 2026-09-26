@@ -82,7 +82,9 @@ const HOLD_MAX_MS = 2_500;         // coalesced is_final fragments flush after t
 export class Coalescer {
   private held: DgWord[] = [];
   private timer: NodeJS.Timeout | undefined;
-  constructor(private emit: (m: AsrMessage) => void) {}
+  /** maxSpanS: hard cap on a held turn. The host mic hears nonstop crosstalk (no endpoint for a long time), so it
+   *  uses a short cap; a phone hears one person and can hold a whole turn. */
+  constructor(private emit: (m: AsrMessage) => void, private maxSpanS = 8) {}
   private out(words: DgWord[], final: boolean) {
     for (const m of resultsToMessages({ type: 'Results', is_final: final, channel: { alternatives: [{ words }] } })) this.emit(m);
   }
@@ -97,11 +99,11 @@ export class Coalescer {
     this.held.push(...words);
     const last = this.held[this.held.length - 1];
     const span = this.held.length ? last.end - this.held[0].start : 0;
-    // Flush at the endpoint, or at a sentence end once the held text is a real line (>= 1.5 s), or at 8 s. Without the
-    // sentence rule a host mic under nonstop crosstalk never sees speech_final and held captions for 12 s; without
+    // Flush at the endpoint, or at a sentence end once the held text is a real line (>= 1.5 s), or at maxSpanS. Without the
+    // sentence rule (and the short host cap) a host mic under nonstop crosstalk held captions for 8-12 s; without
     // the 1.5 s floor "Fine by me." / "Less cooking for once." split again.
     const sentenceEnd = /[.?!]["')\]]?$/.test(last?.punctuated_word ?? '');
-    if (r.speech_final || (sentenceEnd && span >= 1.5) || span > 8 || this.held.length > 60) { this.flush(); return; }
+    if (r.speech_final || (sentenceEnd && span >= 1.5) || span > this.maxSpanS || this.held.length > 60) { this.flush(); return; }
     if (words.length) this.out(this.held, false);
     if (this.held.length) this.arm();
   }
@@ -163,7 +165,7 @@ export function registerAsr(app: FastifyInstance): void {
       let keepAlive: NodeJS.Timeout | undefined;
       let reconnectTimer: NodeJS.Timeout | undefined;
       const vad = new Vad();
-      const co = new Coalescer(send);
+      const co = new Coalescer(send, participant ? 8 : 3);
 
       // WS heartbeat: a phone that vanished (Wi-Fi drop, killed tab) often never sends a close frame.
       let alive = true;

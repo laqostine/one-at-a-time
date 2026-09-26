@@ -3,7 +3,7 @@
 
 /*
  * Theme tokens: design/BRAND.md. "Lamplight. Linen. Walnut."
- * The page is the walnut table under a pendant lamp (tex/walnut-top.jpg), the reading surface is
+ * The page is the walnut table under a pendant lamp (tex/walnut-table.jpg), the reading surface is
  * linen (tex/linen-weave.jpg), plans and notes are paper (tex/paper-sheet.jpg).
  * Dark scope = things on the walnut (cream text). Light scope (.linen/.paper) redefines the same
  * tokens for ink, so every component re-colors itself by the material it sits on.
@@ -173,13 +173,15 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   background-color: var(--shadow);
-  /* the walnut table: the lamp's pool at the top, the wood falling into shadow toward you */
+  /* the walnut table (tex/walnut-table.jpg: the mood photo's grain with its lighting flattened),
+     a pendant lamp's warm pool at the top, the wood falling into shadow toward you */
   background-image:
-    linear-gradient(180deg, rgb(40 22 10 / .12), rgb(36 20 10 / .3) 45%, rgb(27 16 8 / .55) 100%),
-    url("/tex/walnut-top.jpg");
-  background-size: cover;
-  background-position: 38% top;
-  background-attachment: fixed;
+    radial-gradient(ellipse 95% 42% at 50% 0%, rgb(241 199 106 / .2), transparent 72%),
+    linear-gradient(180deg, rgb(27 16 8 / 0), rgb(27 16 8 / .18) 50%, rgb(27 16 8 / .5) 100%),
+    url("/tex/walnut-table.jpg");
+  background-size: auto, auto, 860px auto;
+  background-position: 0 0, 0 0, 42% 0;
+  background-repeat: no-repeat, no-repeat, repeat;
   color: var(--fg);
   font-family: var(--font-sans);
   line-height: 1.4;
@@ -307,7 +309,7 @@ body::after {
 /* Walnut: the real wood, a thin bevel, one shadow down-right. */
 @utility wood {
   background-color: var(--walnut);
-  background-image: linear-gradient(180deg, rgb(27 20 16 / .05), rgb(27 20 16 / .35)), url("/tex/walnut-top.jpg");
+  background-image: linear-gradient(180deg, rgb(27 20 16 / .05), rgb(27 20 16 / .35)), url("/tex/walnut-table.jpg");
   background-size: cover;
   background-position: 40% 10%;
   box-shadow: inset 0 0 0 1px rgb(247 241 230 / .08), inset 0 0 36px 8px rgb(27 20 16 / .45), var(--shadow-sheet);

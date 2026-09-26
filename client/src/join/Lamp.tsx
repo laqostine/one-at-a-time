@@ -31,7 +31,7 @@ export function Lamp({ pace, muted, host, name, heard, level, onReveal }: {
     <button type="button" onClick={onReveal} data-testid="lamp" data-tone={st.tone}
       aria-label={`Lamp: ${st.word}. ${st.line}.${pace?.wpm ? ` ${pace.wpm} words per minute.` : ''} Tap to show controls.`}
       className="fixed inset-0 z-30 flex cursor-pointer flex-col items-center justify-between overflow-hidden bg-dusk px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-center"
-      style={{ backgroundImage: 'linear-gradient(180deg, rgb(27 20 16 / .3), rgb(27 20 16 / .72)), url("/tex/walnut-top.jpg")', backgroundSize: 'cover', backgroundPosition: '38% top' }}>
+      style={{ backgroundImage: 'linear-gradient(180deg, rgb(27 20 16 / .3), rgb(27 20 16 / .72)), url("/tex/walnut-table.jpg")', backgroundSize: 'cover', backgroundPosition: '38% top' }}>
       {/* the lamp's light on the wood */}
       <span aria-hidden className="pointer-events-none absolute inset-0 transition-[background] duration-500"
         style={{ background: `radial-gradient(70% 42% at 50% 46%, color-mix(in oklab, ${c} 45%, transparent), transparent 72%)` }} />

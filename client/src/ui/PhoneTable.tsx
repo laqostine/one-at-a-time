@@ -210,7 +210,7 @@ export function PhoneTable({ header, lamp, placemat, deck, objects }: {
   return (
     <div className="relative mx-auto flex h-dvh max-w-xl flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
       {/* the room beyond the lamp's reach: the top edge of the table falls into shadow */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-dusk/70 to-transparent" />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-dusk/40 to-transparent" />
       <TopRow {...header} tableLamp={lamp} />
       {placemat}
       {deck}

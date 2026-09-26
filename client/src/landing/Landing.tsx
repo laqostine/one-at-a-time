@@ -65,7 +65,7 @@ function Frame({ children, label }: { children: ReactNode; label: string }) {
 function LampMock() {
   return (
     <Frame label="Joyce's phone lying face-up on the table: a green lamp, 'Good pace for Bera', and the house rules on the placemat edge.">
-      <div className="overflow-hidden rounded-2xl p-3 text-left" style={{ backgroundImage: 'linear-gradient(180deg, rgb(27 20 16 / .2), rgb(27 20 16 / .6)), url("/tex/walnut-top.jpg")', backgroundSize: 'cover' }}>
+      <div className="overflow-hidden rounded-2xl p-3 text-left" style={{ backgroundImage: 'linear-gradient(180deg, rgb(27 20 16 / .2), rgb(27 20 16 / .6)), url("/tex/walnut-table.jpg")', backgroundSize: 'cover' }}>
         <div className="linen -rotate-1 rounded-md px-3 py-2">
           <p className="font-mono text-[0.58rem] font-semibold tracking-[0.16em] text-ink-muted uppercase">Your phone is your mic</p>
           <p className="font-display text-[1.9rem] leading-none text-ink italic">Joyce</p>
