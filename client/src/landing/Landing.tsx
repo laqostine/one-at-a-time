@@ -1,15 +1,17 @@
 // Pitch landing (/landing.html). Static page; the only live object is the presence itself.
 // Motion is CSS-only: an IntersectionObserver adds .is-in to .reveal elements (see index.css).
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { PresenceAuto } from '../ui/PresenceAuto';
 import type { PresenceState } from '../ui/Presence';
 import { ColorLegend } from '../ui/ColorLegend';
 import { TableRing } from '../ui/TableRing';
 import { PRESENCE_WORD, PRESENCE_HEX } from '../ui/presenceStates';
 import {
-  IconForYou, IconLedger, IconName, IconOverlap, IconPace, IconPhoneMic, IconReceipt, IconSpeakForMe, IconTable,
-  IconDecision, IconObjection, IconQuestion, IconThread,
+  IconForYou, IconLedger, IconName, IconPhoneMic, IconReceipt, IconSpeakForMe, IconTable,
+  IconDecision, IconObjection, IconQuestion, IconLaugh, IconLamp, IconMug, IconChanged,
 } from '../ui/icons';
+import { ObjIcon } from '../ui/ObjIcon';
+import { HouseRules } from '../ui/HouseRules';
 import { cn } from '@/lib/utils';
 
 const prefersReduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -46,7 +48,7 @@ const CYCLE: { state: PresenceState; ms: number; flare?: boolean }[] = [
   { state: 'speaking', ms: 2600 },
 ];
 
-function HeroPresence({ size }: { size: number }) {
+function HeroPresence({ size, legend = true }: { size: number; legend?: boolean }) {
   const [i, setI] = useState(0);
   const [level, setLevel] = useState(0);
   const [flare, setFlare] = useState(0);
@@ -77,11 +79,11 @@ function HeroPresence({ size }: { size: number }) {
   return (
     <div className="flex flex-col items-center">
       <PresenceAuto size={size} state={state} level={level} flare={flare} />
-      <p className="mt-2 h-9 font-display-italic text-[1.7rem] leading-none transition-colors duration-500"
+      {legend && <p className="mt-2 h-9 font-display-italic text-[1.7rem] leading-none transition-colors duration-500"
         style={{ color: flaring ? 'var(--warn)' : `color-mix(in oklab, ${PRESENCE_HEX[state]} 60%, var(--fg))` }} aria-hidden>
         {flaring ? 'Asked you' : PRESENCE_WORD[state]}
-      </p>
-      <ColorLegend current={state} flaring={flaring} className="mt-2 max-w-[22rem] justify-center" />
+      </p>}
+      {legend && <ColorLegend current={state} flaring={flaring} className="mt-2 max-w-[22rem] justify-center" />}
     </div>
   );
 }
@@ -112,30 +114,21 @@ function Frame({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
-function PaceMock() {
+function LampMock() {
   return (
-    <Frame label="A hearing participant's phone: the pace bar turns amber at 182 words per minute, 'A bit fast for Bera, slow down'.">
-      <p className="wordmark text-[1rem]">I Missed That</p>
-      <p className="mt-2 font-display-italic text-[1.7rem] leading-none">Alex</p>
-      <div className="mt-3 rounded-2xl border-2 border-warn bg-card p-3.5">
-        <div className="flex items-center gap-1.5 card-label"><IconPace size={14} strokeWidth={2} />Your pace</div>
-        <div className="mt-1 flex items-baseline gap-1.5">
-          <span className="text-[2.6rem] leading-none font-bold text-warn tabular-nums">182</span>
-          <span className="font-mono text-[0.7rem] text-muted">words / min</span>
-        </div>
-        <p className="mt-1.5 text-[0.95rem] leading-snug font-semibold">A bit fast for Bera, slow down</p>
-        <div className="relative mt-3 h-3 overflow-hidden rounded-full bg-card-2">
-          <div className="h-full w-[83%] rounded-full bg-warn" />
-          <span className="absolute top-0 h-full w-0.5 bg-bg/70" style={{ left: '68%' }} />
-          <span className="absolute top-0 h-full w-1 bg-bg" style={{ left: '77%' }} />
-        </div>
-        <div className="relative mt-1 h-3 font-mono text-[0.6rem] text-muted">
-          <span className="absolute -translate-x-1/2" style={{ left: '68%' }}>150</span>
-          <span className="absolute -translate-x-1/2" style={{ left: '77%' }}>170</span>
-        </div>
+    <Frame label="Joyce's phone lying face-up on the table: a green lamp, 'Good pace for Bera', and the house rules on the placemat edge.">
+      <div className="overflow-hidden rounded-2xl p-3.5 text-left" style={{ background: 'radial-gradient(120% 70% at 50% 42%, #8fe6bd, #3fcf8e 55%, #2f9e6c)', color: '#06170e' }}>
+        <p className="font-mono text-[0.6rem] font-semibold tracking-[0.16em] uppercase opacity-80">Your phone is your mic</p>
+        <p className="font-display text-[2rem] leading-none">Joyce</p>
+        <div className="mx-auto mt-4 size-24 rounded-full" style={{ background: 'radial-gradient(circle at 42% 36%, #fff, #b6f0d4 40%, #7fdcae 72%)', boxShadow: '0 0 0 8px rgb(255 255 255 / .16), 0 0 40px 8px #b6f0d4' }} />
+        <p className="mt-3 text-center font-display-italic text-[2.1rem] leading-none">Good</p>
+        <p className="mt-1 text-center text-[0.9rem] font-semibold">Good pace for Bera</p>
+        <p className="linen mt-3 rounded-xl px-2 py-1.5 text-center text-[0.72rem] font-semibold">One at a time · Face Bera · Screen up</p>
       </div>
-      <div className="mt-2 flex items-center gap-2 rounded-xl border border-bad/40 bg-bad/10 px-3 py-2 text-[0.8rem] font-semibold text-bad">
-        <IconOverlap size={16} className="shrink-0" /> Two people talking at once
+      <div className="mt-2 flex items-center justify-center gap-2 font-mono text-[0.62rem] tracking-wide text-muted">
+        <span className="size-2 rounded-full bg-[#3fcf8e]" />one voice
+        <span className="size-2 rounded-full bg-[#f6b93b]" />two at once
+        <span className="size-2 rounded-full bg-[#ff5d4d]" />too fast
       </div>
     </Frame>
   );
@@ -143,74 +136,133 @@ function PaceMock() {
 
 function AskedMock() {
   return (
-    <Frame label="The For you card: an amber nudge, 'Alex asked you: can you own the demo Friday?', with Yes, Clarify and Can't.">
-      <div className="rounded-2xl border border-border bg-card p-3">
-        <div className="card-label">For you</div>
+    <Frame label="The Asked you dish: an amber nudge, 'Mom asked you: are you coming Sunday?', with Yes, Clarify and Can't.">
+      <div className="dish rounded-2xl p-3">
+        <div className="card-label text-warn!">Asked you</div>
         <div className="imt-flash mt-2 rounded-xl border border-warn/70 bg-warn/10 px-3 py-2.5">
           <p className="flex items-start gap-2 text-[0.98rem] leading-snug">
             <IconForYou size={20} className="mt-0.5 shrink-0 text-warn" />
-            <span><strong style={{ color: 'color-mix(in oklab, #F59E0B 70%, white)' }}>Alex</strong> asked you: <q className="font-semibold">can you own the demo Friday?</q></span>
+            <span><strong style={{ color: 'color-mix(in oklab, #3B82F6 70%, white)' }}>Mom</strong> asked you: <q className="font-semibold">are you coming Sunday?</q></span>
           </p>
           <div className="mt-2.5 grid grid-cols-3 gap-1.5">
             {['Yes', 'Clarify', "Can't"].map((l) => <span key={l} className="rounded-lg bg-card-2 py-1.5 text-center text-[0.8rem] font-semibold">{l}</span>)}
           </div>
         </div>
       </div>
-      <div className="mt-2 rounded-2xl border border-border bg-card p-3">
-        <div className="flex items-center gap-1.5 card-label"><IconThread size={13} strokeWidth={2} className="text-accent" />Ship date</div>
-        <p className="mt-1.5 flex items-center gap-1.5 text-[0.85rem]"><span className="inline-flex items-center gap-1 rounded-full border border-bad/35 bg-bad/12 px-1.5 py-0.5 font-mono text-[0.6rem] text-bad uppercase"><IconObjection size={11} strokeWidth={2.2} />Objection</span> Sam: Monday, not Friday</p>
-        <p className="mt-1 flex items-center gap-1.5 text-[0.85rem]"><span className="inline-flex items-center gap-1 rounded-full border border-accent/35 bg-accent/12 px-1.5 py-0.5 font-mono text-[0.6rem] text-accent uppercase"><IconQuestion size={11} strokeWidth={2.2} />Question</span> Soft launch?</p>
+      <div className="dish mt-2 rounded-2xl p-3">
+        <div className="card-label text-[#efd6b5]!">Plans</div>
+        <p className="mt-1.5 flex items-start gap-2 text-[0.88rem] leading-snug"><IconDecision size={16} className="mt-0.5 shrink-0 text-good" /><span>Sunday at one, at our place<span className="block text-[0.72rem] text-muted italic">because ours has the bigger table</span></span></p>
+        <p className="mt-1.5 flex items-start gap-2 text-[0.88rem] leading-snug"><IconObjection size={16} className="mt-0.5 shrink-0 text-bad" /><span>Joyce: not the turkey again</span></p>
       </div>
     </Frame>
   );
 }
 
-function SpeakMock() {
+function LaughMock() {
   return (
-    <Frame label="Speak for me: a drafted line, 'Can we keep Monday as the fallback?', waiting for a gap in the conversation.">
-      <div className="rounded-2xl border border-accent/60 bg-card p-3 shadow-[var(--glow-accent)]">
-        <div className="flex items-center gap-2">
-          <span className="card-label text-accent!">Speak for me</span>
-          <span className="ml-auto font-mono text-[0.68rem] font-semibold text-warn">waiting for a gap…</span>
-        </div>
-        <div className="mt-2.5 rounded-xl border border-warn/70 bg-warn/10 px-3 py-2">
-          <q className="text-[0.98rem] font-semibold">Can we keep Monday as the fallback?</q>
-        </div>
-        {/* the gap meter: speech bars, then silence where the line will land */}
-        <div className="mt-3 flex h-8 items-end gap-[3px]" aria-hidden>
-          {[40, 70, 55, 85, 60, 30, 75, 50, 20, 8, 6, 6, 6, 6].map((h, k) => (
-            <span key={k} className={cn('w-full rounded-sm', k < 9 ? 'bg-line-strong' : 'bg-accent/50')} style={{ height: `${h}%` }} />
-          ))}
-        </div>
-        <div className="mt-1 flex justify-between font-mono text-[0.6rem] text-muted"><span>talking</span><span className="text-accent">gap → your line</span></div>
-        <div className="mt-2.5 flex flex-wrap gap-1">
-          {['Object', 'Ask', 'Repeat?', 'Agree'].map((l) => <span key={l} className="rounded-full border border-border px-2.5 py-1 text-[0.75rem] text-muted">{l}</span>)}
-        </div>
+    <Frame label="Why they laughed: 'The table laughed at Mom: the smoke alarm went off for twenty minutes.'">
+      <div className="dish rounded-2xl p-3.5">
+        <div className="flex items-center gap-2 card-label text-[#efd6b5]!"><IconLaugh size={16} strokeWidth={2} className="text-[#edbc8f]" />Why they laughed</div>
+        <p className="mt-3 text-[0.78rem] text-muted">The table laughed at <strong style={{ color: 'color-mix(in oklab, #3B82F6 70%, white)' }}>Mom</strong>, 3s ago:</p>
+        <q className="mt-1 block font-display text-[1.45rem] leading-[1.12]">Don’t remind me, the smoke alarm went off for twenty minutes.</q>
+        <p className="mt-3 border-t border-line/70 pt-2 text-[0.78rem] text-muted">Dad: We still call it the fire drill Thanksgiving.</p>
       </div>
     </Frame>
+  );
+}
+
+function HeroLegend() {
+  return <ColorLegend className="mt-3 justify-center" />;
+}
+
+/* ---------- the hero scene: a pendant lamp over the family table (v0 j3Vmfa0IsRr) with the mascot at the head ---------- */
+const HERO_SEATS = [
+  { name: 'Mom', color: '#3B82F6', x: '14%', y: '58%', r: -5, on: true },
+  { name: 'Dad', color: '#F59E0B', x: '82%', y: '54%', r: 4 },
+  { name: 'Joyce', color: '#10B981', x: '70%', y: '84%', r: -3 },
+  { name: 'Bera', color: '#8db6ff', x: '30%', y: '86%', r: 3, you: true },
+];
+
+function TableScene({ wide }: { wide: boolean }) {
+  return (
+    <div className="relative mx-auto aspect-[6/5] w-full max-w-[36rem]" aria-hidden>
+      {/* wire, shade, bulb glow, light cone, dust */}
+      <div className="absolute top-0 left-1/2 h-[9%] w-px -translate-x-1/2 bg-[#5d4a39]" />
+      <div className="absolute top-[8.5%] left-1/2 z-20 h-[7%] w-[22%] -translate-x-1/2 rounded-t-[60%] rounded-b-[12%] bg-gradient-to-b from-[#3a2c22] to-[#1d1611] shadow-[0_10px_18px_rgb(246_184_102/.28)]" />
+      <div className="absolute top-[15%] left-1/2 z-20 h-[2%] w-[9%] -translate-x-1/2 rounded-[50%] bg-[#ffd28c] shadow-[0_0_28px_12px_rgb(255_186_94/.7)]" />
+      <div className="absolute top-[15%] left-1/2 h-[62%] w-[92%] -translate-x-1/2 blur-[10px]"
+        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgb(255 207 131 / .34) 0%, rgb(245 170 82 / .13) 32%, transparent 70%)', clipPath: 'polygon(42% 0, 58% 0, 100% 100%, 0 100%)' }} />
+      <div className="absolute inset-0 opacity-30"
+        style={{ backgroundImage: 'radial-gradient(circle, rgb(255 225 174 / .8) 0 1px, transparent 1.5px)', backgroundSize: '83px 71px', maskImage: 'linear-gradient(180deg, transparent, black 25%, transparent 80%)' }} />
+      {/* the mascot sits at the head of the table (behind the far edge) */}
+      <div className="absolute top-[38%] left-1/2 z-[5] -translate-x-1/2 -translate-y-1/2"><HeroPresence size={wide ? 150 : 110} legend={false} /></div>
+      {/* the table, seen at a slight angle */}
+      <div className="wood absolute top-[46%] left-[4%] z-10 h-[44%] w-[92%] rounded-[50%]">
+        <div className="absolute inset-[5%] rounded-[50%] border border-[#e8aa67]/25" />
+        {/* the placemat with the sentence */}
+        <div className="linen absolute top-[30%] left-1/2 w-[46%] -translate-x-1/2 rotate-[-1.5deg] rounded-[46%_54%_50%_48%/14%_12%_14%_12%] px-3 py-2 text-center">
+          <p className="font-display text-[clamp(0.8rem,1.6vw,1.1rem)] leading-tight text-ink">“Sunday at one, everyone brings a side.”</p>
+        </div>
+        <div className="absolute top-[16%] left-[27%] mix-blend-screen"><ObjIcon name="mug" fallback={IconMug} size={wide ? 44 : 32} blend={false} /></div>
+      </div>
+      {/* glowing phone place cards */}
+      {HERO_SEATS.map((p) => (
+        <div key={p.name} className="absolute z-20 -translate-x-1/2 -translate-y-1/2" style={{ left: p.x, top: p.y, rotate: `${p.r}deg` }}>
+          <div className={cn('rounded-xl border px-2.5 py-1 text-[0.85rem] font-semibold whitespace-nowrap sm:px-3.5 sm:py-1.5 sm:text-[1.05rem]', p.you ? 'border-accent/60 bg-[#1b1916]/95 text-accent' : 'bg-[#231915]/92 text-fg')}
+            style={{ borderColor: p.you ? undefined : `color-mix(in oklab, ${p.color} ${p.on ? 80 : 40}%, transparent)`, boxShadow: p.on ? `0 0 0 3px color-mix(in oklab, ${p.color} 22%, transparent), 0 0 26px color-mix(in oklab, ${p.color} 60%, transparent)` : '0 10px 18px -8px rgb(0 0 0 / .7)' }}>
+            <span className="mr-1.5 inline-block size-2.5 rounded-full" style={{ background: p.color }} />{p.name}{p.you && <span className="ml-1.5 font-mono text-[0.6rem] tracking-[0.14em] text-muted uppercase">you</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Warm multi-layer glow for one headline phrase. Filter values ported from 21st.dev @efferd/illuminated-hero. */
+function GlowFilter() {
+  const layers: [string, number, string, number][] = [
+    ['b4', 4, '1 0 0 0 0  0 0.98 0 0 0  0 0 0.96 0 0  0 0 0 0.8 0', 0],
+    ['b19', 19, '0.82 0 0 0 0  0 0.49 0 0 0  0 0 0.26 0 0  0 0 0 1 0', 2],
+    ['b9', 9, '1 0 0 0 0  0 0.67 0 0 0  0 0 0.36 0 0  0 0 0 0.65 0', 2],
+    ['b30', 30, '1 0 0 0 0  0 0.61 0 0 0  0 0 0.39 0 0  0 0 0 1 0', 2],
+    ['b30', 30, '0.42 0 0 0 0  0 0.2 0 0 0  0 0 0.11 0 0  0 0 0 1 0', 64],
+  ];
+  return (
+    <svg aria-hidden className="absolute size-0">
+      <defs>
+        <filter id="imt-lamp-glow" colorInterpolationFilters="sRGB" x="-50%" y="-200%" width="200%" height="500%">
+          {[4, 9, 19, 30].map((d) => <feGaussianBlur key={d} in="SourceGraphic" stdDeviation={d} result={`b${d}`} />)}
+          {layers.map(([src, , m, dy], k) => (
+            <Fragment key={k}>
+              <feColorMatrix in={src} type="matrix" values={m} result={`c${k}`} />
+              <feOffset in={`c${k}`} dx="0" dy={dy} result={`o${k}`} />
+            </Fragment>
+          ))}
+          <feMerge>{layers.map((_, k) => <feMergeNode key={k} in={`o${k}`} />)}<feMergeNode in="o0" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+    </svg>
   );
 }
 
 /* ---------- page ---------- */
 const STATS = [
-  { n: '51.9%', label: 'of deaf and hard-of-hearing viewers are frustrated with live captions.' },
-  { n: '170', unit: 'wpm', label: 'where caption comprehension caps out. Live group speech runs 160–220.' },
-  { n: '4%', label: 'of non-speech information, the laugh, the tone, who spoke, reaches captions.' },
-  { n: '96%', label: 'of deaf children are born to hearing parents. The dinner table is where it starts.' },
+  { lead: 'About 50 million people', rest: ' in the EU say they have trouble hearing.', src: 'Eurostat-based estimate, EU27' },
+  { lead: 'The place they most want to hear', rest: ' isn’t the office. It’s the family table.', src: 'At home with family 56%, workplace 21% (EuroTrak Italy)' },
+  { lead: 'More than 90% of deaf children', rest: ' have hearing parents. The table is where it starts.', src: 'Mitchell & Karchmer 2004' },
 ];
 
 const STEPS = [
-  { Icon: IconPhoneMic, title: 'Phones', body: 'Everyone scans one QR. Each phone becomes its owner’s mic. Nothing to install.' },
-  { Icon: IconName, title: 'Names', body: 'Every line carries a real name, not “Speaker 2”. No guessing who talked.' },
-  { Icon: IconLedger, title: 'Ledger', body: 'Decisions, objections and open questions, in lanes per conversation. Held until resolved.' },
-  { Icon: IconReceipt, title: 'Receipts', body: 'Catch me up gives you three lines with the verbatim quote one tap away. Proof, not a summary.' },
+  { Icon: IconPhoneMic, title: 'Phones', body: 'Everyone scans one QR and lays the phone on the table, screen up. It becomes their mic. Nothing to install.' },
+  { Icon: IconName, title: 'Names', body: 'Every line carries a real name, Mom, Dad, Joyce, not “Speaker 2”.' },
+  { Icon: IconLedger, title: 'Plans', body: 'Plans with the why, pushback and questions, one lane per conversation at the table.' },
+  { Icon: IconReceipt, title: 'Receipts', body: 'Catch me up gives you three lines with the exact words one tap away.' },
 ];
 
 const SAMPLE_SEATS = [
-  { id: 1, name: 'Alex', color: '#F59E0B', active: true },
-  { id: 2, name: 'Sam', color: '#10B981', active: false },
-  { id: 3, name: 'Priya', color: '#EC4899', active: false },
-  { id: 4, name: 'Jo', color: '#8B5CF6', active: false },
+  { id: 1, name: 'Mom', color: '#3B82F6', active: true },
+  { id: 2, name: 'Dad', color: '#F59E0B', active: false },
+  { id: 3, name: 'Joyce', color: '#10B981', active: false },
 ];
 
 export default function Landing() {
@@ -234,63 +286,79 @@ export default function Landing() {
       </header>
 
       <main id="main">
-        {/* HERO */}
-        <section aria-labelledby="hero-h" className="relative flex min-h-dvh items-center pt-20 pb-14">
+        {/* HERO: a lamp-lit family table */}
+        <section aria-labelledby="hero-h" className="relative flex min-h-dvh items-center overflow-hidden pt-20 pb-14">
           <div aria-hidden className="pointer-events-none absolute inset-0"
-            style={{ background: 'radial-gradient(60rem 40rem at 72% 42%, rgb(141 182 255 / .10), transparent 60%), radial-gradient(40rem 30rem at 10% 90%, rgb(246 185 59 / .05), transparent 60%)' }} />
-          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:gap-6">
+            style={{ background: 'radial-gradient(60rem 40rem at 70% 40%, rgb(255 207 131 / .09), transparent 60%), radial-gradient(120% 90% at 50% 40%, transparent 55%, rgb(0 0 0 / .45))' }} />
+          <GlowFilter />
+          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 px-4 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-6">
             <div className="order-2 lg:order-1">
-              <Label>For hard-of-hearing adults at hearing tables</Label>
-              <h1 id="hero-h" className="mt-6 font-display text-[2.7rem] leading-[1.02] tracking-[-0.01em] sm:text-[4rem] lg:text-[4.6rem]">
+              <Label>For hard-of-hearing adults at the family table</Label>
+              <h1 id="hero-h" className="mt-6 font-display text-[2.6rem] leading-[1.02] tracking-[-0.01em] sm:text-[3.8rem] lg:text-[4.3rem]">
                 <span className="text-fg/80">Every accessibility tool puts the burden on the deaf person.</span>{' '}
-                <em className="text-accent">We built the other side.</em>
+                <em className="text-[#ffd9a0] [filter:url(#imt-lamp-glow)]">We built the other side.</em>
               </h1>
               <p className="mt-6 max-w-xl text-[1.15rem] leading-relaxed text-muted sm:text-[1.3rem]">
-                Transcription tells you what was said. <span className="text-fg">We tell you what you missed.</span>
+                Transcription tells you what was said. <span className="text-fg">We tell you what you missed.</span> Sunday lunch, Thursday standup: any table.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a href="/" className={btnPrimary}><IconTable size={22} strokeWidth={2} />Open the table</a>
-                <a href="/join.html" className={btnGhost}><IconPhoneMic size={22} />Join a table</a>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a href="/?replay=demo2" className={btnPrimary}><IconLamp size={22} strokeWidth={2} />Watch Sunday lunch</a>
+                <a href="/" className={btnGhost}><IconTable size={22} strokeWidth={2} />Start a table</a>
               </div>
-              <p className="mt-5 font-mono text-[0.72rem] tracking-wider text-muted uppercase">No wearables · phones only · nothing stored</p>
+              <p className="mt-5 font-mono text-[0.72rem] tracking-wider text-muted uppercase">No wearables · phones on the table · nothing stored</p>
             </div>
-            <div className="order-1 flex justify-center lg:order-2">
-              <HeroPresence size={wide ? 320 : 240} />
+            <div className="order-1 lg:order-2">
+              <TableScene wide={wide} />
+              <HeroLegend />
             </div>
           </div>
         </section>
 
-        {/* STATS */}
-        <section aria-labelledby="stats-h" className="border-y border-line bg-card/40">
+        {/* STATS: printed on linen */}
+        <section aria-labelledby="stats-h" className="linen shadow-none!">
           <h2 id="stats-h" className="sr-only">The numbers</h2>
-          <ul className="mx-auto grid max-w-6xl grid-cols-1 gap-px bg-line sm:grid-cols-2 lg:grid-cols-4">
-            {STATS.map((s, k) => (
-              <Reveal as="li" key={s.n} delay={k * 90} className="bg-bg px-6 py-8 sm:px-8 sm:py-10">
-                <p className="font-display text-[3.4rem] leading-none text-fg">{s.n}{s.unit && <span className="ml-1.5 font-mono text-[1rem] text-accent">{s.unit}</span>}</p>
-                <p className="mt-3 max-w-[18rem] text-[1rem] leading-snug text-muted">{s.label}</p>
+          <ul className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-6 py-12 sm:px-8 md:grid-cols-3 md:gap-0 md:divide-x md:divide-ink/20">
+            {STATS.map((st, k) => (
+              <Reveal as="li" key={st.lead} delay={k * 90} className="md:px-8 md:first:pl-0">
+                <p className="font-display text-[1.9rem] leading-[1.12] text-ink"><span className="text-[#9a3f1c]">{st.lead}</span>{st.rest}</p>
+                <p className="mt-3 font-mono text-[0.7rem] tracking-wide text-ink-muted uppercase">{st.src}</p>
               </Reveal>
             ))}
           </ul>
-          <p className="mx-auto max-w-6xl px-6 py-3 font-mono text-[0.66rem] tracking-wide text-muted sm:px-8">Sources: DHH caption-user surveys, caption-rate studies, the Dinner Table Syndrome literature (research/05 in the repo).</p>
+        </section>
+
+        {/* HOUSE RULES: the contract */}
+        <section aria-labelledby="rules-h" className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-24 sm:px-6 sm:pt-32 lg:grid-cols-[1.1fr_1fr]">
+          <Reveal>
+            <Label>The contract</Label>
+            <h2 id="rules-h" className="mt-4 max-w-2xl font-display text-[2.4rem] leading-[1.05] sm:text-[3.4rem]">
+              A table is a contract between everyone at it. <em className="text-[#ffd9a0]">The lamp keeps it, so she never has to.</em>
+            </h2>
+            <p className="mt-5 max-w-xl text-[1.1rem] leading-relaxed text-muted">Three house rules, on the host’s placemat before anyone speaks and on every phone that joins. When two people talk at once, every phone glows amber. Nobody has to say “one at a time” for the hundredth time.</p>
+          </Reveal>
+          <Reveal delay={120} className="relative mx-auto w-full max-w-md">
+            <div aria-hidden className="absolute -top-10 -right-4 hidden sm:block"><ObjIcon name="lamp" fallback={IconLamp} size={120} /></div>
+            <HouseRules host="Bera" className="relative p-7!" />
+          </Reveal>
         </section>
 
         {/* THREE MOMENTS */}
         <section aria-labelledby="moments-h" className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32">
           <Reveal>
-            <Label>Three moments</Label>
+            <Label>At the table</Label>
             <h2 id="moments-h" className="mt-4 max-w-3xl font-display text-[2.4rem] leading-[1.05] sm:text-[3.4rem]">
-              A table is a contract between everyone at it. <em className="text-accent">The app is the clerk.</em>
+              Three moments at <em className="text-[#ffd9a0]">Sunday lunch.</em>
             </h2>
           </Reveal>
           <ol className="mt-14 grid gap-6 lg:grid-cols-3">
             {[
-              { n: '01', title: 'Everyone joins.', body: 'Hearing people’s phones show a pace bar. Over 170 words a minute or talking over each other, it turns amber. Nobody has to ask anyone to slow down.', mock: <PaceMock /> },
-              { n: '02', title: 'The question aimed at you.', body: 'When someone asks you something, it glows amber: the only interruption the app ever makes. The rest waits in the ledger.', mock: <AskedMock /> },
-              { n: '03', title: 'Speak for me, in the next gap.', body: 'One tap drafts your line. The room hears it in the next silence, so you get back in without fighting for the floor.', mock: <SpeakMock /> },
+              { n: '01', title: 'Phones on the table, screen up.', body: 'Each phone is its owner’s mic and a lamp. Green: one voice. Amber: two at once. Red: too fast. The hearing people see it, not you.', mock: <LampMock />, obj: <ObjIcon name="lamp" fallback={IconLamp} size={64} /> },
+              { n: '02', title: 'Mom asked you.', body: 'A question aimed at you rings amber: the only interruption the app ever makes. The plans, with the why, wait on their dish.', mock: <AskedMock />, obj: <ObjIcon name="bell" fallback={IconForYou} size={64} /> },
+              { n: '03', title: 'Why they laughed.', body: 'When the table laughs, the line that got the laugh lands on your screen. You get the joke three seconds late, instead of never.', mock: <LaughMock />, obj: <IconLaugh size={48} className="m-2 text-[#edbc8f]" /> },
             ].map((m, k) => (
               <Reveal as="li" key={m.n} delay={k * 120} className="flex flex-col rounded-3xl border border-line bg-card p-5 sm:p-6">
-                <div className="flex min-h-[25rem] items-center rounded-2xl bg-[radial-gradient(closest-side,rgb(141_182_255/.08),transparent)] py-4">{m.mock}</div>
-                <p className="mt-6 font-mono text-[0.72rem] tracking-[0.18em] text-accent">{m.n}</p>
+                <div className="flex min-h-[25rem] items-center rounded-2xl bg-[radial-gradient(closest-side,rgb(255_207_131/.08),transparent)] py-4">{m.mock}</div>
+                <div className="mt-5 flex items-center gap-3">{m.obj}<p className="font-mono text-[0.72rem] tracking-[0.18em] text-accent">{m.n}</p></div>
                 <h3 className="mt-1 text-[1.35rem] font-semibold">{m.title}</h3>
                 <p className="mt-2 text-[1.02rem] leading-relaxed text-muted">{m.body}</p>
               </Reveal>
@@ -319,12 +387,12 @@ export default function Landing() {
             <Reveal>
               <Label>How it works</Label>
               <h2 id="how-h" className="mt-4 max-w-2xl font-display text-[2.4rem] leading-[1.05] sm:text-[3.4rem]">
-                Phones, names, a ledger, <em className="text-accent">receipts.</em>
+                Phones, names, plans, <em className="text-accent">receipts.</em>
               </h2>
             </Reveal>
             <Reveal delay={150} className="hidden items-center gap-4 rounded-2xl border border-line bg-card px-5 py-4 lg:flex">
               <TableRing seats={SAMPLE_SEATS} source="phones" size={104} />
-              <p className="max-w-[14rem] text-[0.95rem] leading-snug text-muted">The table ring: who joined, where you sit, who is talking right now.</p>
+              <p className="max-w-[14rem] text-[0.95rem] leading-snug text-muted">The table ring: who joined, where you sit, who has the mug right now.</p>
             </Reveal>
           </div>
           <ol className="relative mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
@@ -341,10 +409,12 @@ export default function Landing() {
             ))}
           </ol>
           <Reveal className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[0.72rem] tracking-wide text-muted">
-            <span className="inline-flex items-center gap-1.5"><IconDecision size={16} className="text-good" />decision</span>
-            <span className="inline-flex items-center gap-1.5"><IconObjection size={16} className="text-bad" />objection</span>
-            <span className="inline-flex items-center gap-1.5"><IconQuestion size={16} className="text-accent" />open question</span>
-            <span className="inline-flex items-center gap-1.5"><IconForYou size={16} className="text-warn" />for you</span>
+            <span className="inline-flex items-center gap-1.5"><IconDecision size={16} className="text-good" />plan</span>
+            <span className="inline-flex items-center gap-1.5"><IconObjection size={16} className="text-bad" />pushback</span>
+            <span className="inline-flex items-center gap-1.5"><IconQuestion size={16} className="text-accent" />question</span>
+            <span className="inline-flex items-center gap-1.5"><IconChanged size={16} className="text-change" />changed</span>
+            <span className="inline-flex items-center gap-1.5"><IconForYou size={16} className="text-warn" />asked you</span>
+            <span className="inline-flex items-center gap-1.5"><IconMug size={16} className="text-[#edbc8f]" />has the floor</span>
             <span className="inline-flex items-center gap-1.5"><IconSpeakForMe size={16} className="text-accent" />speak for me</span>
           </Reveal>
         </section>
@@ -356,8 +426,9 @@ export default function Landing() {
               Transcription tells you what was said. <em className="text-accent">We tell you what you missed.</em>
             </h2>
             <div className="mt-9 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-              <a href="/" className={btnPrimary}><IconTable size={22} strokeWidth={2} />Open the table</a>
-              <a href="/join.html" className={btnGhost}><IconPhoneMic size={22} />Join a table</a>
+              <a href="/?replay=demo2" className={btnPrimary}><IconLamp size={22} strokeWidth={2} />Watch Sunday lunch</a>
+              <a href="/" className={btnGhost}><IconTable size={22} strokeWidth={2} />Start a table</a>
+              <a href="/?replay=demo1" className={btnGhost}>Watch a standup</a>
             </div>
           </Reveal>
         </section>
@@ -369,11 +440,12 @@ export default function Landing() {
           <div>
             <p className="wordmark text-[1.6rem]">I Missed That</p>
             <p className="mt-2 text-[0.95rem] text-muted">The other side of the table.</p>
+            <p className="mt-4 font-mono text-[0.66rem] leading-relaxed tracking-wide text-muted">Numbers: EU ≈50M is our arithmetic from WHO Europe / Eurostat; 56% is EuroTrak Italy (n=1,317); &gt;90% is US data (Mitchell &amp; Karchmer 2004). research/09 in the repo.</p>
           </div>
           <div>
             <h2 className="card-label">Honest scope</h2>
             <ul className="mt-3 space-y-2.5 text-[1rem] leading-relaxed text-muted">
-              <li><span className="text-fg">Built for spoken-language tables:</span> hard-of-hearing and late-deafened adults among hearing people, at work meetings and family dinners.</li>
+              <li><span className="text-fg">Built for spoken-language tables:</span> hard-of-hearing and late-deafened adults among hearing people: family meals first, then the standup.</li>
               <li><span className="text-fg">Sign-first Deaf users need a different tool.</span> Interpreters and signing spaces, not captions. We don’t pretend otherwise.</li>
               <li><span className="text-fg">Nothing stored.</span> Audio lives in memory for 15 minutes on the table’s own session, then it’s gone.</li>
             </ul>

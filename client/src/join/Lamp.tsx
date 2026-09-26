@@ -29,29 +29,42 @@ export function Lamp({ pace, muted, host, name, heard, level, onReveal }: {
 }) {
   const st = lampState(pace, muted, host);
   const t = TONE[st.tone];
+  const orb = st.tone === 'idle' ? '#c7924f' : t.bg; // an idle lamp is warm and dim, not grey
+  // The phone lies face-up on the table: its owner's place card on top, a round lamp in the middle,
+  // the edge of a linen placemat with the house rules at the bottom. (Layout from v0 chat iv3NgIo8UyP.)
   return (
     <button type="button" onClick={onReveal} data-testid="lamp" data-tone={st.tone}
       aria-label={`Lamp: ${st.word}. ${st.line}.${pace?.wpm ? ` ${pace.wpm} words per minute.` : ''} Tap to show controls.`}
-      className="fixed inset-0 z-30 flex cursor-pointer flex-col items-center justify-between px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center transition-colors duration-500"
-      style={{ background: t.bg, color: t.fg }}>
-      <span className="flex flex-col items-center gap-2">
-        <span className="flex size-[84px] items-center justify-center rounded-full bg-[#12110f]/85 shadow-[0_10px_30px_-10px_rgb(0_0_0/.5)]">
-          <PresenceAuto size={72} halo={false} state={muted ? 'idle' : heard ? 'speaking' : 'listening'} level={level} />
+      className="fixed inset-0 z-30 flex cursor-pointer flex-col items-center justify-between overflow-hidden px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-center transition-colors duration-500"
+      style={{ background: `radial-gradient(120% 70% at 50% 42%, color-mix(in oklab, ${t.bg} 82%, white), ${t.bg} 55%, color-mix(in oklab, ${t.bg} 78%, black))`, color: t.fg }}>
+      {/* place card */}
+      <span className="flex w-full items-start justify-between gap-3 text-left">
+        <span className="min-w-0">
+          <span className="block font-mono text-[0.78rem] font-semibold tracking-[0.16em] uppercase" style={{ color: t.sub }}>Your phone is your mic</span>
+          <span className="mt-1 block truncate pl-1 font-display text-[3.4rem] leading-none">{name}</span>
         </span>
-        <span className="font-mono text-[0.78rem] font-semibold tracking-[0.16em] uppercase" style={{ color: t.sub }}>{name}</span>
+        <span className="flex size-[64px] shrink-0 items-center justify-center rounded-full bg-[#12110f]/85 shadow-[0_10px_30px_-10px_rgb(0_0_0/.5)]">
+          <PresenceAuto size={56} halo={false} state={muted ? 'idle' : heard ? 'speaking' : 'listening'} level={level} />
+        </span>
       </span>
 
+      {/* the lamp */}
       <span className="flex flex-col items-center">
-        {pace?.overlap && !muted && <IconOverlap size={56} strokeWidth={2} className="mb-3" />}
-        <span className="font-display-italic text-[4.6rem] leading-[0.95] sm:text-[6rem]" role="status" aria-live="polite">{st.word}</span>
-        <span className="mt-4 max-w-xs text-[1.3rem] leading-snug font-semibold">{st.line}</span>
-      </span>
-
-      <span className="flex flex-col items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 font-mono text-[1rem] font-semibold tabular-nums" style={{ color: t.sub }}>
+        <span aria-hidden className="relative flex size-[min(58vw,15rem)] items-center justify-center rounded-full"
+          style={{ background: `radial-gradient(circle at 42% 36%, color-mix(in oklab, ${orb} 30%, white), color-mix(in oklab, ${orb} 70%, white) 38%, ${orb} 75%)`, boxShadow: `0 0 0 14px color-mix(in oklab, ${orb} 22%, transparent), 0 0 80px 20px color-mix(in oklab, ${orb} 55%, transparent)` }}>
+          {pace?.overlap && !muted && <IconOverlap size={64} strokeWidth={2} />}
+        </span>
+        <span className="mt-7 font-display-italic text-[3.6rem] leading-[0.95] sm:text-[5rem]" role="status" aria-live="polite">{st.word}</span>
+        <span className="mt-3 max-w-xs text-[1.25rem] leading-snug font-semibold">{st.line}</span>
+        <span className="mt-3 inline-flex items-center gap-1.5 font-mono text-[0.95rem] font-semibold tabular-nums" style={{ color: t.sub }}>
           <IconPace size={18} strokeWidth={2} />{pace?.wpm ? `${pace.wpm} wpm` : '– wpm'}
         </span>
-        <span className="font-mono text-[0.7rem] tracking-[0.14em] uppercase" style={{ color: t.sub }}>Tap for controls</span>
+      </span>
+
+      {/* the placemat edge: the house rules, one line */}
+      <span className="linen -mx-1 flex w-full flex-col items-center gap-0.5 rounded-2xl px-4 py-3">
+        <span className="text-[1rem] font-semibold text-ink">One at a time · Face {host} · Screen up</span>
+        <span className="font-mono text-[0.68rem] tracking-[0.14em] text-ink-muted uppercase">Tap for controls</span>
       </span>
     </button>
   );

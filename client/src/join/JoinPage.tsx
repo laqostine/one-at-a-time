@@ -5,8 +5,9 @@ import { Mic, MicOff } from 'lucide-react';
 import type { AsrMessage, PaceLevel } from '../../../shared/types';
 import { startMic, type MicHandle } from '../audio/mic';
 import { PresenceAuto } from '../ui/PresenceAuto';
-import { IconOverlap, IconPace, IconPhoneMic, IconSpeakForMe } from '../ui/icons';
+import { IconOverlap, IconPace, IconSpeakForMe } from '../ui/icons';
 import { Lamp } from './Lamp';
+import { HouseRules } from '../ui/HouseRules';
 import { SayCard, type SayMsg } from './SayCard';
 import { Toggle } from '@/components/ui/toggle';
 
@@ -229,7 +230,7 @@ export default function JoinPage() {
         <a href="/landing.html" className="wordmark text-[1.35rem]">I Missed That</a>
         <h1 className="mt-4 font-display-italic text-[2.6rem] leading-none">{phase === 'live' ? name.trim() : 'Join the table'}</h1>
         <p className="mt-2 text-body text-muted">
-          Your phone is your mic. <span className="text-fg">{host}</span> sees your name, not your voice.
+          Your phone is your mic. <span className="text-fg">{host}</span> sees your name, not your voice. One at a time helps.
         </p>
       </header>
 
@@ -244,7 +245,7 @@ export default function JoinPage() {
           <label className="flex flex-col gap-2">
             <span className="card-label">Your name</span>
             <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" maxLength={40}
-              placeholder="e.g. Alex" enterKeyHint="go"
+              placeholder="e.g. Joyce" enterKeyHint="go"
               className="h-14 rounded-xl border border-input bg-card-2 px-4 text-[1.2rem] text-fg outline-none transition-colors duration-150 focus:border-accent" />
           </label>
           <button type="submit" disabled={!name.trim() || phase === 'starting'}
@@ -254,10 +255,12 @@ export default function JoinPage() {
         </form>
       )}
       {(phase === 'form' || phase === 'starting') && (
+        <HouseRules host={host === 'The host' ? 'the host' : host} className="mx-1" />
+      )}
+      {(phase === 'form' || phase === 'starting') && (
         <ul className="flex flex-col gap-1 rounded-2xl border border-border/70 p-2" aria-label="What happens after you join">
           {[
-            { Icon: IconPhoneMic, title: 'Your phone is your mic', body: 'Every line you say carries your name.' },
-            { Icon: IconPace, title: 'The screen becomes a lamp', body: `Green is easy for ${host === 'The host' ? 'the host' : host} to follow. Amber or red means slow down.` },
+            { Icon: IconPace, title: 'Screen up, it becomes a lamp', body: `Green: easy for ${host === 'The host' ? 'the host' : host} to follow. Amber: two talking. Red: too fast.` },
             { Icon: IconSpeakForMe, title: `${host} can answer you here`, body: 'Their typed line fills your screen for 10 seconds.' },
           ].map(({ Icon, title, body }) => (
             <li key={title} className="flex items-start gap-3 rounded-xl px-2.5 py-2.5">

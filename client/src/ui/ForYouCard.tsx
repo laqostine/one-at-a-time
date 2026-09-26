@@ -1,4 +1,5 @@
 import { IconForYou } from './icons';
+import { ObjIcon } from './ObjIcon';
 import type { LedgerItem } from '../../../shared/types';
 import type { Nudge } from '../state/useSession';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,11 +19,13 @@ interface Props {
 
 /** Things aimed at the user. The live nudge is the app's only proactive interrupt (amber glow, not red). */
 export function ForYouCard({ items, nudge, nudgeColor, colorFor, onDismiss, onOpen, className }: Props) {
-  const mine = items.filter((i) => i.kind === 'assigned_to_me').slice(-2);
+  // While the live question rings, the older list steps aside (the ring already says it).
+  const mine = nudge ? [] : items.filter((i) => i.kind === 'assigned_to_me').slice(-2);
   return (
-    <Card role="region" aria-label="For you" className={cn('shrink-0 px-3 sm:px-4', className)}>
+    <Card role="region" aria-label="Asked you" className={cn('dish shrink-0 px-3 sm:px-4', nudge && 'border-warn/60', className)}>
       <CardHeader className="px-1">
-        <CardTitle>For you</CardTitle>
+        <ObjIcon name="bell" fallback={IconForYou} size={34} className="-my-1" />
+        <CardTitle className="text-warn!">Asked you</CardTitle>
       </CardHeader>
       <div aria-live="polite" aria-atomic="true">
         {nudge && (
@@ -44,10 +47,10 @@ export function ForYouCard({ items, nudge, nudgeColor, colorFor, onDismiss, onOp
       </div>
       {mine.length ? (
         <ul className="space-y-0.5">
-          {mine.map((i) => <LedgerRow key={i.id} item={i} color={colorFor(i.speaker)} onOpen={() => onOpen(i.t)} />)}
+          {mine.map((i) => <LedgerRow key={i.id} item={i} color={colorFor(i.speaker)} onOpen={() => onOpen(i.t)} compact />)}
         </ul>
       ) : !nudge && (
-        <p className="px-1 text-body text-muted">Nothing asked of you.</p>
+        <p className="px-1 text-body text-muted">Nothing yet. A question for you rings here.</p>
       )}
     </Card>
   );

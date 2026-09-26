@@ -35,6 +35,8 @@ interface Props {
   /** Table ring seats: joined phones, or diarized voices when nobody joined. */
   seats?: Seat[];
   seatSource?: 'phones' | 'voices';
+  /** Desktop top bar: the table lamp pill. */
+  lamp?: ReactNode;
 }
 
 function statusText(asr: Props['asr'], listening: boolean): { text: string; tone: string } {
@@ -154,20 +156,20 @@ const Wordmark = ({ className }: { className?: string }) =>
 
 function StateWord({ state, flaring, className }: { state: PresenceState; flaring: boolean; className?: string }) {
   return (
-    <span className={cn('font-display-italic leading-none transition-colors duration-300', className)}
+    <span className={cn('font-display-italic leading-none whitespace-nowrap transition-colors duration-300', className)}
       style={{ color: flaring ? 'var(--warn)' : `color-mix(in oklab, ${PRESENCE_HEX[state]} 55%, var(--fg))` }}>
       {flaring ? 'Asked you' : PRESENCE_WORD[state]}
     </span>
   );
 }
 
-function StatusLine({ p, latency, asr, listening }: { p: ReturnType<typeof usePresenceModel>; latency: Props['latency']; asr: Props['asr']; listening: boolean }) {
+function StatusLine({ p, latency, asr, listening, quiet = false }: { p: ReturnType<typeof usePresenceModel>; latency: Props['latency']; asr: Props['asr']; listening: boolean; quiet?: boolean }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${p.status.tone} ${p.live ? 'imt-pulse' : ''}`} />
       <span className="min-w-0 truncate font-mono text-[0.72rem] font-medium tracking-wider text-muted uppercase" role="status">{p.status.text}</span>
       {/* Latency chips live here on tablets/desktop; on phones they move into Settings so the status can breathe. */}
-      <span className="hidden min-w-0 items-center gap-1.5 overflow-hidden font-mono tabular-nums sm:flex">
+      <span className={cn('hidden min-w-0 items-center gap-1.5 overflow-hidden font-mono tabular-nums', quiet ? '2xl:flex' : 'sm:flex')}>
         {asr.source === 'webspeech' && listening && <Badge variant="outline" className="text-warn">no speaker colors</Badge>}
         <Badge variant="outline" className={latency.stateError ? 'text-warn' : 'text-muted'} title="Time for the ledger to update">
           ledger {latency.stateError ? 'offline' : fmtMs(latency.stateMs)}
@@ -237,7 +239,9 @@ export function DesktopTop(props: Props) {
       <header className="flex h-16 shrink-0 items-center gap-5 px-1" aria-label="I Missed That: status">
         <Wordmark className="text-[1.6rem]!" />
         <span aria-hidden className="h-5 w-px bg-line" />
-        <div className="min-w-0 flex-1"><StatusLine p={p} latency={props.latency} asr={props.asr} listening={props.listening} /></div>
+        {/* the table view keeps the bar quiet: latency chips only on very wide screens (always in Settings) */}
+        <div className="min-w-0 flex-1"><StatusLine p={p} latency={props.latency} asr={props.asr} listening={props.listening} quiet /></div>
+        {props.lamp}
         <Controls {...props} />
       </header>
     </TooltipProvider>
@@ -264,4 +268,21 @@ export function PresenceCell(props: Props & { className?: string }) {
       <ColorLegend current={p.state} flaring={p.flaring} className="mt-3 justify-center border-t border-line/70 pt-3" />
     </section>
   );
+}
+
+/** Desktop table: the mascot sitting at the head of the table, with its state word. */
+export function TableHead(props: Props & { size?: number }) {
+  const p = usePresenceModel(props);
+  return (
+    <div className="flex flex-col items-center" aria-label={`The clerk: ${p.flaring ? 'asked you' : PRESENCE_WORD[p.state]}`} role="status">
+      <PresenceAuto size={props.size ?? 112} state={p.state} level={p.level} flare={props.flare ?? 0} />
+      <StateWord state={p.state} flaring={p.flaring} className="-mt-2 text-[1.6rem] drop-shadow-[0_2px_6px_rgb(0_0_0/.8)]" />
+    </div>
+  );
+}
+
+/** Desktop: the mascot's color legend, under the table. */
+export function TableLegend(props: Props & { className?: string }) {
+  const p = usePresenceModel(props);
+  return <ColorLegend current={p.state} flaring={p.flaring} className={props.className} />;
 }

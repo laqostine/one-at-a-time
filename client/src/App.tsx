@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AudioEvent, Utterance } from '../../shared/types';
+import type { Utterance } from '../../shared/types';
 import { useRepeat } from './state/useRepeat';
 import { postSay } from './state/api';
 import { useSession } from './state/useSession';
 import { around, colorForName, currentUtterance, lastMinutes, speakerColor, speakerName } from './state/session';
 import { useInterject, useLastActivity } from './state/useInterject';
 import { applyPrefs, loadPrefs, type Prefs } from './ui/prefs';
-import { DesktopTop, Header, LG, PresenceCell, useMedia } from './ui/Header';
+import { DesktopTop, Header, LG, TableHead, TableLegend, useMedia } from './ui/Header';
+import { TableTop, LampPill, TableKey } from './ui/TableTop';
+import { tableLamp } from './ui/tableLamp';
+import { LaughCard } from './ui/LaughCard';
+import { HouseRules } from './ui/HouseRules';
 import { NowCard } from './ui/NowCard';
 import { OpenCard } from './ui/OpenCard';
 import { ForYouCard } from './ui/ForYouCard';
@@ -16,7 +20,6 @@ import { CaptionsStrip } from './ui/CaptionsStrip';
 import { RenameDialog } from './ui/RenameDialog';
 import { SettingsDrawer } from './ui/SettingsDrawer';
 import { Onboarding } from './ui/Onboarding';
-import { SoundHistory } from './ui/SoundHistory';
 import { JoinQr } from './ui/JoinQr';
 import { SpeakCard } from './ui/SpeakCard';
 import { useAway, type AwayInterval } from './state/useAway';
@@ -109,7 +112,6 @@ export default function App() {
   const colorFor = useCallback((name?: string) => colorForName(session, name), [session]);
 
   const now = currentUtterance(session);
-  const events = useMemo(() => session.timeline.filter((i): i is AudioEvent => i.type === 'event'), [session.timeline]);
   const loading = s.catchup.status === 'loading';
   // Styling only: invite a press (subtle pulse) when an away span ended after the last catch-up.
   const awayPending = !loading && s.catchup.status === 'idle' && !!awayApi.lastAway && awayApi.lastAway.t1 > session.lastSeenAt;
@@ -123,6 +125,9 @@ export default function App() {
     : Object.values(session.speakers).filter((sp) => sp.id >= 0).map((sp) => ({ id: sp.id, name: nameOf(sp.id), color: colorOf(sp.id), active: sp.id === talking }));
 
   const desktop = useMedia(LG, false);
+  const xl = useMedia('(min-width: 1280px)', false); // three columns around the table; below that, two
+  // The table lamp mirrors the phones' lamp mode (server table message), else just "someone has the floor".
+  const lamp = tableLamp(s.table, talking != null || seats.some((x) => x.active));
   const headerProps = {
     asr: s.asr, latency: s.latency, listening: s.listening,
     onToggleListening: () => s.setListening(!s.listening), onSettings: () => setSettingsOpen(true),
@@ -130,13 +135,16 @@ export default function App() {
     lastTranscriptAt: s.lastTranscriptAt, requestPending: s.requestPending, micLevel: s.micLevel,
     speaking: interject.status === 'speaking',
     flare, seats, seatSource,
+    lamp: <LampPill lamp={lamp} />,
     badge: <AwayIndicator enabled={awayApi.enabled} active={awayApi.active} away={awayApi.away} sim={awayApi.sim} />,
   };
+  const host = session.me.name || 'you';
   const nowCard = (cls?: string) => (
-    <NowCard utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
+    <NowCard utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''} variant="placemat"
+      empty={<HouseRules host={host} variant="mat" className="mt-1" />}
       onSpeaker={() => now && setRenaming(now.speaker)} onAskRepeat={onAskRepeat} className={cls} />
   );
-  const openCard = (tall: boolean) => <OpenCard items={session.ledger} threads={s.threads} colorFor={colorFor} onOpen={setJumpT} tall={tall} className={tall ? 'h-full rounded-3xl' : undefined} />;
+  const openCard = (tall: boolean, cls?: string) => <OpenCard items={session.ledger} threads={s.threads} colorFor={colorFor} onOpen={setJumpT} tall={tall} className={cls ?? (tall ? 'h-full rounded-3xl' : 'min-h-[7.5rem]')} />;
   const forYou = (cls?: string) => (
     <ForYouCard items={session.ledger} nudge={s.nudge}
       nudgeColor={s.nudge?.speakerId != null ? colorOf(s.nudge.speakerId) : colorFor(s.nudge?.speaker)}
@@ -150,33 +158,50 @@ export default function App() {
       {loading ? 'Catching you up…' : 'Catch me up'}
     </Button>
   );
+  const laughs = (cls?: string) => (
+    <LaughCard items={session.timeline} catchup={s.catchup} nameOf={nameOf} colorOf={colorOf} colorFor={colorFor}
+      getNow={s.nowT} onOpen={setJumpT} className={cls} />
+  );
   const captions = <CaptionsStrip items={session.timeline} nameOf={nameOf} colorOf={colorOf} onSpeaker={setRenaming} onAskRepeat={onAskRepeat} />;
 
   return (
-    <div className={desktop ? 'mx-auto flex h-dvh max-w-[90rem] flex-col px-5 pb-5' : 'mx-auto flex h-dvh max-w-4xl flex-col'}>
+    <div className={desktop ? 'mx-auto flex h-dvh max-w-[90rem] flex-col px-6 pb-5' : 'mx-auto flex h-dvh max-w-4xl flex-col'}>
       {desktop ? (
         <>
           <DesktopTop {...headerProps} />
-          {/* Bento: mascot hero | Now (serif line) across the top; Open (tall, thread lanes) | For you + Sounds; actions row. */}
-          <main className="grid min-h-0 flex-1 grid-cols-[minmax(19rem,0.85fr)_minmax(0,1.45fr)_minmax(0,1fr)] grid-rows-[12.5rem_minmax(0,1fr)_auto_auto] gap-3">
-            <PresenceCell {...headerProps} className="row-span-2" />
-            <div className="col-span-2 min-h-0">{nowCard('h-full! rounded-3xl')}</div>
-            <div className="relative min-h-0">
-              {openCard(true)}
-              {catchup}
+          {/* The table is the layout: Plans | the table (placemat, seats, mug, mascot at the head) | Asked you + Why they laughed. */}
+          <main className={xl
+            ? 'room-light grid min-h-0 flex-1 grid-cols-[minmax(17rem,0.9fr)_minmax(0,1.75fr)_minmax(17rem,0.9fr)] grid-rows-[minmax(0,1fr)_auto_auto] gap-4'
+            : 'room-light grid min-h-0 flex-1 grid-cols-[minmax(0,1.35fr)_minmax(18rem,1fr)] grid-rows-[minmax(0,1fr)_auto_auto] gap-4'}>
+            {xl && (
+              <div className="relative min-h-0">
+                {openCard(true)}
+                {catchup}
+              </div>
+            )}
+            <div className="flex min-h-0 flex-col">
+              <TableTop className="flex-1" seats={seats} me={session.me.name} lamp={lamp}
+                head={<TableHead {...headerProps} size={xl ? 104 : 88} />}
+                placemat={nowCard('min-h-[31cqw]')} />
+              {!xl && <LaughCard variant="strip" items={session.timeline} catchup={s.catchup} nameOf={nameOf} colorOf={colorOf} colorFor={colorFor} getNow={s.nowT} onOpen={setJumpT} className="px-2" />}
+              <TableKey className="shrink-0 pt-1"><TableLegend {...headerProps} className="justify-center" /></TableKey>
             </div>
-            <div className="flex min-h-0 flex-col gap-3">
-              {forYou('min-h-0 flex-1 overflow-y-auto rounded-3xl')}
-              {/* the live nudge needs the whole column (it is the one interrupt); sounds step aside meanwhile */}
-              {!s.nudge && <SoundHistory variant="cell" events={events} getNow={s.nowT} className="shrink-0" />}
+            <div className="relative flex min-h-0 flex-col gap-4">
+              {forYou('max-h-[62%] shrink-0 overflow-y-auto rounded-3xl')}
+              {xl ? laughs('min-h-0 flex-1') : (
+                <>
+                  {openCard(true, 'min-h-0 flex-1 rounded-3xl')}
+                  {catchup}
+                </>
+              )}
             </div>
-            <div className="col-span-3 grid grid-cols-[minmax(0,2.3fr)_minmax(0,1fr)] gap-3">
+            <div className={xl ? 'col-span-3 grid grid-cols-[minmax(0,2.7fr)_minmax(0,0.95fr)] gap-4' : 'col-span-2 grid grid-cols-[minmax(0,1.35fr)_minmax(18rem,1fr)] gap-4'}>
               {catchUpBtn}
               <div className="relative h-16">
                 <SpeakCard api={interject} say={sayLine} voice={prefs.voice} floating className="h-16 text-[1.15rem] font-semibold" />
               </div>
             </div>
-            <div className="col-span-3">{captions}</div>
+            <div className={xl ? 'col-span-3' : 'col-span-2'}>{captions}</div>
           </main>
         </>
       ) : (
@@ -185,13 +210,15 @@ export default function App() {
           <main className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
             {nowCard()}
             <div className="relative flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden sm:gap-3">
+              {/* a live question comes first on phones: it is the one interrupt; plans give way */}
+              {s.nudge && forYou()}
               {openCard(false)}
-              {forYou()}
+              {!s.nudge && session.ledger.some((i) => i.kind === 'assigned_to_me') && forYou()}
               <SpeakCard api={interject} say={sayLine} voice={prefs.voice} />
               {catchup}
             </div>
             {catchUpBtn}
-            <SoundHistory events={events} getNow={s.nowT} />
+            <LaughCard variant="strip" items={session.timeline} catchup={s.catchup} nameOf={nameOf} colorOf={colorOf} colorFor={colorFor} getNow={s.nowT} onOpen={setJumpT} />
             {captions}
           </main>
         </>

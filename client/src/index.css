@@ -309,3 +309,9 @@ html.io .reveal.is-in { opacity: 1; transform: none; }
 
 .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Things printed on linen use ink, not the dark-theme text colors. */
+.linen .doubt { color: color-mix(in oklab, var(--ink) 70%, var(--linen)); text-decoration-color: #2f5bb0; }
+.linen .text-accent { color: #2f5bb0; }
+.linen .border-accent\/35, .linen .border-accent\/40 { border-color: rgb(47 91 176 / .45); }
+.linen :focus-visible { outline-color: #2f5bb0; }

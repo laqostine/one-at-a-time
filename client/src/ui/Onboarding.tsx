@@ -10,7 +10,8 @@ export function Onboarding({ onDone }: { onDone: (name: string) => void }) {
       <div className="mb-3 flex justify-center">
         <PresenceAuto size={160} state="listening" level={0} />
       </div>
-      <p className="mb-5 text-center font-display-italic text-[1.6rem] leading-tight">We tell you what you missed.</p>
+      <p className="text-center font-display-italic text-[1.6rem] leading-tight">We tell you what you missed.</p>
+      <p className="mb-5 text-center text-[1rem] text-muted">Sunday lunch, Thursday standup: any table.</p>
       <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) onDone(name.trim()); }} className="space-y-4">
         <label className="block">
           <span className="mb-2 block text-[1.15rem] font-semibold">What's your name?</span>
