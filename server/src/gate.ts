@@ -3,7 +3,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { TONES, type GateKind, type GateRequest, type GateResponse, type TimelineItem, type Tone, type Utterance } from '../../shared/types.ts';
 import { isAddressedToMe, mentionsMe } from '../../shared/addressed.ts';
-import { FAST_MODEL, getClient, hasAnthropic, speakerName, withRetry } from './claude.ts';
+import { FAST_MODEL, getClient, hasAnthropic, speakerName, voiceNote, withRetry } from './claude.ts';
 
 const GATE_TIMEOUT_MS = 2_500;
 // Two wire modes, same typed result:
@@ -38,7 +38,7 @@ addressed=yes if it asks/tells ME something or hands ME a task. Also yes for an 
 addressed=no for lines to the whole group (decisions, opinions, jokes, announcements) that neither name ME nor leave ME a task.
 kind: decision (group settles something), objection (pushback/disagreement), open_question (unresolved question or unowned task), instruction_change (plan/time/place changed), assigned_to_me (task given to ME), chatter (anything else).
 urgent=true only if ME must respond now.
-tone: how the line was said, as a hearing person would feel it from the voice: neutral, warm, teasing, annoyed, urgent, sad, excited. Prefer neutral unless the words clearly carry it (sarcasm=teasing, complaint=annoyed).`;
+tone: how the line was said, as a hearing person would feel it from the voice: neutral, warm, teasing, annoyed, urgent, sad, excited. When TARGET has a [voice: …] note, weigh those voice cues over the words (the same words said louder and fast read annoyed/urgent/excited; quiet and slow read sad or warm; a long pause before a short reply can be hurt or annoyed). Without voice cues prefer neutral unless the words clearly carry it (sarcasm/ribbing=teasing, complaint or exasperation=annoyed, kindness/offers=warm).`;
 const TEXT_FORMAT = `\nReply with exactly 5 space-separated tokens and nothing else: addressed(y|n) confidence(h|m|l) kind urgent(0|1) tone. Example: y h assigned_to_me 1 warm`;
 const ABBR: Record<string, string> = { y: 'yes', n: 'no', h: 'high', m: 'medium', l: 'low' };
 
@@ -83,7 +83,7 @@ function buildUser(req: GateRequest): string {
   return [
     `ME: ${me.name}${me.aliases?.length ? ` (aka ${me.aliases.join(', ')})` : ''}`,
     ctx.length ? `CONTEXT:\n${ctx.map(line).join('\n')}` : '',
-    `TARGET: ${line(req.target)}`,
+    `TARGET: ${line(req.target)}${voiceNote(req.target.prosody) ? ` [voice: ${voiceNote(req.target.prosody)}]` : ''}`,
   ].filter(Boolean).join('\n');
 }
 
@@ -91,7 +91,7 @@ export async function gate(req: GateRequest): Promise<GateResponse> {
   const t0 = Date.now();
   const text = req?.target?.text?.trim() ?? '';
   if (!text) return { addressed_to_me: 0, kind: 'chatter', kind_p: 1, urgent: false, latencyMs: 0, source: 'fallback' };
-  const key = `${req.me?.name ?? ''}|${text.toLowerCase()}`;
+  const key = `${req.me?.name ?? ''}|${text.toLowerCase()}|${voiceNote(req?.target?.prosody)}`;
   const hit = lruGet(key);
   if (hit) return { ...hit, source: 'cache', latencyMs: Date.now() - t0 };
   if (!hasAnthropic()) return { ...gateFallback(req), latencyMs: Date.now() - t0 };

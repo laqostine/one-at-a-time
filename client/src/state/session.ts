@@ -24,7 +24,8 @@ export type SessionAction =
   | { type: 'transcript'; msg: AsrMessage }
   | { type: 'event'; event: AudioEvent }
   | { type: 'renameSpeaker'; id: number; name: string }
-  | { type: 'setTone'; id: string; tone: Tone }
+  /** tone = displayed (smoothed), raw = the gate's own verdict for this line */
+  | { type: 'setTone'; id: string; tone: Tone | undefined; raw?: Tone }
   | { type: 'mergeSpeaker'; from: number; to: number }
   | { type: 'setMe'; name: string; aliases: string[] }
   /** coveredT: max tStart of the finals the /api/state request saw; provisional items at or before it are dropped. */
@@ -109,6 +110,7 @@ function applyTranscript(s: SessionState, msg: Extract<AsrMessage, { type: 'tran
     type: 'utterance', speaker, text, tStart: msg.tStart, tEnd: msg.tEnd, final: msg.final,
   };
   if (msg.final && msg.words?.length) utt.words = msg.words.map(({ w, c }) => ({ w, c }));
+  if (msg.final && msg.prosody) utt.prosody = msg.prosody;
   // Final duplicate guard (same id already present).
   const deduped = msg.final ? timeline.filter((i) => i.id !== utt.id) : timeline;
   return { ...s, speakers, timeline: trimRing(insertSorted(deduped, utt)) };
@@ -146,7 +148,7 @@ export function sessionReducer(s: SessionState, a: SessionAction): SessionState 
       if (s.timeline.some((i) => i.id === a.event.id)) return s;
       return { ...s, timeline: trimRing(insertSorted(s.timeline, a.event)) };
     case 'setTone': {
-      return { ...s, timeline: s.timeline.map((i) => (i.type === 'utterance' && i.id === a.id ? { ...i, tone: a.tone } : i)) };
+      return { ...s, timeline: s.timeline.map((i) => (i.type === 'utterance' && i.id === a.id ? { ...i, tone: a.tone, ...(a.raw ? { toneRaw: a.raw } : {}) } : i)) };
     }
     case 'renameSpeaker': {
       const sp = s.speakers[a.id];

@@ -10,3 +10,4 @@ design/assets/raw/
 mobile/node_modules/
 mobile/ios/App/build/
 mobile/ios/DerivedData/
+server/models/*.onnx

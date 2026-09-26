@@ -2,7 +2,7 @@
 // (~0.7 s Haiku verdict). Upgrades the regex nudge (indirect asks) and drops a PROVISIONAL ledger
 // card seconds before the 8 s /api/state loop replaces it with the full ledger.
 import { useCallback, useRef, useState, type Dispatch } from 'react';
-import type { GateRequest, GateResponse, LedgerKind, Utterance } from '../../../shared/types';
+import type { GateRequest, GateResponse, LedgerKind, Tone, Utterance } from '../../../shared/types';
 import { isUtt, speakerName, ME_SPEAKER, type SessionAction, type SessionState } from './session';
 
 export const GATE_ADDRESSED_P = 0.6;
@@ -27,6 +27,17 @@ const clip = (t: string, n = CLIP_WORDS) => {
   return w.length > n ? `${w.slice(0, n).join(' ')}…` : t.trim();
 };
 
+/**
+ * Per-speaker tone hysteresis: the DISPLAYED tone only changes when the new raw tone repeats (2 of that speaker's last
+ * 3 lines) or is 'urgent'; otherwise the speaker's previous displayed tone stays. One misread line no longer flips
+ * a speaker from "teasing" to "annoyed" and back. Mirrored in tools/fake-phones.mjs (--tone-report).
+ */
+export function smoothTone(hist: Tone[], shown: Tone | undefined, raw: Tone): { hist: Tone[]; shown: Tone | undefined } {
+  const h = [...hist, raw].slice(-3);
+  const next = raw === 'urgent' || h.filter((t) => t === raw).length >= 2 ? raw : shown;
+  return { hist: h, shown: next };
+}
+
 async function postGate(req: GateRequest, signal: AbortSignal): Promise<GateResponse> {
   const res = await fetch('/api/gate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(req), signal });
   if (!res.ok) throw new Error(`/api/gate ${res.status}`);
@@ -38,6 +49,7 @@ export function useGate({ getSession, dispatch, nudge, coveredT }: Opts) {
   const [lastGate, setLastGate] = useState<LastGate | null>(null);
   const inflight = useRef<{ id: string; ac: AbortController }[]>([]);
   const seen = useRef(new Set<string>());
+  const tones = useRef(new Map<number, { hist: Tone[]; shown: Tone | undefined }>());
 
   const gateUtterance = useCallback((utt: Utterance) => {
     const s = getSession();
@@ -61,7 +73,12 @@ export function useGate({ getSession, dispatch, nudge, coveredT }: Opts) {
         setGateLatencyMs(ms);
         setLastGate({ uttId: utt.id, text: utt.text, res, at: Date.now() });
         const cur = getSession();
-        if (res.tone && res.tone !== 'neutral') dispatch({ type: 'setTone', id: utt.id, tone: res.tone });
+        if (res.tone) {
+          const prev = tones.current.get(utt.speaker) ?? { hist: [], shown: undefined };
+          const next = smoothTone(prev.hist, prev.shown, res.tone);
+          tones.current.set(utt.speaker, next);
+          dispatch({ type: 'setTone', id: utt.id, tone: next.shown === 'neutral' ? undefined : next.shown, raw: res.tone });
+        }
         if (cur.me.name && res.addressed_to_me >= GATE_ADDRESSED_P) nudge(utt, name);
         if (res.kind !== 'chatter' && res.kind_p >= GATE_KIND_P && utt.tStart > coveredT.current) {
           dispatch({

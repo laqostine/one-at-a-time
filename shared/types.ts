@@ -66,7 +66,11 @@ export interface StateResponse {
   threads?: Thread[];                    // all known lanes, lastT desc
   utteranceThreads?: UtteranceThread[];  // t = exact tStart of a FINAL utterance in the request window
   degraded?: boolean;                    // model call failed/timed out: ledger is just `existing` echoed back; don't treat as fresh
+  mood?: StateMood;                      // AI-judged mood of the last ~60 s (tones + voice cues); absent when degraded
 }
+/** Table mood as the /api/state model judges it: quiet unless clearly otherwise. speakers: only people with a clear mood. */
+export type TableMoodKind = 'warm'|'tense'|'light'|'quiet';
+export interface StateMood { table: TableMoodKind; speakers: { name: string; mood: Tone }[] }
 
 // POST /api/gate — fast "System One" decision gate: one tiny Haiku call per FINAL utterance
 export type GateKind = LedgerKind | 'chatter';

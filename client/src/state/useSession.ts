@@ -1,6 +1,6 @@
 // Wires audio/replay sources -> reducer, runs the ledger loop, exposes catch-up.
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import type { AsrMessage, CatchupResponse, EventKind, Participant, Session } from '../../../shared/types';
+import type { AsrMessage, CatchupResponse, EventKind, Participant, Session, StateMood } from '../../../shared/types';
 import { startMic, type MicHandle } from '../audio/mic';
 import { startEvents } from '../audio/events';
 import { startWebSpeech } from '../audio/webspeech';
@@ -22,6 +22,8 @@ export type CatchupState =
   | { status: 'error'; message: string; at: number };
 
 const STATE_EVERY_MS = 8_000;
+const AI_MOOD_FRESH_MS = 20_000; // the /api/state mood is shown only while this fresh; after that the UI falls back to lib/mood
+const MOOD_POST_MIN_MS = 3_000;
 const CATCHUP_MIN_MS = 60_000;
 const CATCHUP_MAX_MS = 5 * 60_000;
 // Double-caption guard: the host mic also hears people talking into their phones.
@@ -45,6 +47,29 @@ async function toStopper(x: unknown): Promise<Stopper> {
   if (typeof v === 'function') return v as Stopper;
   if (v && typeof (v as { stop?: unknown }).stop === 'function') return () => (v as { stop: Stopper }).stop();
   return () => {};
+}
+
+// Capitalised words that are names, not sentence starts or everyday words ("Friday launch" -> no; "Joyce's pie" -> Joyce).
+const NOT_NAMES = new Set(('I I\'m I\'ll I\'d I\'ve OK Okay Yes No The A An And But Or So If We You He She They It This That These Those ' +
+  'Who What When Where Why How Monday Tuesday Wednesday Thursday Friday Saturday Sunday Today Tomorrow Tonight Mom Dad ' +
+  'January February March April May June July August September October November December Thanksgiving Christmas').split(' ').map((w) => w.toLowerCase()));
+/** Up to 10 distinct proper nouns from short texts, most recent text first. */
+export function properNouns(texts: string[], meName = ''): string[] {
+  const out: string[] = []; const seen = new Set<string>([meName.trim().toLowerCase()]);
+  for (const t of [...texts].reverse()) {
+    const words = t.split(/\s+/);
+    words.forEach((raw, i) => {
+      const bare = raw.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
+      const w = bare.replace(/['’]s$/u, '');
+      const prev = words[i - 1] ?? '';
+      // Sentence start is capitalised anyway: only a possessive ("Joyce's pie") counts there.
+      if ((i === 0 || /[.?!:]$/.test(prev)) && w === bare) return;
+      if (!/^\p{Lu}\p{Ll}{1,}$/u.test(w) || NOT_NAMES.has(w.toLowerCase()) || seen.has(w.toLowerCase())) return;
+      seen.add(w.toLowerCase());
+      if (out.length < 10) out.push(w);
+    });
+  }
+  return out;
 }
 
 function replayName(): string | null {
@@ -100,6 +125,9 @@ export function useSession() {
   const [nudge, setNudge] = useState<Nudge | null>(null);
   const [catchup, setCatchup] = useState<CatchupState>({ status: 'idle' });
   const [latency, setLatency] = useState<{ stateMs?: number; catchupMs?: number; stateError?: string }>({});
+  // AI-judged mood from /api/state (tones + voice cues of the last ~60 s). `mood` below is null once it is > 20 s old.
+  const [aiMood, setAiMood] = useState<(StateMood & { at: number }) | null>(null);
+  const moodPost = useRef({ at: 0, timer: 0 });
   // "Everyone joins": phones connected to this table (from the server's `participants` message)
   const [participants, setParticipants] = useState<Participant[]>([]);
   // Presence indicator inputs: when a transcript (interim or final) last arrived, whether a
@@ -215,7 +243,7 @@ export function useSession() {
       }
       earlyAsk.current = '';
     }
-    gateUtterance({ id, type: 'utterance', speaker, text: msg.text.trim(), tStart: msg.tStart, tEnd: msg.tEnd, final: true });
+    gateUtterance({ id, type: 'utterance', speaker, text: msg.text.trim(), tStart: msg.tStart, tEnd: msg.tEnd, final: true, ...(msg.prosody ? { prosody: msg.prosody } : {}) });
   }, [fireNudge, gateUtterance]);
 
   const evSeq = useRef(0);
@@ -310,10 +338,23 @@ export function useSession() {
 
   // ---- tell the room our name so phones can say "Good pace for <name>" ----
   const asrOpen = asr.state === 'open';
+  const aliasKey = session.me.aliases.join('|');
   useEffect(() => {
     if (!session.me.name || replayName()) return;
-    void fetch('/api/room/me', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: session.me.name }) }).catch(() => {});
-  }, [session.me.name, asrOpen]);
+    void fetch('/api/room/me', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: session.me.name, aliases: session.me.aliases }) }).catch(() => {});
+  }, [session.me.name, aliasKey, asrOpen]);
+
+  // ---- Deepgram keyterms: proper nouns from thread labels + ledger text (the server keeps <= 10 of them) ----
+  const termsKey = properNouns([...session.threads.map((t) => t.label), ...session.ledger.map((l) => l.text)], session.me.name).join('|');
+  const sentTerms = useRef('');
+  useEffect(() => {
+    if (replayName() || !termsKey || termsKey === sentTerms.current) return;
+    const id = window.setTimeout(() => {
+      sentTerms.current = termsKey;
+      void fetch('/api/room/terms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ terms: termsKey.split('|') }) }).catch(() => { sentTerms.current = ''; });
+    }, 1_500);
+    return () => window.clearTimeout(id);
+  }, [termsKey]);
 
   // ---- ledger loop: postState every 8s when new finals arrived ----
   useEffect(() => {
@@ -339,6 +380,18 @@ export function useSession() {
         if (res.threads) dispatch({ type: 'applyThreads', threads: res.threads, utteranceThreads: res.utteranceThreads ?? [] });
         const a = res.addressed_to_me_now;
         if (a && ref.current.me.name) fireNudge({ id: `s-${a.t}`, speaker: a.speaker, question: a.question, t: a.t });
+        if (res.mood) {
+          const m = res.mood;
+          setAiMood({ ...m, at: Date.now() });
+          // Phones' lamps show the AI's judgement: POST /api/room/mood, at most every 3 s (skip in replay: no room).
+          if (!replayName()) {
+            const body = JSON.stringify({ table: m.table, speakers: Object.fromEntries(m.speakers.map((sp) => [sp.name, sp.mood])) });
+            const send = () => { moodPost.current.at = Date.now(); void fetch('/api/room/mood', { method: 'POST', headers: { 'content-type': 'application/json' }, body }).catch(() => {}); };
+            window.clearTimeout(moodPost.current.timer);
+            const wait = MOOD_POST_MIN_MS - (Date.now() - moodPost.current.at);
+            if (wait <= 0) send(); else moodPost.current.timer = window.setTimeout(send, wait);
+          }
+        }
       } catch (e) {
         dirty.current = true;
         setLatency((l) => ({ ...l, stateError: String((e as Error)?.message ?? e) }));
@@ -406,6 +459,14 @@ export function useSession() {
   }, [started, nowT]);
 
   const hasFinals = session.timeline.some((i) => isUtt(i) && i.final);
+  // Expire the AI mood 20 s after it arrived (re-render so `mood` flips to null and the UI falls back).
+  const [, setMoodTick] = useState(0);
+  useEffect(() => {
+    if (!aiMood) return;
+    const id = window.setTimeout(() => setMoodTick((n) => n + 1), Math.max(0, AI_MOOD_FRESH_MS - (Date.now() - aiMood.at)) + 50);
+    return () => window.clearTimeout(id);
+  }, [aiMood]);
+  const mood = aiMood && Date.now() - aiMood.at < AI_MOOD_FRESH_MS ? aiMood : null;
 
   return {
     session,
@@ -435,6 +496,9 @@ export function useSession() {
     markRepeat: useCallback((id: string) => dispatch({ type: 'markRepeat', id }), []),
     // Fast decision gate (header latency chip + debug)
     gateLatencyMs, lastGate,
+    // AI mood from /api/state: { table: 'warm'|'tense'|'light'|'quiet', speakers: [{ name, mood: Tone }], at } or null when
+    // older than 20 s (then derive it client-side with lib/mood). aiMood = the last one regardless of age.
+    mood, aiMood,
   };
 }
 export type SessionApi = ReturnType<typeof useSession>;

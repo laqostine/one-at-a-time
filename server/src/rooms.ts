@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import WebSocket from 'ws';
-import type { AsrMessage, Participant, RoomInfo } from '../../shared/types';
+import type { AsrMessage, Participant, Prosody, RoomInfo } from '../../shared/types';
 import { paceLevel } from '../../shared/types';
 
 /** Participant speaker ids start here so they never collide with Deepgram diarization ids (0..n). */
@@ -31,6 +31,45 @@ const PACE_EVERY_MS = 2_000;
 const HOST_SOURCE = 'host';
 interface FinalRec { at: number; words: number; t0: number; t1: number } // t0/t1: absolute ms (stream epoch + Deepgram word times)
 
+// ---- prosody (voice cues for the gate's tone) ----
+const PROS_LOUD = 1.35, PROS_QUIET = 0.65;   // final's voiced RMS vs the speaker's own EMA baseline (±35%)
+const PROS_EMA = 0.25;                        // per-final EMA weight
+const PROS_MIN_FINALS = 2;                    // baseline needs this many finals before loud/quiet is called
+// Rate is per line in SYLLABLES/min: words/min per line swung 111-215 for one constant 185 wpm TTS voice (8 of 21 lines
+// read 'fast' at the 185 threshold). Syllables: 185 wpm TTS = 218-275 spm, 230 wpm TTS = 300-440 (one 246). ~1.45 syl/word,
+// so 290 spm ~ 200 wpm and 190 spm ~ 130 wpm.
+const PROS_FAST_SPM = 290, PROS_SLOW_SPM = 190;
+const PROS_MIN_SYL = 6;                       // shorter finals: rate unreliable -> 'normal'
+const RMS_KEEP_MS = 30_000;
+
+// ---- cross-stream dedupe: every phone (and the listener's own mic) hears its neighbours ----
+export const DEDUPE_HOLD_MS = 1_200;     // each final waits this long for a copy from another stream (interims stay live)
+const DEDUPE_WINDOW_MS = 2_500;          // copies must lie within ±2.5 s of each other
+const DEDUPE_OVERLAP = 0.55;             // shared tokens / tokens of the shorter line
+const LEVEL_KEEP_MS = 30_000;            // per-source chunk RMS ring (also each source's own speaking level)
+const BLEED_OWN_MAX = 0.35;              // a word heard below this fraction of the stream's own speaking level…
+const BLEED_RATIO = 2.5;                 // …while another stream was >= 2.5x more "owned" is the neighbour's (bleed)
+type TranscriptMsg = Extract<AsrMessage, { type: 'transcript' }>;
+const dedupeTokens = (t: string) => new Set(t.toLowerCase().replace(/[^\p{L}\p{N}\s']/gu, ' ').split(/\s+/).filter(Boolean));
+export function tokenOverlap(a: Set<string>, b: Set<string>): number {
+  const [s, l] = a.size <= b.size ? [a, b] : [b, a];
+  if (!s.size) return 0;
+  let n = 0;
+  for (const w of s) if (l.has(w)) n++;
+  return n / s.size;
+}
+type Src = number | 'host';
+interface HeldFinal {
+  src: Src; text: string; tokens: Set<string>; t0: number; t1: number; timer: NodeJS.Timeout;
+  emit: () => void;   // deliver the final (and its side effects: pace, prosody)
+  clear: () => void;  // it lost: clear that source's interim on the hosts
+}
+
+// ---- Deepgram keyterms ----
+export const MAX_KEYTERMS = 20;
+const MAX_PUSHED_TERMS = 10;
+const cleanTerm = (t: unknown) => (typeof t === 'string' ? t.replace(/[^\p{L}\p{N}' -]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 40) : '');
+
 export class Room {
   readonly token: string;
   private hosts = new Set<WebSocket>();
@@ -48,6 +87,18 @@ export class Room {
   lang: 'en' | 'it' | 'tr' | 'multi' = 'en';
   private finals = new Map<number, FinalRec[]>();          // participant id -> recent finals
   private voiced = new Map<string, { at: number; ms: number }[]>(); // source -> voiced chunks
+  private rmsHist = new Map<number, { at: number; rms: number }[]>(); // participant id -> voiced chunk RMS (prosody)
+  private rmsBase = new Map<number, { ema: number; n: number }>();  // participant id -> voiced RMS baseline
+  private lastWordEnd = 0;                                          // absolute ms: last word of any participant final
+  private levels = new Map<string, { at: number; rms: number; voiced: boolean }[]>(); // source -> every chunk's RMS (dedupe loudness)
+  private held: HeldFinal[] = [];
+  private recentEmitted: { src: Src; tokens: Set<string>; t0: number; t1: number; at: number }[] = [];
+  /** Debug counters: finals dropped as another stream's copy. */
+  dedupe = { dropped: 0, keptLater: 0, lateDropped: 0, bleedWords: 0, bleedFinals: 0 };
+  /** Host's aliases (POST /api/room/me) and proper nouns pushed by the host client (POST /api/room/terms). */
+  meAliases: string[] = [];
+  private pushedTerms: string[] = [];
+  private termSubs = new Set<() => void>();
 
   constructor(token: string) { this.token = token; }
 
@@ -75,11 +126,41 @@ export class Room {
     this.ensureTick();
     this.ensurePaceTick();
     this.pushList(true);
+    this.termsChanged();
     return p;
   }
   removeParticipant(ws: WebSocket): void {
-    if (this.parts.delete(ws)) this.pushList(true);
+    if (this.parts.delete(ws)) { this.pushList(true); this.termsChanged(); }
   }
+
+  /**
+   * Deepgram keyterm list (<= 20): the listener's name + aliases, every joined participant, then up to 10 proper nouns
+   * the host client pushed from its ledger/thread labels. Nova-3 keyterm prompting is per connection.
+   */
+  keyterms(): string[] {
+    const out: string[] = []; const seen = new Set<string>();
+    const add = (t: string) => { const c = cleanTerm(t); const k = c.toLowerCase(); if (c.length >= 2 && !seen.has(k) && out.length < MAX_KEYTERMS) { seen.add(k); out.push(c); } };
+    add(this.meName); this.meAliases.forEach(add);
+    for (const p of this.parts.values()) add(p.name);
+    this.pushedTerms.forEach(add);
+    return out;
+  }
+  setMe(name: string, aliases: string[] = this.meAliases): void {
+    const before = this.keyterms().join('|');
+    this.meName = name;
+    this.meAliases = aliases.map(cleanTerm).filter(Boolean).slice(0, 5);
+    if (this.keyterms().join('|') !== before) this.termsChanged();
+  }
+  setTerms(terms: unknown[]): string[] {
+    const before = this.keyterms().join('|');
+    const seen = new Set<string>();
+    this.pushedTerms = terms.map(cleanTerm).filter((t) => t.length >= 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase())).slice(0, MAX_PUSHED_TERMS);
+    if (this.keyterms().join('|') !== before) this.termsChanged();
+    return this.keyterms();
+  }
+  /** Audio sockets subscribe so they can re-open Deepgram with the new keyterms (see asr.ts). Returns unsubscribe. */
+  onTerms(fn: () => void): () => void { this.termSubs.add(fn); return () => { this.termSubs.delete(fn); }; }
+  private termsChanged(): void { for (const fn of this.termSubs) { try { fn(); } catch { /* ignore */ } } }
 
   /** Mark a participant as speaking (from audio level or transcript activity). */
   touch(p: PSock): void {
@@ -91,20 +172,176 @@ export class Room {
   /** Participant transcript -> every host, rebased onto the host stream clock and tagged. */
   fromParticipant(p: PSock, m: AsrMessage, participantEpoch: number): void {
     if (m.type !== 'transcript') return;
-    const shift = participantEpoch - (this.hostEpoch ?? participantEpoch);
-    const out: AsrMessage = {
-      ...m, speaker: p.id, name: p.name, tStart: Math.max(0, m.tStart + shift), tEnd: Math.max(0, m.tEnd + shift),
-      ...(m.words ? { words: m.words.map((w) => ({ ...w, t0: Math.max(0, w.t0 + shift), t1: Math.max(0, w.t1 + shift) })) } : {}),
-    };
     if (m.text.trim()) this.touch(p);
-    if (m.final) this.recordFinal(p.id, m.text, participantEpoch + m.tStart, participantEpoch + m.tEnd);
-    for (const h of this.hosts) this.sendTo(h, out);
+    const shift = participantEpoch - (this.hostEpoch ?? participantEpoch);
+    const rebase = (x: TranscriptMsg): TranscriptMsg => ({
+      ...x, speaker: p.id, name: p.name, tStart: Math.max(0, x.tStart + shift), tEnd: Math.max(0, x.tEnd + shift),
+      ...(x.words ? { words: x.words.map((w) => ({ ...w, t0: Math.max(0, w.t0 + shift), t1: Math.max(0, w.t1 + shift) })) } : {}),
+    });
+    const clear = () => { for (const h of this.hosts) this.sendTo(h, { type: 'transcript', speaker: p.id, name: p.name, text: '', tStart: Math.max(0, m.tStart + shift), tEnd: Math.max(0, m.tEnd + shift), final: false }); };
+    if (!m.final || !m.text.trim()) { for (const h of this.hosts) this.sendTo(h, rebase(m)); return; }
+    const own = this.stripBleed(p.id, m, participantEpoch);
+    if (!own) { clear(); return; }
+    const t0 = participantEpoch + own.tStart, t1 = participantEpoch + own.tEnd;
+    this.holdFinal(p.id, own.text, t0, t1, () => {
+      const out = rebase(own);
+      out.prosody = this.prosodyFor(p.id, own.text, t0, t1);
+      this.recordFinal(p.id, own.text, t0, t1);
+      for (const h of this.hosts) this.sendTo(h, out);
+    }, clear);
   }
 
-  /** A voiced PCM chunk from a source (participant id or the host mic); feeds overlap detection. */
-  voice(source: number | typeof HOST_SOURCE, ms: number): void {
+  /**
+   * Host-mic final (the listener's own device, already attributed/labelled by asr.ts). hostEpoch = when that host's
+   * Deepgram stream started. Goes through the same cross-stream dedupe as the phones.
+   */
+  fromHost(m: AsrMessage, hostEpoch: number, deliver: (m: AsrMessage) => void): void {
+    if (m.type !== 'transcript' || !m.final || !m.text.trim() || this.parts.size === 0) { deliver(m); return; }
+    const clear = () => deliver({ type: 'transcript', speaker: m.speaker, text: '', tStart: m.tStart, tEnd: m.tEnd, final: false });
+    const own = this.stripBleed('host', m, hostEpoch);
+    if (!own) { clear(); return; }
+    this.holdFinal('host', own.text, hostEpoch + own.tStart, hostEpoch + own.tEnd, () => deliver(own), clear);
+  }
+
+  /** Every audio chunk's RMS per source (voiced or not): the loudness judge for cross-stream copies. */
+  level(source: Src, rms: number, voiced: boolean): void {
+    const k = String(source), now = Date.now();
+    const arr = this.levels.get(k) ?? [];
+    arr.push({ at: now, rms, voiced });
+    while (arr.length && now - arr[0].at > LEVEL_KEEP_MS) arr.shift();
+    this.levels.set(k, arr);
+  }
+  /** A source's own speaking level: 80th percentile of its voiced chunk RMS over the last 30 s (null = too little). */
+  private levelBase(k: string): number | null {
+    const v = (this.levels.get(k) ?? []).filter((x) => x.voiced).map((x) => x.rms).sort((a, b) => a - b);
+    return v.length >= 10 ? v[Math.floor(v.length * 0.8)] : null;
+  }
+  /**
+   * How loud a source was over [t0, t1] (absolute ms) RELATIVE to its own speaking level: ~1 when its owner talks,
+   * ~0.25 when it only hears a neighbour 12 dB down. Raw RMS isn't comparable across phones (mic gain, distance).
+   */
+  score(source: Src | string, t0: number, t1: number): number {
+    const k = String(source);
+    const arr = (this.levels.get(k) ?? []).filter((x) => x.at >= t0 && x.at <= t1 + 100);
+    if (!arr.length) return 0;
+    const base = this.levelBase(k);
+    const mean = arr.reduce((a, x) => a + x.rms, 0) / arr.length;
+    return base ? mean / base : 1;
+  }
+
+  /**
+   * Word-level bleed removal: a word this stream heard while it was quiet for its owner (< 0.35 of its speaking level)
+   * and another stream was >= 2.5x more "owned" at that moment belongs to the neighbour. Deepgram happily merges the
+   * owner's line and the neighbour's bleed into one final ("Fine by me. Less cooking for Everyone brings a side…"),
+   * so a sentence-level dedupe alone can't separate them. Returns null when nothing of the owner's is left.
+   */
+  stripBleed(src: Src, m: TranscriptMsg, epoch: number): TranscriptMsg | null {
+    if (!m.words?.length || this.levels.size < 2) return m;
+    const others = [...this.levels.keys()].filter((k) => k !== String(src));
+    const keep = m.words.filter((w) => {
+      const a = epoch + w.t0, b = epoch + w.t1;
+      const mine = this.score(src, a, b);
+      if (mine >= BLEED_OWN_MAX) return true;
+      const best = Math.max(0, ...others.map((k) => this.score(k, a, b)));
+      return best < BLEED_RATIO * Math.max(mine, 0.02);
+    });
+    if (keep.length === m.words.length) return m;
+    this.dedupe.bleedWords += m.words.length - keep.length;
+    if (!keep.some((w) => /[\p{L}\p{N}]/u.test(w.w))) { this.dedupe.bleedFinals++; this.logDedupe(src, 'bleed', m.text, 'all words bleed'); return null; }
+    const text = keep.map((w) => w.w).join(' ');
+    if (process.env.DEDUPE_LOG !== '0') console.log(`[dedupe] ${this.srcName(src)} bleed words removed: "${m.text}" -> "${text}"`);
+    return { ...m, text, words: keep, tStart: keep[0].t0, tEnd: keep[keep.length - 1].t1 };
+  }
+
+  /**
+   * Hold a final DEDUPE_HOLD_MS; if another source produced the same sentence (token overlap >= 0.55 of the shorter line,
+   * within ±2.5 s), keep the one whose stream "owned" it (higher score = louder vs its own speaking level) and drop the
+   * other (its interim is cleared). Near-ties (< 1.3x) go to a phone over the host mic: the host hears everyone about
+   * equally, the phone is on its owner. A copy arriving after its twin was emitted is dropped unless it clearly owns it.
+   */
+  holdFinal(src: Src, text: string, t0: number, t1: number, emit: () => void, clear: () => void): void {
+    const tokens = dedupeTokens(text);
+    const near = (a: { t0: number; t1: number }) => a.t0 <= t1 + DEDUPE_WINDOW_MS && t0 <= a.t1 + DEDUPE_WINDOW_MS;
+    const same = (b: Set<string>) => Math.min(tokens.size, b.size) >= 2 ? tokenOverlap(tokens, b) >= DEDUPE_OVERLAP : [...tokens].join(' ') === [...b].join(' ');
+    const now = Date.now();
+    this.recentEmitted = this.recentEmitted.filter((r) => now - r.at <= 10_000);
+    const mine = this.score(src, t0, t1);
+    // Two people can both say "sounds good": for short lines only a clearly weaker stream (< 1/2) is a copy.
+    const copy = (b: Set<string>, theirs: number) => same(b) && (Math.min(tokens.size, b.size) >= 4 || Math.max(mine, theirs) >= 2 * Math.min(mine, theirs));
+    /** true when `a` (score sa, source srcA) should win over `b`. */
+    const wins = (sa: number, srcA: Src, sb: number, srcB: Src) =>
+      srcA === 'host' ? sa >= 1.3 * sb : srcB === 'host' ? sa * 1.3 > sb : sa > sb;
+    const late = this.recentEmitted.find((r) => r.src !== src && near(r) && copy(r.tokens, this.score(r.src, r.t0, r.t1)));
+    if (late) {
+      const theirs = this.score(late.src, late.t0, late.t1);
+      if (!(wins(mine, src, theirs, late.src) && mine >= 1.5 * theirs)) { this.dedupe.lateDropped++; this.logDedupe(src, late.src, text, `late ${mine.toFixed(2)}/${theirs.toFixed(2)}`); clear(); return; }
+    }
+    for (const h of [...this.held]) {
+      if (h.src === src || !near(h)) continue;
+      const theirs = this.score(h.src, h.t0, h.t1);
+      if (!copy(h.tokens, theirs)) continue;
+      if (!wins(mine, src, theirs, h.src)) { this.dedupe.dropped++; this.logDedupe(src, h.src, text, `${mine.toFixed(2)}<${theirs.toFixed(2)}`); clear(); return; }
+      clearTimeout(h.timer);
+      this.held = this.held.filter((x) => x !== h);
+      this.dedupe.dropped++; this.dedupe.keptLater++;
+      this.logDedupe(h.src, src, h.text, `${theirs.toFixed(2)}<${mine.toFixed(2)}`);
+      h.clear();
+    }
+    const item: HeldFinal = { src, text, tokens, t0, t1, emit, clear, timer: setTimeout(() => {
+      this.held = this.held.filter((x) => x !== item);
+      this.recentEmitted.push({ src, tokens, t0, t1, at: Date.now() });
+      emit();
+    }, DEDUPE_HOLD_MS) };
+    item.timer.unref?.();
+    this.held.push(item);
+  }
+  private logDedupe(dropped: Src, kept: Src | 'bleed', text: string, why: string): void {
+    if (process.env.DEDUPE_LOG !== '0') console.log(`[dedupe] drop ${this.srcName(dropped)} keep ${this.srcName(kept)} (${why}): ${text.slice(0, 60)}`);
+  }
+  private srcName(s: Src | 'bleed'): string {
+    if (s === 'host' || s === 'bleed') return s;
+    for (const p of this.parts.values()) if (p.id === s) return p.name;
+    return String(s);
+  }
+
+  /**
+   * Voice cues for one participant final (absolute ms t0..t1): loudness = mean voiced RMS over the line vs that speaker's
+   * EMA baseline (updated after), rate = this line's wpm (same span rules as wpmOf), pause = silence since the last
+   * word of any participant final. TTS (constant level/rate) should come out normal/normal.
+   */
+  prosodyFor(id: number, text: string, t0: number, t1: number): Prosody {
+    const words = text.trim().split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+    const hist = this.rmsHist.get(id) ?? [];
+    const inLine = hist.filter((h) => h.at >= t0 && h.at <= t1 + 150);
+    let loud: Prosody['loud'] = 'normal';
+    if (inLine.length) {
+      const rms = inLine.reduce((a, h) => a + h.rms, 0) / inLine.length;
+      const b = this.rmsBase.get(id);
+      if (b && b.n >= PROS_MIN_FINALS) loud = rms > b.ema * PROS_LOUD ? 'loud' : rms < b.ema * PROS_QUIET ? 'quiet' : 'normal';
+      // Only 'normal' lines move the baseline fast; a shouted line nudges it less, so one outburst doesn't become "normal".
+      const w = loud === 'normal' ? PROS_EMA : PROS_EMA / 3;
+      this.rmsBase.set(id, b ? { ema: b.ema * (1 - w) + rms * w, n: b.n + 1 } : { ema: rms, n: 1 });
+    }
+    let rate: Prosody['rate'] = 'normal';
+    const syl = syllables(text);
+    // Same span rules as wpmOf: pad the onset/offset Deepgram skips, floor 0.15 s per syllable against mistimed words.
+    const spm = syl / ((Math.max(t1, t0 + syl * 150) - t0 + PACE_SPAN_PAD_MS) / 60_000);
+    if (syl >= PROS_MIN_SYL) rate = spm > PROS_FAST_SPM ? 'fast' : spm < PROS_SLOW_SPM ? 'slow' : 'normal';
+    const pauseBeforeMs = this.lastWordEnd ? Math.min(10_000, Math.max(0, Math.round(t0 - this.lastWordEnd))) : 0;
+    if (process.env.PROS_LOG) console.log(`[prosody] ${id} words=${words} syl=${syl} spm=${Math.round(spm)} rms=${inLine.length ? (inLine.reduce((a, h) => a + h.rms, 0) / inLine.length).toFixed(3) : '-'} base=${this.rmsBase.get(id)?.ema.toFixed(3)} -> ${loud}/${rate}/+${pauseBeforeMs}`);
+    this.lastWordEnd = Math.max(this.lastWordEnd, t1);
+    return { loud, rate, pauseBeforeMs };
+  }
+
+  /** A voiced PCM chunk from a source (participant id or the host mic); feeds overlap detection (+ prosody when rms is given). */
+  voice(source: number | typeof HOST_SOURCE, ms: number, rms?: number): void {
     const k = String(source);
     const now = Date.now();
+    if (typeof source === 'number' && typeof rms === 'number') {
+      const h = (this.rmsHist.get(source) ?? []).filter((x) => now - x.at <= RMS_KEEP_MS);
+      h.push({ at: now, rms });
+      this.rmsHist.set(source, h);
+    }
     const arr = (this.voiced.get(k) ?? []).filter((v) => now - v.at <= OVERLAP_WINDOW_MS);
     arr.push({ at: now, ms });
     this.voiced.set(k, arr);
@@ -279,7 +516,22 @@ export class Room {
   }
 
   /** Debug/leak check: live sockets and per-id state sizes. */
-  stats() { return { hosts: this.hosts.size, parts: this.parts.size, ids: this.ids.size, finals: this.finals.size, voiced: this.voiced.size }; }
+  stats() { return { dedupe: this.dedupe, held: this.held.length, hosts: this.hosts.size, parts: this.parts.size, ids: this.ids.size, finals: this.finals.size, voiced: this.voiced.size, rms: this.rmsHist.size, termSubs: this.termSubs.size }; }
+}
+
+/** Rough English syllable count (vowel groups, silent final e, digits as ~1.5): speech rate in syllables is far less
+ *  noisy per line than words/min, which swings with word length ("Thanksgiving" vs "at"). */
+export function syllables(text: string): number {
+  let n = 0;
+  for (const raw of text.toLowerCase().split(/\s+/)) {
+    const w = raw.replace(/[^a-z0-9']/g, '');
+    if (!w) continue;
+    if (/^\d{1,2}:\d\d/.test(raw)) { n += 3; continue; }              // "1:00" = "one o'clock"
+    if (/^\d/.test(w)) { n += Math.min(6, Math.max(1, Math.round(w.replace(/\D/g, '').length * 1.5))); continue; }
+    const groups = w.replace(/'/g, '').replace(/(?:[^laeiouy]es|[^laeiouy]ed|[^laeiouy]e)$/, '').match(/[aeiouy]+/g);
+    n += Math.max(1, groups?.length ?? 0);
+  }
+  return n;
 }
 
 /** RMS of a PCM16 LE buffer, 0..1. */
@@ -299,8 +551,11 @@ export const isVoice = (buf: Buffer) => pcmRms(buf) > SPEAKING_RMS;
  */
 export class Vad {
   private hist: number[] = [];
+  /** RMS of the last chunk passed to isVoice (prosody loudness). */
+  lastRms = 0;
   isVoice(buf: Buffer): boolean {
     const rms = pcmRms(buf);
+    this.lastRms = rms;
     this.hist.push(rms);
     if (this.hist.length > 64) this.hist.shift();
     const floor = this.hist.length >= 10 ? [...this.hist].sort((a, b) => a - b)[Math.floor(this.hist.length * 0.1)] : 0;
@@ -388,10 +643,16 @@ export function registerRooms(app: FastifyInstance): void {
     room.setMood(table, sp);
     return { ok: true };
   });
-  app.post<{ Body: { name?: unknown } }>('/api/room/me', async (req) => {
+  app.post<{ Body: { name?: unknown; aliases?: unknown } }>('/api/room/me', async (req) => {
     const n = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 40) : '';
-    room.meName = n;
-    return { ok: true, name: n };
+    const aliases = Array.isArray(req.body?.aliases) ? (req.body.aliases as unknown[]).filter((a): a is string => typeof a === 'string') : undefined;
+    room.setMe(n, aliases);
+    return { ok: true, name: n, keyterms: room.keyterms() };
+  });
+  // Host client pushes proper nouns from its ledger/thread labels; they become Deepgram keyterms (<= 10 of the 20).
+  app.post<{ Body: { terms?: unknown } }>('/api/room/terms', async (req, reply) => {
+    if (!Array.isArray(req.body?.terms)) return reply.code(400).send({ ok: false });
+    return { ok: true, keyterms: room.setTerms(req.body.terms as unknown[]) };
   });
 }
 

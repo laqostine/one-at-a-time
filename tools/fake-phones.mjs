@@ -19,6 +19,9 @@
 //   --tone-report           per scripted line with an expected `tone` (demo2.json): the gate's raw tone, the client's
 //                           smoothed (displayed) tone and the final's prosody; prints raw + smoothed accuracy.
 //   --rates a,b,c           per-speaker `say -r` rates (overrides --rate for that speaker index), e.g. 185,230,185.
+//   --bleed                 each line is ALSO mixed at -12 dB into one neighbouring phone (its mic hears the next seat);
+//                           the summary counts cross-speaker copies (a final whose best script match is someone else's line).
+//   --loud-lines i,j        scale those script lines (index into the text lines) x2.5: tests the prosody 'loud' path.
 // Every phone streams continuously (silence/noise between lines) in 100 ms chunks, in real time, like a real mic.
 import { execSync } from 'node:child_process';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -36,7 +39,7 @@ for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (!a.startsWith('--')) { pos.push(a); continue; }
   const k = a.slice(2);
-  if (['overlap', 'host', 'no-drive', 'tone-report'].includes(k)) flags[k] = true;
+  if (['overlap', 'host', 'no-drive', 'tone-report', 'bleed'].includes(k)) flags[k] = true;
   else flags[k] = argv[++i];
 }
 const base = pos[0] ?? flags.base ?? 'ws://localhost:8787';
@@ -76,9 +79,12 @@ function pcm16k(text, voice, rate = RATE) {
 // ---------- schedule ----------
 const REPEAT = Math.max(1, Number(flags.repeat) || 1);
 const script = scenario.lines.filter((l) => l.text).sort((a, b) => a.t - b.t);
-const lines = Array.from({ length: REPEAT }, () => script).flat().map((l) => ({
-  ...l, pcm: pcm16k(l.text, voiceList[l.speaker] ?? voiceList[0] ?? 'Alex', rateOf(l.speaker)),
-}));
+const LOUD = new Set((flags['loud-lines'] ?? '').split(',').filter(Boolean).map(Number));
+const louder = (pcm) => Int16Array.from(pcm, (v) => Math.max(-32768, Math.min(32767, Math.round(v * 2.5))));
+const lines = Array.from({ length: REPEAT }, () => script).flat().map((l, i) => {
+  const pcm = pcm16k(l.text, voiceList[l.speaker] ?? voiceList[0] ?? 'Alex', rateOf(l.speaker));
+  return { ...l, loud: LOUD.has(i % script.length), pcm: LOUD.has(i % script.length) ? louder(pcm) : pcm };
+});
 let cursor = 0, overlaps = 0;
 const busyUntil = {};
 for (const [i, l] of lines.entries()) {
@@ -110,6 +116,14 @@ for (const l of lines) {
   const tr = tracks[l.speaker]; const off = Math.round((l.start / 1000) * SR);
   for (let j = 0; j < l.pcm.length && off + j < tr.length; j++) tr[off + j] += l.pcm[j];
 }
+if (flags.bleed) {
+  const BLEED_GAIN = 10 ** (-12 / 20);
+  for (const l of lines) {
+    const k = speakerIds.indexOf(String(l.speaker));
+    const tr = tracks[speakerIds[(k + 1) % speakerIds.length]]; const off = Math.round((l.start / 1000) * SR);
+    for (let j = 0; j < l.pcm.length && off + j < tr.length; j++) tr[off + j] += l.pcm[j] * BLEED_GAIN;
+  }
+}
 const hostTrack = new Float32Array(nChunks * CHUNK);
 for (const id of speakerIds) { const tr = tracks[id]; for (let j = 0; j < tr.length; j++) hostTrack[j] += tr[j] * HOST_GAIN; }
 function addNoise(tr, phase) {
@@ -128,7 +142,7 @@ const chunkOf = (tr, i) => {
 const S = {
   finals: {}, interims: {}, hostFinals: 0, hostFinalsDup: 0, hostFinalsUnique: [],
   pace: {}, paceOverlap: 0, tableOverlap: 0, statusErrors: [], closes: [],
-  gate: [], state: [], catchup: null, http: {}, say: null, merged: [], missed: [], ledgerItems: 0, provisionalLeft: 0,
+  gate: [], state: [], catchup: null, moods: [], http: {}, say: null, merged: [], missed: [], ledgerItems: 0, provisionalLeft: 0,
 };
 for (const id of speakerIds) { S.finals[names[id]] = 0; S.pace[names[id]] = { ok: 0, fast: 0, too_fast: 0, maxWpm: 0 }; }
 const partFinals = [];   // {name, text, tokens, at, tStart, tEnd, speaker}
@@ -167,6 +181,8 @@ function onHostMsg(j) {
     console.log(`  [host-mic ${el()}s] ${j.text}`);
   }
 }
+// Like the real host client (useSession): tell the room the listener's name (phones' "Good pace for", Deepgram keyterm).
+execSync(`curl -s -X POST -H 'content-type: application/json' -d '{"name":"Bera"}' ${http}/api/room/me`);
 const hostSock = new WebSocket(`${base}/ws/audio?role=host&token=${token}`);
 hostSock.on('message', (m) => { try { onHostMsg(JSON.parse(m.toString())); } catch { /* ignore */ } });
 hostSock.on('close', (c, r) => S.closes.push(`host ${c} ${r}`));
@@ -198,7 +214,7 @@ console.log(`room ${token}: ${speakerIds.length} phones + host${HOST ? ' (mixed 
 
 // ---------- client simulation (/api/gate per final, /api/state every 8 s, /api/catchup at end) ----------
 const me = { name: 'Bera', aliases: [] };
-const utt = (f, i) => ({ id: `u${f.speaker}-${f.tStart}-${i}`, type: 'utterance', speaker: f.speaker, text: f.text, tStart: f.tStart, tEnd: f.tEnd, final: true, ...(f.threadId ? { threadId: f.threadId } : {}), ...(f.prosody ? { prosody: f.prosody } : {}) });
+const utt = (f, i) => ({ id: `u${f.speaker}-${f.tStart}-${i}`, type: 'utterance', speaker: f.speaker, text: f.text, tStart: f.tStart, tEnd: f.tEnd, final: true, ...(f.threadId ? { threadId: f.threadId } : {}), ...(f.prosody ? { prosody: f.prosody } : {}), ...(f.tone ? { toneRaw: f.tone, ...(f.shown !== 'neutral' ? { tone: f.shown } : {}) } : {}) });
 async function post(path, body) {
   const s = Date.now();
   try {
@@ -241,7 +257,9 @@ async function driveState() {
     for (const ut of r.j.utteranceThreads ?? []) { const f = partFinals.find((x) => x.tStart === ut.t); if (f) f.threadId = ut.threadId; }
   } else dirty = true;
   S.state.push({ ms: r.ms, server: r.j.latencyMs, status: r.status, items: (r.j.ledger ?? []).length, win: win.length, degraded: !!r.j.degraded, err: r.err });
-  console.log(`  [state ${el()}s] ${r.status} ${r.ms}ms win=${win.length} ledger=${(r.j.ledger ?? []).length}${r.j.degraded ? ' DEGRADED' : ''}`);
+  if (r.j.mood) S.moods.push(r.j.mood);
+  const md = r.j.mood ? ` mood=${r.j.mood.table}${r.j.mood.speakers?.length ? ` {${r.j.mood.speakers.map((x) => `${x.name}:${x.mood}`).join(' ')}}` : ''}` : '';
+  console.log(`  [state ${el()}s] ${r.status} ${r.ms}ms win=${win.length} ledger=${(r.j.ledger ?? []).length}${md}${r.j.degraded ? ' DEGRADED' : ''}`);
   stateInflight = false;
 }
 const stateTimer = DRIVE ? setInterval(() => void driveState(), 8000) : null;
@@ -295,6 +313,17 @@ for (const l of lines) {
   if (got / tk.size < 0.5) S.missed.push(`${names[l.speaker]}: "${l.text}"`);
 }
 
+// ---------- cross-speaker copies: a final whose best script match (any speaker) is someone else's line ----------
+S.crossDup = [];
+{
+  const minFrac = (a, b) => { const [x, y] = a.size <= b.size ? [a, b] : [b, a]; if (!x.size) return 0; let n = 0; for (const w of x) if (y.has(w)) n++; return n / x.size; };
+  const uniq = [...new Map(lines.map((l) => [`${l.speaker}|${l.text}`, l])).values()];
+  for (const f of partFinals) {
+    let best = null, bc = 0;
+    for (const l of uniq) { const c = minFrac(f.tokens, toks(l.text)); if (c > bc) { bc = c; best = l; } }
+    if (best && bc >= 0.55 && names[best.speaker] !== f.name && f.tokens.size >= 2) S.crossDup.push(`${f.name} got ${names[best.speaker]}'s "${f.text}"`);
+  }
+}
 // ---------- name accuracy: script lines naming the listener, did the final spell the name right? ----------
 const nameRe = new RegExp(`\\b${me.name}\\b`);
 S.name = { lines: 0, hit: 0, got: [] };
@@ -305,13 +334,17 @@ for (const l of lines.filter((x) => nameRe.test(x.text))) {
   if (best && nameRe.test(best.text)) S.name.hit++;
   S.name.got.push(best?.text ?? '(none)');
 }
-// ---------- fragmented: a script line whose words are spread over >= 2 finals, none holding >= 70% ----------
+// ---------- fragmented: a script line that >= 2 finals match best (each final -> its best script line) ----------
 S.fragmented = [];
-for (const l of lines) {
-  const tk = toks(l.text);
-  const mine = partFinals.filter((f) => f.name === names[l.speaker]);
-  const covers = mine.map((f) => frac(tk, f.tokens)).filter((c) => c >= 0.2);
-  if (covers.length >= 2 && Math.max(...covers) < 0.7) S.fragmented.push(`${names[l.speaker]}: "${l.text}"`);
+{
+  const uniq = [...new Map(lines.map((l) => [`${l.speaker}|${l.text}`, l])).values()];
+  const n = new Map();
+  for (const f of partFinals) {
+    let best = null, bc = 0;
+    for (const l of uniq) if (names[l.speaker] === f.name) { const c = frac(f.tokens, toks(l.text)); if (c > bc) { bc = c; best = l; } }
+    if (best && bc >= 0.3) n.set(best, (n.get(best) ?? 0) + 1);
+  }
+  for (const [l, c] of n) if (c >= 2 * REPEAT) S.fragmented.push(`${names[l.speaker]}: "${l.text}"`);
 }
 // ---------- tone report: expected (scenario `tone`) vs the gate's raw + smoothed tone ----------
 S.tone = null;
@@ -321,13 +354,13 @@ if (flags['tone-report']) {
     const tk = toks(l.text);
     const best = partFinals.filter((f) => f.name === names[l.speaker]).map((f) => ({ f, c: frac(tk, f.tokens) })).sort((a, b) => b.c - a.c)[0];
     const f = best && best.c >= 0.5 ? best.f : null;
-    rows.push({ who: names[l.speaker], text: l.text, want: l.tone ?? '', raw: f?.tone ?? '-', shown: f?.shown ?? '-', prosody: f?.prosody });
+    rows.push({ who: names[l.speaker], text: l.text, want: l.tone ?? '', raw: f?.tone ?? '-', shown: f?.shown ?? '-', prosody: f?.prosody, loud: l.loud });
   }
   console.log('\n===== TONE REPORT =====');
   console.log('expected  raw       shown     prosody               line');
   for (const r of rows) {
     const p = r.prosody ? `${r.prosody.loud}/${r.prosody.rate}/+${r.prosody.pauseBeforeMs}` : '';
-    console.log(`${(r.want || '.').padEnd(10)}${r.raw.padEnd(10)}${r.shown.padEnd(10)}${p.padEnd(22)}${r.who}: ${r.text}`);
+    console.log(`${(r.want || '.').padEnd(10)}${r.raw.padEnd(10)}${r.shown.padEnd(10)}${p.padEnd(22)}${r.who}: ${r.text}${r.loud ? '  [x2.5 LOUD]' : ''}`);
   }
   const lab = rows.filter((r) => r.want);
   const acc = (k) => lab.filter((r) => r[k] === r.want).length;
@@ -351,7 +384,7 @@ const summary = {
   http: S.http, gate: stats(S.gate.map((g) => g.ms)), gateSources: S.gate.reduce((a, g) => ({ ...a, [g.source]: (a[g.source] ?? 0) + 1 }), {}),
   state: stats(S.state.map((s) => s.ms)), stateDegraded: S.state.filter((s) => s.degraded || s.status !== 200).length,
   stateMaxWindow: Math.max(0, ...S.state.map((s) => s.win)), catchup: S.catchup, ledgerItems: S.ledgerItems, say: S.say,
-  name: S.name, fragmented: S.fragmented, tone: S.tone,
+  name: S.name, crossDup: S.crossDup, fragmented: S.fragmented, tone: S.tone, moods: S.moods,
 };
 console.log('\n===== SUMMARY =====');
 console.log(`finals per speaker: ${Object.entries(S.finals).map(([k, v]) => `${k}=${v}`).join(' ')}`);
@@ -359,6 +392,7 @@ console.log(`pace by level: ${Object.entries(S.pace).map(([k, p]) => `${k}{ok:${
 console.log(`overlap: scheduled=${overlaps} pace-msgs-with-overlap=${S.paceOverlap} table-msgs-with-overlap=${S.tableOverlap}`);
 if (HOST) console.log(`host mic: finals=${S.hostFinals} caught-as-duplicate=${S.hostFinalsDup} would-show-as-extra-line=${S.hostFinalsUnique.length}`);
 console.log(`merged finals: ${S.merged.length}${S.merged.length ? '\n  ' + S.merged.join('\n  ') : ''}`);
+console.log(`cross-speaker copies (wrong name): ${S.crossDup.length}${S.crossDup.length ? '\n  ' + S.crossDup.join('\n  ') : ''}`);
 console.log(`fragmented script lines: ${S.fragmented.length}${S.fragmented.length ? '\n  ' + S.fragmented.join('\n  ') : ''}`);
 console.log(`name "${me.name}": ${S.name.hit}/${S.name.lines} spelled right${S.name.got.length ? ` (${S.name.got.join(' | ')})` : ''}`);
 if (S.tone) console.log(`tone: raw ${S.tone.raw}/${S.tone.labelled} smoothed ${S.tone.shown}/${S.tone.labelled}; emotive-only raw ${S.tone.emotiveRaw}/${S.tone.emotive} smoothed ${S.tone.emotiveShown}/${S.tone.emotive}; prosody rate ${JSON.stringify(S.tone.prosodyRates)} loud ${JSON.stringify(S.tone.prosodyLoud)}`);

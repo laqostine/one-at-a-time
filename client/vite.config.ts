@@ -12,6 +12,7 @@ export default defineConfig({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         join: fileURLToPath(new URL('./join.html', import.meta.url)),
         landing: fileURLToPath(new URL('./landing.html', import.meta.url)),
+        enroll: fileURLToPath(new URL('./enroll.html', import.meta.url)), // single-phone mode: voice enrollment
       },
     },
   },

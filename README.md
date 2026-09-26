@@ -30,6 +30,16 @@ Some venue Wi-Fi refuses to resolve `*.trycloudflare.com`, so the quick tunnel "
 Use the named tunnel instead: `bin/tunnel-named.sh` serves the app at **https://table.akilion.ai** (Cloudflare tunnel `imt-table`).
 Set `PUBLIC_URL=https://table.akilion.ai` in `.env` so the Everyone-joins QR uses it. Phones on mobile data also bypass the block.
 
+## One phone, many voices (single-phone mode) — phase 1
+One phone listens; each person enrolls their voice once, and sentences get named by **voice** (speaker embedding), not by phone.
+
+- **Enroll:** open `/enroll.html?token=<room token>` (same token as the join QR), pass the phone around: type a name, tap **That's me**, talk for 5 s. Roster + Remove at the bottom. Voices live in server memory only, per table.
+- **Engine:** `sherpa-onnx-node` (npm, native arm64/x64, CPU, no Python). Model `server/models/nemo_en_titanet_small.onnx` (NeMo TitaNet-small, 40 MB, 192-d); alternate `3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx` (26 MB) via `VOICEID_MODEL=`. Fetch with `server/models/fetch.sh` from https://github.com/k2-fsa/sherpa-onnx/releases/tag/speaker-recongition-models (sic).
+- **API** (`server/src/voiceid.ts`): `embed(pcm16)`, `enroll(token, name, pcm16)` (newest 3 samples, centroid), `identify(token, pcm16, {minMs:800})` → `{name|null, score, second}` (cosine; `name` only if score ≥ 0.55 **and** ≥ 0.08 above the runner-up; `VOICEID_THRESHOLD` / `VOICEID_MARGIN`), `assign(token, dgSpeaker, name)` / `resolve()` (Deepgram speaker → name; a different name needs 2 consecutive votes to take over), `clearTable(token)`.
+- **HTTP** (`server/src/voiceid-routes.ts`, body = raw PCM16 LE mono 16 kHz as `application/octet-stream`, or a PCM16 WAV): `POST /api/voice/enroll?token=&name=`, `GET /api/voice/roster?token=`, `DELETE /api/voice/enroll?token=&name=`, `POST /api/voice/identify?token=` (debug).
+- **Offline test:** `node tools/voiceid-test.mjs` — macOS `say` voices Samantha/Daniel/Karen enrolled (5 s each), 6 unseen sentences each, plus unenrolled Fred (Alex isn't installed on every Mac) and Moira/Tessa/Rishi. TitaNet-small: 18/18 enrolled correct, 24/24 strangers → null; same-speaker cosine 0.76–0.92, strangers ≤ 0.48. ~10–35 ms per 3 s clip on an M-series CPU. TTS voices are easier than a real table: expect lower same-speaker scores from a phone mic across the room; re-tune the threshold on real clips.
+- Phase 2 (not yet wired): `asr.ts` slices the host stream's PCM per Deepgram diarized final and calls `identify` + `assign` to relabel speakers.
+
 ## Live test without humans
 Three synthesized phones (macOS `say`: Samantha=Mom, Daniel=Dad, Karen=Joyce) stream the demo2 family lunch through Deepgram in real time, and the host client's `/api/gate` (per final), `/api/state` (every 8 s, 90 s window) and `/api/catchup` calls are simulated. Needs `.env` keys, `say` and `ffmpeg`.
 ```

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  fmtT,
+  fmtT, TONES,
+  type Prosody, type StateMood, type TableMoodKind, type Tone,
   type CatchupBullet, type CatchupRequest, type CatchupResponse,
   type LaughRequest, type LaughResponse, type LedgerItem, type LedgerKind,
   type Session, type Speaker, type StateRequest, type StateResponse,
@@ -38,7 +39,25 @@ const isUtt = (i: TimelineItem): i is Utterance => i.type === 'utterance';
 const itemT = (i: TimelineItem) => (isUtt(i) ? i.tStart : i.t);
 
 /** threadLabel: when given (ledger calls), lines already stamped with a lane show it as «label»; unstamped lines get a leading "*". */
-export function formatTimeline(window: TimelineItem[], speakers: Record<number, Speaker>, me: Session['me'] | null, threadLabel?: (id: string) => string | undefined): string {
+/** Human words for the non-default voice cues ('' when all normal): "said louder than usual, fast, after a 2.4 s pause". */
+export function voiceNote(p?: Prosody): string {
+  if (!p) return '';
+  const cues: string[] = [];
+  if (p.loud === 'loud') cues.push('louder than usual'); else if (p.loud === 'quiet') cues.push('quieter than usual');
+  if (p.rate === 'fast') cues.push('fast'); else if (p.rate === 'slow') cues.push('slowly');
+  if (p.pauseBeforeMs >= 1500) cues.push(`after a ${(p.pauseBeforeMs / 1000).toFixed(1)} s pause`);
+  return cues.length ? `said ${cues.join(', ')}` : '';
+}
+
+/** Non-neutral tone + voice cues of a line, e.g. " (teasing; said louder than usual, fast)"; '' when nothing to say. */
+export function cueNote(u: Utterance): string {
+  const tone = u.toneRaw ?? u.tone;
+  const parts = [tone && tone !== 'neutral' ? tone : '', voiceNote(u.prosody)].filter(Boolean);
+  return parts.length ? ` (${parts.join('; ')})` : '';
+}
+
+/** cuesSinceT: lines at/after this ms also carry their tone/voice cues (the state call's mood judgement). */
+export function formatTimeline(window: TimelineItem[], speakers: Record<number, Speaker>, me: Session['me'] | null, threadLabel?: (id: string) => string | undefined, cuesSinceT = Infinity): string {
   const header: string[] = [];
   if (me) header.push(`ME: ${me.name}${me.aliases.length ? ` (aliases: ${me.aliases.join(', ')})` : ''}`);
   const ids = new Set<number>(Object.keys(speakers).map(Number));
@@ -49,7 +68,7 @@ export function formatTimeline(window: TimelineItem[], speakers: Record<number, 
     .sort((a, b) => itemT(a) - itemT(b))
     .map((i) => (isUtt(i)
       ? threadLabel
-        ? (() => { const l = i.threadId ? threadLabel(i.threadId) : undefined; return l ? `[${fmtT(i.tStart)}] ${speakerName(i.speaker, speakers)}: ${i.text.trim()} «${l}»` : `*[${fmtT(i.tStart)}] ${speakerName(i.speaker, speakers)}: ${i.text.trim()}`; })()
+        ? (() => { const l = i.threadId ? threadLabel(i.threadId) : undefined; const c = i.tStart >= cuesSinceT ? cueNote(i) : ''; return l ? `[${fmtT(i.tStart)}] ${speakerName(i.speaker, speakers)}: ${i.text.trim()}${c} «${l}»` : `*[${fmtT(i.tStart)}] ${speakerName(i.speaker, speakers)}: ${i.text.trim()}${c}`; })()
         : `[${fmtT(i.tStart)}] ${speakerName(i.speaker, speakers)}: ${i.text.trim()}`
       : `[${fmtT(i.t)}] EVENT ${i.kind}`));
   return [...header, '', ...lines].join('\n');
@@ -204,6 +223,9 @@ const MAX_UTT_THREADS = 10; // only the newest lines get lane labels per call; o
 const STATE_MAX_TOKENS = 1000;
 const LEDGER_KINDS = ['decision', 'objection', 'open_question', 'assigned_to_me', 'instruction_change'] as const;
 
+const TABLE_MOODS = ['warm', 'tense', 'light', 'quiet'] as const;
+const MOOD_WINDOW_MS = 60_000;
+
 const stateTool: Anthropic.Tool = {
   name: 'update_ledger',
   description: 'Return only NEW or CHANGED ledger items (unchanged existing items are kept automatically), plus any question to ME in the last utterance(s).',
@@ -231,6 +253,18 @@ const stateTool: Anthropic.Tool = {
       },
       drop: { type: 'array', items: { type: 'string' }, description: 'Existing ids that are duplicates or no longer true (rare)' },
       addressed_to_me_now: addressedSchema,
+      mood: {
+        type: 'object', additionalProperties: false,
+        description: 'Mood of the last ~60 s, from the words AND the (tone; voice) notes on lines',
+        properties: {
+          table: { type: 'string', enum: [...TABLE_MOODS] },
+          speakers: {
+            type: 'array', maxItems: 6, description: 'Only people whose mood is clearly not neutral',
+            items: { type: 'object', additionalProperties: false, properties: { name: { type: 'string' }, mood: { type: 'string', enum: [...TONES] } }, required: ['name', 'mood'] },
+          },
+        },
+        required: ['table', 'speakers'],
+      },
       utterance_threads: {
         type: 'array', maxItems: MAX_UTT_THREADS,
         description: 'One entry per transcript line marked * (not yet labeled), newest first if you must drop some: which thread it belongs to and who it replied to',
@@ -245,9 +279,22 @@ const stateTool: Anthropic.Tool = {
         },
       },
     },
-    required: ['ledger', 'addressed_to_me_now', 'utterance_threads'],
+    required: ['ledger', 'addressed_to_me_now', 'utterance_threads', 'mood'],
   },
 };
+
+/** Validate the model's mood; null if unusable. */
+export function cleanMood(m: unknown): StateMood | undefined {
+  if (!m || typeof m !== 'object') return undefined;
+  const o = m as { table?: unknown; speakers?: unknown };
+  if (!(TABLE_MOODS as readonly string[]).includes(String(o.table))) return undefined;
+  const speakers = (Array.isArray(o.speakers) ? o.speakers : [])
+    .filter((x): x is { name: string; mood: string } => !!x && typeof (x as { name?: unknown }).name === 'string' && (TONES as readonly string[]).includes(String((x as { mood?: unknown }).mood)))
+    .map((x) => ({ name: x.name.trim().slice(0, 40), mood: x.mood as Tone }))
+    .filter((x) => x.name && x.mood !== 'neutral')
+    .slice(0, 6);
+  return { table: o.table as TableMoodKind, speakers };
+}
 
 const STATE_SYSTEM = `You maintain a live ledger of what is "open on the table" in a group conversation, for a deaf or hard-of-hearing user (ME). ${PROMPT_CORE}
 Ledger kinds: decision (a decision forming or made — ALWAYS capture the reason given), objection (someone pushing back), open_question (unanswered question to the group), assigned_to_me (a task/ask given to ME), instruction_change (a plan, time, place or instruction that changed from what was said before).
@@ -261,7 +308,8 @@ Rules:
 - Do not resolve disagreements yourself; an objection stays open until the people resolve it.
 - utterance_threads: ONLY for transcript lines starting with "*" (not yet labeled; newest first if more than 10): give t, its thread label and replyTo. Lines ending in «label» are already labeled: do not repeat them. Use the SAME label for the same conversation; reuse EXISTING THREADS / «label» labels verbatim when they still apply. Side conversations get their own label.
 - Keep it short: ledger text <=12 words, reason <=10 words, omit optional fields you don't need.
-- addressed_to_me_now: only if the LAST utterance(s) put a question/ask to ME (by name/alias or clear second-person address) that is not yet answered; else null.`;
+- addressed_to_me_now: only if the LAST utterance(s) put a question/ask to ME (by name/alias or clear second-person address) that is not yet answered; else null.
+- mood: judge the last ~60 s; lines there may carry (tone; voice) notes from the audio: weigh them over the bare words. table = quiet unless clearly otherwise; light = jokes/teasing landing well; tense = pushback or annoyed lines from >=2 people; warm = affection/agreement. speakers: only people whose mood is clearly not neutral (their name as in the transcript).`;
 
 /**
  * The model returns only new/changed items (+ drop ids); unchanged EXISTING items carry over. Returning the full ledger
@@ -321,13 +369,14 @@ export async function extractState(req: StateRequest): Promise<StateResponse> {
       : '(empty)';
     const th = (req.existing_threads ?? []).map((t) => `- ${t.label}`).join('\n') || '(none)';
     const labels = new Map((req.existing_threads ?? []).map((t) => [t.id, t.label]));
-    const user = `EXISTING LEDGER:\n${ex}\n\nEXISTING THREADS:\n${th}\n\nNOW: ${fmtT(req.nowT)}\n\nTRANSCRIPT:\n${formatTimeline(window, req.speakers ?? {}, req.me, (id) => labels.get(id))}`;
-    const out = await callTool<{ ledger?: unknown[]; drop?: unknown[]; addressed_to_me_now?: unknown; utterance_threads?: unknown[] }>(
+    const user = `EXISTING LEDGER:\n${ex}\n\nEXISTING THREADS:\n${th}\n\nNOW: ${fmtT(req.nowT)}\n\nTRANSCRIPT:\n${formatTimeline(window, req.speakers ?? {}, req.me, (id) => labels.get(id), req.nowT - MOOD_WINDOW_MS)}`;
+    const out = await callTool<{ ledger?: unknown[]; drop?: unknown[]; addressed_to_me_now?: unknown; utterance_threads?: unknown[]; mood?: unknown }>(
       FAST_MODEL, STATE_SYSTEM, user, stateTool, STATE_MAX_TOKENS, { budgetMs: STATE_BUDGET_MS, label: 'state' });
     const ledger = mergeLedger(Array.isArray(out.ledger) ? out.ledger : [], existing, req.nowT, Array.isArray(out.drop) ? out.drop : []);
     return {
       ...assignThreads(req, Array.isArray(out.utterance_threads) ? out.utterance_threads : [], ledger),
       addressed_to_me_now: cleanAddressed(out.addressed_to_me_now),
+      ...(cleanMood(out.mood) ? { mood: cleanMood(out.mood) } : {}),
     };
   } catch (err) {
     console.error('[extractState] error:', (err as Error).message);
