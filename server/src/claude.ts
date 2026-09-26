@@ -163,8 +163,8 @@ export async function catchUp(req: CatchupRequest): Promise<CatchupResponse> {
 }
 
 // ---------- state extraction ----------
-const MAX_UTT_THREADS = 40;
-const STATE_MAX_TOKENS = 1800;
+const MAX_UTT_THREADS = 14; // only the newest lines get lane labels per call; older ones keep their stamp client-side
+const STATE_MAX_TOKENS = 1000;
 const LEDGER_KINDS = ['decision', 'objection', 'open_question', 'assigned_to_me', 'instruction_change'] as const;
 
 const stateTool: Anthropic.Tool = {
@@ -221,7 +221,7 @@ Rules:
 - New items get id "new".
 - speaker = the person's name as shown in the transcript. t = ms since session start (mm*60000 + ss*1000).
 - Do not resolve disagreements yourself; an objection stays open until the people resolve it.
-- utterance_threads: for each transcript line (up to 40, newest first priority) give t, its thread label and replyTo. Use the SAME label for the same conversation; reuse EXISTING THREADS labels verbatim when they still apply. Side conversations get their own label.
+- utterance_threads: for the NEWEST transcript lines only (up to 14) give t, its thread label and replyTo. Use the SAME label for the same conversation; reuse EXISTING THREADS labels verbatim when they still apply. Side conversations get their own label.
 - addressed_to_me_now: only if the LAST utterance(s) put a question/ask to ME (by name/alias or clear second-person address) that is not yet answered; else null.`;
 
 function mergeLedger(raw: unknown[], existing: LedgerItem[], nowT: number): LedgerItem[] {
