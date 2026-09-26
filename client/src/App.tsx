@@ -114,7 +114,7 @@ export default function App() {
   const onAskRepeat = useCallback((u: Utterance) => { askRepeat(u); }, [askRepeat]);
 
   useEffect(() => { applyPrefs(prefs); }, [prefs]);
-  useEffect(() => { document.title = 'One at a time'; }, []);
+  useEffect(() => { document.title = 'Lacuna · One at a time'; }, []);
 
   const now = currentUtterance(session);
   // The previous final line (faint, above the sentence) so a second missed line isn't gone.

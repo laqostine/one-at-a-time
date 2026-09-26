@@ -8,7 +8,7 @@ const NUMBERS = [
 ];
 
 export default function Landing() {
-  useEffect(() => { document.title = 'One at a time'; }, []);
+  useEffect(() => { document.title = 'Lacuna · One at a time'; }, []);
   return (
     <div className="mx-auto flex min-h-dvh max-w-[760px] flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] text-ink sm:px-8">
       <main className="my-auto py-10">

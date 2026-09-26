@@ -34,7 +34,7 @@ export function TopLine({ word, onSettings }: { word: string; onSettings: () => 
   return (
     <header className="flex shrink-0 items-start justify-between gap-3 pt-4">
       <div className="min-w-0">
-        <a href="/landing.html" className="font-display-italic text-[18px] leading-none text-ink">One at a time</a>
+        <a href="/landing.html" className="font-display-italic text-[18px] leading-none text-ink">Lacuna</a>
         <p className="oat-label mt-1.5" role="status" aria-live="off">{word}</p>
       </div>
       <button type="button" onClick={onSettings} aria-label="Settings"
@@ -187,7 +187,7 @@ function FullPage({ children, label }: { children: ReactNode; label: string }) {
   return (
     <div className="fixed inset-0 z-[80] overflow-y-auto bg-bg" role="dialog" aria-modal="true" aria-label={label}>
       <div className="mx-auto flex min-h-full max-w-[640px] flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <p className="pt-3 font-display-italic text-[18px]">One at a time</p>
+        <p className="pt-3 font-display-italic text-[18px]">Lacuna</p>
         {children}
       </div>
     </div>
