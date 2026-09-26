@@ -17,96 +17,79 @@ h2 { color: #8ab4f8; }
 table { font-size: 0.7em; }
 </style>
 
-# I Missed That
+# One at a time.
 
-<p class="big">The dinner table where you're loved, and still locked out. We built the other side of it.</p>
+<p class="big">The first accessibility tool for the hearing side of the table.</p>
 
-For hard-of-hearing and late-deafened adults, at their hearing family's table — and the Monday meeting after it.
+BAINSA 2026 · Team: [Name] · [Name] · [Name] · [Name]
 
 ---
 
-## Every accessibility tool puts the whole burden on the deaf person
+## Every accessibility tool puts the burden on the deaf person
 
-Read faster. Ask again. Get told never mind. We built the other side.
+Read faster. Ask again. Get told never mind. **We built the other side.**
 
-<p class="quote">"Dinner table syndrome and I want to cry."</p>
-<p class="src">— thread title, r/deaf, 174↑</p>
+<p class="quote">"I've started just nodding along even when I have no idea what was decided. My boss mentioned something about a new client project last Thursday and I smiled and agreed but I genuinely don't know what I signed up for."</p>
+<p class="src">— r/deaf, 35↑</p>
 
 <p class="quote">"DTS - Dinner Table Syndrome. Deaf people in hearing families are too familiar with this, myself included. It's simply too much work to follow along. Thats why you feel like you could sleep for a week, we have to work much harder than a hearing person to understand verbal conversations."</p>
-<p class="src">— r/deaf, "Exhausted and sad after family Sunday lunch," 36↑</p>
-
-<p class="quote">"I'd say the hardest part for me as a Deaf person in a hearing family during the holidays is extreme dinner table syndrome."</p>
-<p class="src">— r/deaf, "Christmas family diner experiences"</p>
+<p class="src">— r/deaf, 36↑</p>
 
 ---
 
 ## The numbers
 
-In the EU, about **50 million** people say they have trouble hearing. Only about **a third** use hearing aids. And the place they most want to hear isn't the office — it's **the family table**.
-
-- **56%** say "at home with family" is where hearing well matters most, vs. **21%** for the workplace <span class="src">— EuroTrak Italy 2022</span>
-- In Italy: **1 in 8** people report hearing loss, and **more than 1 in 3** people over 75
-- DHH caption comprehension drops above **170 wpm** — live group speech runs **160–220 wpm**
+- **50 million** people in the EU say they have trouble hearing — about **1 in 9**
+- **The family table**, not the office, is where they most want to hear: **56%** say home with family matters most, vs. **21%** for work <span class="src">EuroTrak Italy 2022</span>
+- Caption comprehension collapses **above 170 wpm** — group speech runs **160–220 wpm**
 - Only **4%** of non-speech information (laughter, tone) ever reaches a caption
-- **>90%** of deaf children have hearing parents — the hearing family table is the default room, not the exception
 
-<p class="src">Sources: pitch/citations.md</p>
-
----
-
-## The contract
-
-Accessibility at a table is a contract between everyone present. We're the clerk that holds both sides to it — Claude is the clerk any family or team can hire; the contract and the evidence are ours.
-
-| The table's side | Your side |
-|---|---|
-| Phones on the table become mics (QR, no install) | **Plans**, with the reason ("Sunday at nonna's" — who's bringing what) |
-| Crosstalk lamp goes amber on overlap | **Asked you** — the moment someone asks, with a nudge and a buzz |
-| One-at-a-time nudge when it flaps | **Why they laughed** — the joke, so you can laugh for real |
-| | **While you looked away** — a card that opens itself |
-| | **Say it as text** — one tap, appears on every phone at the table |
-
-<p class="small">Ava does the mics. We do what the mics are for.</p>
-
----
-
-## What's new
-
-| Tool | What they already do | What nobody (before us) does |
-|---|---|---|
-| **Ava** | Phones join as named mics, speaker colors, type-to-speak | No plans, no "asked you," no "why they laughed" — the family layer vanishes once said |
-| **Otter / Teams "Catch me up"** | Post-meeting or on-demand summary | Built for a meeting room, not a dinner table; resolves the debate instead of catching the joke or the ask |
-| **MS Teams** | Live captions + logged-in speaker names | Breaks on overlap; nothing addressed to you; no look-away catch-up |
-| **Caption glasses** (XRAI, Captify, AirCaps) | Captions in your line of sight | Arms fight hearing aids/CIs; still just words — no plan, no joke, no ask |
-| **I Missed That** | — | Plans with why, asked-you, why-they-laughed, look-away catch-up, say-it-as-text |
-
-<p class="src">Sources: research/06-github-landscape.md</p>
+<p class="src">Hard-of-hearing and late-deafened adults. Sources numbered on the last slide.</p>
 
 ---
 
 ## How it works
 
 ```
-phones on the table (placemat + one per person) ──► Deepgram, per-stream ASR ─┐
-                                                                                ├──► Claude — structured extraction
-on-device camera (nothing sent anywhere) ──► "away" / "back" signal ─────────┘        (the ledger, never prose)
-                                                                                              │
-                                                                                              ▼
-                                                    Plans · Asked you · Why they laughed · look-away catch-up · say-it-as-text
+phones on the table
+        │  each phone is its owner's mic
+        ▼
+   Deepgram — one stream per phone
+        │  server measures pace and overlap
+        ▼
+amber on the talkers' phones ──── one sentence, with a name, on the listener's phone
+                                          │  one tap
+                                          ▼
+                              text on every phone at the table
 ```
 
-Works in English, Italian and Turkish — verified on Deepgram nova-3. Nothing is stored after the session — in-memory only, gone on close.
+Sentence under **1 second**. Lamp under **2 seconds**. **Nothing is stored.**
+
+---
+
+## What's new
+
+- **Ava** already turns phones into mics for captions
+- **Nobody sends pace or overlap back to the speakers' own phones** — every other tool builds for the listener, none for the table
+- **Otter / Zoom** summarize the conversation after it's over
+- **Caption glasses** put more on the deaf person — words in front of one set of eyes, not a signal the table can act on
+
+<p class="big">Ava does the mics. We do the other side of the table.</p>
 
 ---
 
 ## Scope, limits, next
 
-**Built for:** hard-of-hearing and late-deafened adults, at a hearing family's table — the Monday meeting is the second scenario, not the first.
-
-**Not built for:** sign-first Deaf users, classrooms with interpreters, gamers.
-
+**Built for:** hard-of-hearing and late-deafened adults, in hearing rooms.
+**Not built for:** sign-first Deaf users.
 **Tested with:** not yet tested with a hard-of-hearing user.
+**Honest reach:** ~10 million people in the EU could use it. Tonight, it reaches a table.
+**Next:** hard-of-hearing user tests. The plans ledger and look-away catch-up are already built as the second layer — ask to see them. Italian and Turkish verified.
 
-**Honest reach:** ~10 million people in the EU could use this. Tonight, it reaches tens.
-
-**Next:** hard-of-hearing user tests, a table mode for 65+ relatives, glasses as a display of the same feed.
+<p class="small">
+1. AEA/EFHOH/EHIMA, "Getting the numbers right on hearing loss in Europe," 2024 — https://www.ehima.com/wp-content/uploads/2024/03/Getting-the-numbers-right-on-Hearing-Loss-Hearing-Care-and-Hearing-Aid-Use-in-Europe-2024.pdf<br>
+2. EHIMA/Anovum, EuroTrak Italy 2022 — https://www.ehima.com/wp-content/uploads/2022/11/EuroTrak_Italy_2022.pdf<br>
+3. Non-speech info in captions, PMC7040021; May et al. 2025 — https://pmc.ncbi.nlm.nih.gov/articles/PMC7040021/<br>
+4. r/deaf, "Anyone else struggling with group conversations at work…" (35↑) — https://www.reddit.com/r/deaf/comments/1r2797f/<br>
+5. r/deaf, "Exhausted and sad after family Sunday lunch" (36↑) — https://www.reddit.com/r/deaf/comments/1fh8h7h/
+</p>

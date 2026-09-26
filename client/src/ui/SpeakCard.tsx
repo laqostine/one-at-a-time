@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
-import { Loader2, Square, Volume2, X } from 'lucide-react';
-import { IconSpeakForMe } from './icons';
 import type { InterjectIntent } from '../../../shared/types';
 import { MAX_WAIT_MS, type InterjectApi } from '../state/useInterject';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -73,10 +70,10 @@ export function SpeakCard({ api, say, voice = true, floating = false, renderTrig
   });
 
   // Move focus to the first drafted line once they arrive.
-  useEffect(() => { if (open && status === 'ready' && options.length) firstChip.current?.focus(); }, [open, status, options]);
+  useEffect(() => { if (open && status === 'ready' && options.length && !isTyping(document.activeElement)) firstChip.current?.focus(); }, [open, status, options]);
 
   const statusText =
-    status === 'drafting' ? 'Drafting lines…'
+    status === 'drafting' ? 'Drafting a few lines…'
     : status === 'waiting' ? 'Waiting for a gap…'
     : status === 'speaking' ? 'Speaking'
     : status === 'error' ? `Couldn't draft lines (${error}).`
@@ -86,91 +83,80 @@ export function SpeakCard({ api, say, voice = true, floating = false, renderTrig
   if (!open) {
     if (renderTrigger) return <>{renderTrigger({ onClick: openAndDraft, ref: openBtn })}</>;
     return (
-      <Button ref={openBtn} type="button" variant="outline" size="lg" onClick={openAndDraft} aria-keyshortcuts="S"
-        className={cn('w-full shrink-0 border-accent/45 text-accent hover:border-accent hover:bg-accent/10', className)}>
-        <IconSpeakForMe size={22} /> Speak for me
-        <kbd className="ml-1 hidden rounded-md border border-border px-1.5 py-0.5 text-[0.72rem] font-normal text-muted sm:inline">S</kbd>
-      </Button>
+      <button ref={openBtn} type="button" onClick={openAndDraft} aria-keyshortcuts="S"
+        className={cn('h-16 w-full shrink-0 cursor-pointer rounded-2xl bg-ink text-[1.15rem] font-bold text-cream', className)}>
+        Say something
+      </button>
     );
   }
 
+  const chip = 'h-12 cursor-pointer rounded-full border border-line-strong px-4 text-[0.95rem] font-bold text-ink transition-colors duration-150 hover:border-ink disabled:cursor-default disabled:opacity-40';
   return (
-    <section aria-label="Speak for me" className={cn('paper imt-in shrink-0 rounded-2xl p-4 sm:p-5',
-      floating && 'absolute right-0 bottom-0 z-30 max-h-[min(34rem,70dvh)] w-[34rem] max-w-[calc(100vw-2rem)] overflow-y-auto shadow-[var(--shadow-sheet)]',
-      sheet && 'imt-sheet-up fixed inset-x-2 bottom-2 z-40 max-h-[82dvh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-sheet)]', className)}>
-      <div className="flex min-h-8 items-center gap-2 pb-3">
-        <h2 className="card-label text-accent!">Speak for me</h2>
+    <>
+      {sheet && <div aria-hidden onClick={close} className="oat-fade fixed inset-0 z-30 bg-[rgb(27_22_17/.28)]" />}
+      <section aria-label="Say something" role="dialog" aria-modal={sheet || undefined}
+        className={cn('oat-in shrink-0 bg-bg text-ink',
+          floating && 'absolute right-0 bottom-0 z-30 max-h-[min(34rem,70dvh)] w-[34rem] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-line p-5',
+          sheet && 'fixed inset-x-0 bottom-0 z-40 mx-auto max-h-[85dvh] w-full max-w-[640px] overflow-y-auto rounded-t-3xl border-t border-line px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]',
+          !floating && !sheet && 'rounded-2xl border border-line p-5', className)}>
+        <div className="flex min-h-16 items-center gap-3">
+          <h2 className="font-display-italic text-[1.5rem] leading-none">Say something</h2>
+          <button type="button" onClick={close} className="ml-auto -mr-2 h-14 min-w-14 cursor-pointer rounded-xl px-3 font-bold text-ink underline-offset-4 hover:underline">
+            Close
+          </button>
+        </div>
         <p role="status" aria-live="polite" aria-atomic="true"
-          className={`ml-auto flex min-w-0 items-center gap-1.5 truncate text-[0.85rem] ${busy ? 'font-semibold text-warn' : status === 'error' ? 'text-bad' : 'text-muted'}`}>
-          {(status === 'drafting' || status === 'waiting') && <Loader2 size={16} className="animate-spin" aria-hidden />}
-          {status === 'speaking' && <Volume2 size={16} aria-hidden />}
-          {statusText}
+          className={cn('min-h-6 font-mono text-[0.78rem] tracking-[0.06em]', busy ? 'font-bold text-warn' : status === 'error' ? 'text-bad' : 'text-muted')}>
+          {sent && !busy
+            ? (sent.delivered == null ? 'Sending to every phone…' : sent.delivered > 0 ? `On ${sent.delivered} phone${sent.delivered === 1 ? '' : 's'} now` : 'No phones on the table yet')
+            : statusText}
         </p>
-        <button type="button" onClick={close} aria-label="Close Speak for me" className="-mr-2 flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl text-muted transition-colors duration-150 hover:bg-card-2 hover:text-fg">
-          <X size={20} aria-hidden />
-        </button>
-      </div>
 
-      {sent && !busy && (
-        <div className="mb-2 flex items-center gap-3 rounded-xl border border-accent/50 bg-accent/10 px-4 py-2.5" role="status" aria-live="polite">
-          <IconSpeakForMe size={22} className="shrink-0 text-accent" />
-          <span className="min-w-0 flex-1">
-            <span className="block font-mono text-[0.7rem] tracking-wider text-accent uppercase">
-              {sent.delivered == null ? 'Sending to phones…' : sent.delivered > 0 ? `On ${sent.delivered} phone${sent.delivered === 1 ? '' : 's'}` : 'No phones joined'}
-            </span>
-            <q className="text-body font-semibold">{sent.line}</q>
-          </span>
-        </div>
-      )}
-      {busy && line && (
-        <div className="mb-2 flex items-center gap-3 rounded-xl border border-warn/70 bg-warn/10 px-4 py-2.5">
-          <q className="min-w-0 flex-1 text-body-lg font-semibold">{line}</q>
-          <button type="button" onClick={api.stop} aria-label="Stop speaking"
-            className="flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-bad px-4 text-[1rem] font-bold text-cream transition-[filter] duration-150 hover:brightness-110">
-            <Square size={16} aria-hidden /> Stop
-          </button>
-        </div>
-      )}
-      {status === 'waiting' && <p className="sr-only">Will speak within {MAX_WAIT_MS / 1000} seconds.</p>}
+        {sent && !busy && <q className="mt-1 block font-display-italic text-[1.5rem] leading-[1.15]">{sent.line}</q>}
+        {busy && line && (
+          <div className="mt-2 flex items-center gap-3">
+            <q className="min-w-0 flex-1 font-display-italic text-[1.4rem] leading-[1.15]">{line}</q>
+            <button type="button" onClick={api.stop} className="h-14 shrink-0 cursor-pointer rounded-xl bg-bad px-5 font-bold text-cream">Stop</button>
+          </div>
+        )}
+        {status === 'waiting' && <p className="sr-only">Will speak within {MAX_WAIT_MS / 1000} seconds.</p>}
 
-      {status === 'drafting' && !options.length && (
-        <div className="space-y-2" aria-hidden>{[88, 72, 80].map((w) => <div key={w} className="imt-skeleton h-13" style={{ width: `${w}%` }} />)}</div>
-      )}
+        <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (custom.trim()) { send(custom); setCustom(''); } }}>
+          <label htmlFor="imt-speak-custom" className="sr-only">What do you want to say?</label>
+          <input id="imt-speak-custom" value={custom} onChange={(e) => setCustom(e.target.value)} maxLength={200}
+            placeholder="Type it here…" autoComplete="off"
+            className="h-16 min-w-0 flex-1 rounded-2xl border border-line-strong bg-card px-4 text-[1.1rem] text-ink placeholder:text-muted focus:border-ink" />
+          <button type="submit" disabled={!custom.trim() || busy}
+            className="h-16 shrink-0 cursor-pointer rounded-2xl bg-ink px-6 text-[1.1rem] font-bold text-cream disabled:cursor-default disabled:opacity-35">Send</button>
+        </form>
 
-      {options.length > 0 && (
-        <ul className="space-y-2" aria-label="Lines to say">
-          {options.map((o, k) => (
-            <li key={`${o.kind}-${k}-${o.line}`}>
-              <button ref={k === 0 ? firstChip : undefined} type="button" disabled={busy} onClick={() => send(o.line)}
-                aria-label={`${o.label}: ${o.line}. ${say ? (voice ? 'Show on every phone and say it at the next pause.' : 'Show on every phone.') : 'Say it at the next pause.'}`}
-                className="flex w-full cursor-pointer items-start gap-3 rounded-xl border border-border bg-card-2 px-3.5 py-3 text-left transition-colors duration-150 hover:border-accent disabled:cursor-default disabled:opacity-50">
-                <span className="mt-0.5 inline-flex h-6 shrink-0 items-center rounded-full border border-accent/35 bg-accent/12 px-2 text-[0.72rem] font-semibold tracking-wide text-accent uppercase">{o.label}</span>
-                <span className="text-body-lg">{o.line}</span>
-              </button>
-            </li>
+        {status === 'drafting' && !options.length && (
+          <div className="mt-4 space-y-2" aria-hidden>{[88, 72, 80].map((w) => <div key={w} className="imt-skeleton h-14" style={{ width: `${w}%` }} />)}</div>
+        )}
+        {options.length > 0 && (
+          <ul className="mt-4 divide-y divide-line border-y border-line" aria-label="Or tap a line">
+            {options.map((o, k) => (
+              <li key={`${o.kind}-${k}-${o.line}`}>
+                <button ref={k === 0 ? firstChip : undefined} type="button" disabled={busy} onClick={() => send(o.line)}
+                  aria-label={`${o.label}: ${o.line}. ${say ? (voice ? 'Show on every phone and say it at the next pause.' : 'Show on every phone.') : 'Say it at the next pause.'}`}
+                  className="flex min-h-16 w-full cursor-pointer flex-col items-start justify-center gap-0.5 py-3 text-left disabled:cursor-default disabled:opacity-50">
+                  <span className="font-mono text-[0.7rem] font-bold tracking-[0.12em] text-muted uppercase">{o.label}</span>
+                  <span className="text-[1.1rem] leading-snug font-semibold">{o.line}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Draft a different kind of line">
+          {INTENTS.map((i) => (
+            <button key={i.intent} type="button" disabled={status === 'drafting' || busy} onClick={() => void api.draft(i.intent)} className={chip}>
+              {i.label}
+            </button>
           ))}
-        </ul>
-      )}
-
-      <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Draft a different kind of line">
-        {INTENTS.map((i) => (
-          <button key={i.intent} type="button" disabled={status === 'drafting' || busy} onClick={() => void api.draft(i.intent)}
-            className="h-9 cursor-pointer rounded-full border border-border px-3.5 text-[0.88rem] font-medium text-muted transition-colors duration-150 hover:border-fg hover:text-fg disabled:cursor-default disabled:opacity-50">
-            {i.label}
-          </button>
-        ))}
-      </div>
-
-      <form className={cn('mt-2 flex gap-2', sheet && 'flex-wrap')} onSubmit={(e) => { e.preventDefault(); if (custom.trim()) { send(custom); setCustom(''); } }}>
-        <label htmlFor="imt-speak-custom" className="sr-only">Your own line</label>
-        <input id="imt-speak-custom" value={custom} onChange={(e) => setCustom(e.target.value)} maxLength={200}
-          placeholder="Type your own line…" autoComplete="off"
-          className={cn('h-12 min-w-0 flex-1 rounded-xl border border-input bg-card-2 px-3 text-[1.05rem] transition-colors duration-150 placeholder:text-muted focus:border-accent', sheet && 'basis-full')} />
-        <button type="button" disabled={!custom.trim() || status === 'drafting' || busy} onClick={() => void api.draft('custom', custom)}
-          className="h-12 cursor-pointer rounded-xl border border-border px-3 text-[0.95rem] font-medium text-muted transition-colors duration-150 hover:text-fg disabled:cursor-default disabled:opacity-50">Polish</button>
-        <button type="submit" disabled={!custom.trim() || busy}
-          className="h-12 cursor-pointer rounded-xl bg-accent px-4 text-[1rem] font-bold text-accent-fg transition-[filter] duration-150 hover:brightness-110 disabled:cursor-default disabled:opacity-50">Say it</button>
-      </form>
-    </section>
+          <button type="button" disabled={!custom.trim() || status === 'drafting' || busy} onClick={() => void api.draft('custom', custom)} className={chip}>Polish mine</button>
+        </div>
+      </section>
+    </>
   );
 }

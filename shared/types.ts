@@ -105,7 +105,9 @@ export type AsrMessage =
   // hosts only, every 2s while phones are joined: table-wide overlap + mean wpm of recently active speakers
   | { type: 'table'; overlap: boolean; avgWpm: number }
   // host user's line shown as text on every participant phone (text-first 'Speak for me'; voice is opt-in)
-  | { type: 'say'; name: string; text: string; t: number };
+  | { type: 'say'; name: string; text: string; t: number; audio?: string /* base64 mp3 from ElevenLabs when the table has voice on */; voice?: boolean }
+  // ≥2 phones loud at once with no words recognized ≈ the table laughed (no audio model needed)
+  | { type: 'laugh'; t: number; sources: number };
 
 /** DHH caption comprehension drops above ~170 wpm: ok <150, fast 150-170, too_fast >170. */
 export type PaceLevel = 'ok'|'fast'|'too_fast';

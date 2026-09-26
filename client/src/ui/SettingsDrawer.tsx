@@ -1,12 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { hasSpeech, voicesFor } from '@/lib/clerkVoice';
 import type { Session } from '../../../shared/types';
 import { FONT_PX, type FontSize, type Prefs } from './prefs';
 import { Modal } from './Modal';
-import { fmtMs } from './Header';
-import { ColorLegend } from './ColorLegend';
-import { PRESENCE_PROMISE } from './presenceStates';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 interface Props {
   me: Session['me'];
@@ -16,115 +13,131 @@ interface Props {
   onPrefs: (p: Prefs) => void;
   onListening: (on: boolean) => void;
   onClose: () => void;
+  /** Opens the plain "Add phones" QR modal. */
+  onAddPhones?: () => void;
+  participantCount?: number;
   /** Optional look-away section (camera, on-device). */
   away?: { enabled: boolean; sim: boolean; active: boolean; calibrating: boolean; setEnabled: (v: boolean) => void; calibrate: () => Promise<boolean> };
-  /** Latency chips (shown in the header on >=640px, here always). */
-  latency?: { stateMs?: number; catchupMs?: number; stateError?: string };
   captionsOnly?: boolean;
 }
 
-export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListening, onClose, away, latency, captionsOnly }: Props) {
+const label = 'mb-2 block font-mono text-[0.72rem] font-bold tracking-[0.12em] text-muted uppercase';
+const field = 'h-14 w-full rounded-xl border border-line-strong bg-card px-4 text-[1.05rem] text-ink transition-colors duration-150 placeholder:text-muted focus:border-ink';
+
+export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListening, onClose, onAddPhones, participantCount = 0, away, captionsOnly }: Props) {
   const [name, setName] = useState(me.name);
   const [aliases, setAliases] = useState(me.aliases.join(', '));
   const save = () => onMe(name, aliases.split(',').map((a) => a.trim()).filter(Boolean));
+  const [lang, setLang] = useState('en');
+  useEffect(() => {
+    let dead = false;
+    fetch('/api/room/lang').then((r) => (r.ok ? r.json() : null)).then((j: { lang?: string } | null) => { if (!dead && j?.lang) setLang(j.lang); }).catch(() => {});
+    return () => { dead = true; };
+  }, []);
+  // speechSynthesis voices load asynchronously on most browsers.
+  const [, setVoicesReady] = useState(0);
+  useEffect(() => {
+    if (!hasSpeech()) return;
+    const on = () => setVoicesReady((n) => n + 1);
+    window.speechSynthesis.addEventListener?.('voiceschanged', on);
+    return () => window.speechSynthesis.removeEventListener?.('voiceschanged', on);
+  }, []);
+  const voices = voicesFor(lang);
   return (
     <Modal title="Settings" onClose={() => { save(); onClose(); }} variant="drawer">
-      <div className="space-y-5">
+      <div className="space-y-6">
         <label className="block">
-          <span className="mb-1.5 block card-label">My name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} onBlur={save}
-            className="h-12 w-full rounded-xl border border-input bg-card-2 px-3 text-[1.1rem] transition-colors duration-150 placeholder:text-muted/80 focus:border-accent" />
+          <span className={label}>My name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} onBlur={save} className={field} />
         </label>
         <label className="block">
-          <span className="mb-1.5 block card-label">Also called (comma separated)</span>
-          <input value={aliases} onChange={(e) => setAliases(e.target.value)} onBlur={save} placeholder="nickname, surname"
-            className="h-12 w-full rounded-xl border border-input bg-card-2 px-3 text-[1.1rem] transition-colors duration-150 placeholder:text-muted/80 focus:border-accent" />
+          <span className={label}>Also called</span>
+          <input value={aliases} onChange={(e) => setAliases(e.target.value)} onBlur={save} placeholder="nickname, surname" className={field} />
         </label>
         <fieldset>
-          <legend className="mb-2 card-label">Text size</legend>
-          <div className="grid grid-cols-4 gap-1 rounded-xl border border-border bg-card-2 p-1" role="radiogroup" aria-label="Text size">
+          <legend className={label}>Text size</legend>
+          <div className="grid grid-cols-4 gap-1 rounded-xl border border-line p-1" role="radiogroup" aria-label="Text size">
             {(Object.keys(FONT_PX) as FontSize[]).map((f) => (
               <button key={f} type="button" role="radio" aria-checked={prefs.font === f} onClick={() => onPrefs({ ...prefs, font: f })}
-                className={`h-11 cursor-pointer rounded-lg font-semibold transition-colors duration-150 ${prefs.font === f ? 'bg-accent text-accent-fg' : 'text-muted hover:bg-card hover:text-fg'}`}>{f}</button>
+                className={cn('h-12 cursor-pointer rounded-lg font-bold transition-colors duration-150', prefs.font === f ? 'bg-ink text-cream' : 'text-muted hover:text-ink')}>{f}</button>
             ))}
           </div>
         </fieldset>
-        <Separator />
-        <Toggle label="High contrast" on={prefs.contrast} onChange={(v) => onPrefs({ ...prefs, contrast: v })} />
-        <Toggle label="Listening" on={listening} onChange={onListening} />
         <label className="block">
-          <span className="mb-2 block card-label">Table language</span>
-          <select defaultValue="en" aria-label="Table language"
+          <span className={label}>Language</span>
+          <select value={lang} aria-label="Language"
             onChange={async (e) => {
               const lang = e.target.value;
+              setLang(lang);
               try { await fetch('/api/room/lang', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang }) }); } catch { /* offline */ }
               // New language applies to new audio sockets: bounce listening so the host reconnects.
               onListening(false); window.setTimeout(() => onListening(true), 400);
             }}
-            className="h-12 w-full rounded-xl border border-input bg-card-2 px-3 text-[1.1rem] transition-colors duration-150 focus:border-accent">
+            className={field}>
             <option value="en">English</option>
             <option value="it">Italiano</option>
             <option value="tr">Türkçe</option>
             <option value="multi">Mixed / auto</option>
           </select>
-          <p className="text-meta">Phones joining after this use the same language.</p>
         </label>
-        <div>
-          <Toggle label="Also say it aloud (synthetic voice)" on={prefs.voice} onChange={(v) => onPrefs({ ...prefs, voice: v })} />
-          <p className="text-meta">Speak for me always shows your line on everyone's phone first. Turn this on to also hear it in the next pause.</p>
+
+        <div className="divide-y divide-line border-y border-line">
+          <Switch label="Show captions" hint="Every line, in a list under the sentence." on={prefs.captions} onChange={(v) => onPrefs({ ...prefs, captions: v })} />
+          <Switch label="Also say it aloud" hint="What you type always goes to every phone first." on={prefs.voice} onChange={(v) => onPrefs({ ...prefs, voice: v })} />
+          <Switch label="The clerk speaks for me" hint="Your lines are read aloud on everyone’s phone, and phones say “one at a time” when people overlap." on={prefs.clerkSpeaks} onChange={(v) => onPrefs({ ...prefs, clerkSpeaks: v })} />
+          {prefs.clerkSpeaks && hasSpeech() && (
+            <label className="block pb-4">
+              <span className={label}>Clerk voice</span>
+              <select value={prefs.clerkVoice} onChange={(e) => onPrefs({ ...prefs, clerkVoice: e.target.value })} className={field} aria-label="Clerk voice">
+                <option value="">Automatic{voices[0] ? ` (${voices[0].name})` : ''}</option>
+                {voices.map((v) => <option key={v.voiceURI} value={v.name}>{v.name} · {v.lang}</option>)}
+              </select>
+              <span className="mt-2 block text-[0.9rem] text-muted">Phones use this voice if they have it. Re-share the QR after changing it.</span>
+            </label>
+          )}
+          {away && (
+            <div>
+              <Switch label="Notice when I look away" hint={away.sim ? 'Simulator on: press A to toggle away.' : 'Camera, on this phone only. Nothing is stored or sent.'} on={away.enabled} onChange={away.setEnabled} />
+              {away.enabled && (
+                <button type="button" disabled={away.sim || !away.active || away.calibrating} onClick={() => void away.calibrate()}
+                  className="mb-3 min-h-14 w-full cursor-pointer rounded-xl border border-line-strong px-4 text-left font-bold text-ink disabled:cursor-default disabled:opacity-50">
+                  {away.calibrating ? 'Hold still…' : 'Calibrate: look at the table, then tap'}
+                </button>
+              )}
+            </div>
+          )}
+          <Switch label="Listening" on={listening} onChange={onListening} />
+          <Switch label="High contrast" on={prefs.contrast} onChange={(v) => onPrefs({ ...prefs, contrast: v })} />
         </div>
-        {away && (
-          <div className="space-y-2">
-            <Toggle label="Notice when I look away (camera, on-device)" on={away.enabled} onChange={away.setEnabled} />
-            {away.enabled && (
-              <button type="button" disabled={away.sim || !away.active || away.calibrating} onClick={() => void away.calibrate()}
-                className="min-h-12 w-full cursor-pointer rounded-xl border border-input bg-card-2 px-3 py-2.5 text-[1rem] font-semibold transition-colors duration-150 hover:bg-card disabled:cursor-default disabled:opacity-50">
-                {away.calibrating ? 'Hold still, looking at the table…' : 'Calibrate: look at the table and press'}
-              </button>
-            )}
-            <p className="text-meta">
-              {away.sim ? 'Simulator on (?away=1): press A to toggle away.' : 'Video is analysed on this device only. No frames are stored or sent; only "away / not away" is kept.'}
-            </p>
-          </div>
+
+        {onAddPhones && (
+          <button type="button" onClick={onAddPhones}
+            className="flex min-h-16 w-full cursor-pointer items-center justify-between rounded-xl border border-line-strong px-4 text-left">
+            <span>
+              <span className="block text-[1.05rem] font-bold text-ink">Add phones</span>
+              <span className="block text-[0.9rem] text-muted">A QR code for everyone at the table</span>
+            </span>
+            <span className="font-mono text-[0.85rem] font-bold text-ink tabular-nums">{participantCount} on</span>
+          </button>
         )}
-        <Separator />
-        <section aria-labelledby="imt-colors-h">
-          <h3 id="imt-colors-h" className="mb-1 card-label">What the colors mean</h3>
-          <p className="mb-3 text-[0.95rem] text-muted">{PRESENCE_PROMISE}</p>
-          <ColorLegend detailed className="text-[0.95rem]" />
-        </section>
-        {latency && (
-          <>
-            <Separator />
-            <section aria-label="Speed">
-              <h3 className="mb-2 card-label">Speed</h3>
-              <dl className="grid grid-cols-2 gap-2 font-mono text-[0.85rem] tabular-nums">
-                <div className="rounded-xl border border-border bg-card-2 px-3 py-2">
-                  <dt className="text-muted">ledger</dt>
-                  <dd className={latency.stateError ? 'text-warn' : 'text-fg'}>{latency.stateError ? 'offline' : fmtMs(latency.stateMs)}</dd>
-                </div>
-                <div className="rounded-xl border border-border bg-card-2 px-3 py-2">
-                  <dt className="text-muted">catch-up</dt>
-                  <dd className="text-fg">{fmtMs(latency.catchupMs)}</dd>
-                </div>
-              </dl>
-              {captionsOnly && <p className="mt-2 text-meta text-warn">Browser captions only: no speaker colors.</p>}
-            </section>
-          </>
-        )}
-        <Separator />
-        <p className="text-meta">Audio stays in memory for the last 15 minutes only. Nothing is stored after you close this tab.</p>
+        {captionsOnly && <p className="text-[0.9rem] text-warn">Browser captions only: speakers are not told apart.</p>}
+        <p className="text-[0.9rem] text-muted">Audio stays in memory for 15 minutes. Nothing is stored after you close this tab.</p>
       </div>
     </Modal>
   );
 }
 
-function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange: (v: boolean) => void }) {
-  const id = `imt-sw-${label.replace(/\W+/g, '-').toLowerCase()}`;
+function Switch({ label: text, hint, on, onChange }: { label: string; hint?: string; on: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex min-h-12 items-center justify-between gap-4">
-      <label htmlFor={id} className="cursor-pointer text-[1.05rem]">{label}</label>
-      <Switch id={id} checked={on} onCheckedChange={onChange} />
-    </div>
+    <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)}
+      className="flex min-h-16 w-full cursor-pointer items-center justify-between gap-4 py-3 text-left">
+      <span className="min-w-0">
+        <span className="block text-[1.05rem] font-bold text-ink">{text}</span>
+        {hint && <span className="block text-[0.9rem] leading-snug text-muted">{hint}</span>}
+      </span>
+      <span aria-hidden className={cn('relative h-8 w-13 shrink-0 rounded-full border-2 transition-colors duration-160', on ? 'border-ink bg-ink' : 'border-line-strong bg-transparent')}>
+        <span className={cn('absolute top-1/2 size-5 -translate-y-1/2 rounded-full transition-[left,background-color] duration-160', on ? 'left-[1.45rem] bg-cream' : 'left-1 bg-muted')} />
+      </span>
+    </button>
   );
 }

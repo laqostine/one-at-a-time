@@ -1,144 +1,133 @@
-# Citations — pitch/deck.md and pitch/script.md
+# Citations — pitch/deck.md, pitch/script.md, pitch/I-Missed-That-BAINSA.pptx
 
-Source: `research/09-niche-scale.md` (population numbers, defendable lines,
-claims NOT to make), `research/08-a-thursday-as-deniz.md` (Crosstalk Lamp,
-persona), `research/07-reddit-wishlist-analysis.md` (needs ranking),
-`research/reddit/threads.md` (verbatim family-table quotes),
-`research/04-final-synthesis.md` and `research/05-numbers-for-pitch.md`
-(caption-quality numbers), and the landscape sprint in
-`research/06-github-landscape.md`. Where the underlying paper/report title
-isn't spelled out in our research files, it's marked "from NotebookLM
-synthesis" below — best-effort attribution, not a direct-quote-verified
-primary source.
+Source files: `research/09-niche-scale.md` (population numbers and the
+claims list — never 430M, never "millions", say ">90%" not 96%, say
+"hard-of-hearing and late-deafened"), `research/08-a-thursday-as-deniz.md`
+(Crosstalk Lamp — the #1-picked solution in that persona sprint),
+`research/07-reddit-wishlist-analysis.md` (N3: a discreet slow-down signal
+is the top unmet need), `research/06-github-landscape.md` (nobody in the
+landscape sends pace/overlap back to the hearing speakers' own phones),
+and `research/reddit/threads.md` (verbatim quotes, subreddit + upvotes
+only, no usernames).
 
-## Slide 2 quotes (verbatim, subreddit attribution only, no usernames shown)
+## Slide 2 — the two verbatim quotes
 
-1. *"Dinner table syndrome and I want to cry."*
-   — thread title, r/deaf, 174↑ 29c. `research/reddit/threads.md` line 317.
-   The post body itself is `[deleted]`, so the title is used as the quote —
-   it is the verbatim, attributable text available for this thread.
+1. **[35↑]** *"I've started just nodding along even when I have no idea
+   what was decided. My boss mentioned something about a new client
+   project last Thursday and I smiled and agreed but I genuinely don't
+   know what I signed up for."*
+   — r/deaf, thread "Anyone else struggling with group conversations at
+   work…" (35↑ 10c). `research/reddit/threads.md` line 54. Shown on the
+   slide with subreddit attribution only (r/deaf), no thread title or
+   username.
 
-2. *"DTS - Dinner Table Syndrome. Deaf people in hearing families are too
-   familiar with this, myself included. It's simply too much work to follow
-   along. Thats why you feel like you could sleep for a week, we have to
-   work much harder than a hearing person to understand verbal
-   conversations."*
-   — r/deaf, thread "Exhausted and sad after family Sunday lunch" (36↑ 7c).
-   `research/reddit/threads.md` lines 180, 203.
+2. **[36↑, family table]** *"DTS - Dinner Table Syndrome. Deaf people in
+   hearing families are too familiar with this, myself included. It's
+   simply too much work to follow along. Thats why you feel like you
+   could sleep for a week, we have to work much harder than a hearing
+   person to understand verbal conversations."*
+   — r/deaf, thread "Exhausted and sad after family Sunday lunch" (36↑
+   7c), reply at 15↑. `research/reddit/threads.md` lines 180, 203. Shown
+   with subreddit attribution only (r/deaf).
 
-3. *"I'd say the hardest part for me as a Deaf person in a hearing family
-   during the holidays is extreme dinner table syndrome."*
-   — r/deaf, thread "Christmas family diner experiences" (3↑ 8c).
-   `research/reddit/threads.md` lines 480, 491.
+## Slide 3 — the numbers
 
-## Slide 3 numbers
-
-| Slide 3 number | Research file | Note |
+| Number on slide | Source | Note |
 |---|---|---|
-| **~50 million** in the EU say they have trouble hearing | `research/09-niche-scale.md` §1, §4 verdict | Derived: EU27+UK+NO+CH self-reported total is 59M [AEA/EFHOH/EHIMA 2024]; EU27-only figure (minus UK ~7.4M, NO+CH ~1.2M) is our own arithmetic, "about 50 million." **Never say 59 million is EU-only; that figure is Europe (EU+UK+NO+CH).** |
-| **About a third** use hearing aids | `research/09-niche-scale.md` §1 | 36% average hearing-aid uptake among people who self-report loss, across 30 European countries [AEA/EFHOH/EHIMA 2024]. |
-| **56%** "at home with family" vs. **21%** workplace | `research/09-niche-scale.md` §1 | EuroTrak Italy 2022 (n=1,317), "where is it most important to hear well?" — home with family 56%, workplace 21%, school 5%. |
-| Italy: **1 in 8** report hearing loss, **more than 1 in 3** over 75 | `research/09-niche-scale.md` §1, §4 Milan variant | EuroTrak Italy 2022: 12.5% self-reported overall (≈1 in 8); 75+ age band 38.3% (>1 in 3). |
-| Comprehension caps at **170 wpm** vs. **160–220 wpm** live speech | `research/05-numbers-for-pitch.md`, "Reading Speed vs. Conversational Pacing Gap" | From NotebookLM synthesis (refs [11,12] in that file) — consistent with published captioning-speed/comprehension research; exact titles not captured in our files. |
-| **4%** of non-speech info reaches captions | `research/05-numbers-for-pitch.md`, "Non-Speech Information (NSI) Deficit" | Corroborated in `research/04-final-synthesis.md` pain #6, citing EEG studies (PMC7040021, a real checkable PubMed Central ID) and May et al. (2025). |
-| **>90%** of deaf children have hearing parents | `research/09-niche-scale.md` §1 and §5 "Claims we should NOT make" | Mitchell & Karchmer 2004 (US data). Use ">90%", never the looser "96%" figure, and never present it as a European fact — it is about children, who are not our primary user. |
+| **50 million** in the EU have trouble hearing, about **1 in 9** | `research/09-niche-scale.md` §1 | EU27 self-reported hearing loss, derived: the 59M Europe (EU27+UK+NO+CH) total [AEA/EFHOH/EHIMA "Getting the numbers right," 2024] minus UK (~7.4M) and NO+CH (~1.2M) ≈ 50M. Against an EU27 population of ~448M that is ≈11.1%, "about 1 in 9." Never call this a global or "millions more" figure — it is EU27 only, and it is our arithmetic on top of the source. |
+| **Family table is the #1 place** they want to hear, **56%** vs. work **21%** | `research/09-niche-scale.md` §1, "Italy, where is it most important to hear well?" | EuroTrak Italy 2022 (n=1,317): "at home with family members" 56%, workplace 21%, school 5%. |
+| Comprehension collapses **above 170 wpm**; group speech runs **160–220 wpm** | `research/05-numbers-for-pitch.md`, "Reading Speed vs. Conversational Pacing Gap" | From NotebookLM synthesis over published captioning-speed/comprehension research; exact paper titles were not captured verbatim in our research files, so this is reported as a synthesized, not primary-source-quoted, figure. |
+| Only **4%** of non-speech information reaches captions | `research/05-numbers-for-pitch.md`, "Non-Speech Information (NSI) Deficit"; corroborated in `research/04-final-synthesis.md` pain #6 | Citing EEG studies (PMC7040021) and May et al. (2025). |
 
-## Claims deliberately avoided (see `research/09-niche-scale.md` §5)
+**Claims deliberately avoided on every slide** (`research/09-niche-scale.md`
+§5): never "430 million deaf" (that WHO figure is disabling hearing loss
+worldwide, mostly hard-of-hearing, not "deaf"); never "we'll help
+millions" (the honest reach is ~10M addressable in the EU, a table
+tonight); never plain "deaf" for our user — say "hard-of-hearing and
+late-deafened"; never "96% of deaf children have hearing parents" as an
+EU fact — that figure is US-sourced, child-focused data, and it isn't
+used on this deck at all since our audience is adults.
 
-- **Never** "430 million deaf" — that WHO figure is *disabling hearing loss*
-  worldwide, mostly hard-of-hearing people, not "deaf."
-- **Never** "we will help millions" — the honest realistic reach is hundreds
-  of thousands if adoption goes well; tonight, tens of people.
-- **Never** plain "deaf" for our user — say "hard-of-hearing and
-  late-deafened."
-- **Never** "96% of deaf children have hearing parents" as an EU fact — say
-  ">90%" and note it is US-sourced, child-focused data.
-- **Honest addressable estimate used on slide 7:** "~10 million people in
-  the EU could use it" — `research/09-niche-scale.md` §4, "Addressable"
-  layer: ~50M self-reported, cut to those with moderate-or-worse difficulty
-  following groups (~29% of the total per WHO's disabling/any ratio), cut
-  again to smartphone users under ~75.
+## Slide 4 — how it works
 
-## Slide 4 ("the contract") feature sourcing
+Architecture (phones on the table → each phone is its owner's mic via
+Deepgram, one stream per phone → server measures pace and overlap →
+amber on the talkers' phones; the listener's phone shows one sentence
+with a name; one tap sends text to every phone) matches the build's
+stack: Deepgram nova-3 streaming ASR per phone, a server-side pace/overlap
+gate, and an in-memory ledger — no storage after the session, per the
+existing v2 build plan referenced across `research/08` and `research/09`
+§4 ("Two changes to the current build so it fits the family table").
+Latency targets (sentence under 1s, lamp under 2s) reflect the same build
+plan's gate/ledger timing.
 
-- **Plans, with the reason** ("Sunday at nonna's," who brings what):
-  `research/08-a-thursday-as-deniz.md`, 19:30 Family dinner beat and the
-  "Crosstalk Lamp" solution; `research/09-niche-scale.md` §4 "Table mode"
-  rename recommendation ("Plans" in place of "Decisions").
-- **Crosstalk lamp on overlap:** `research/08-a-thursday-as-deniz.md`,
-  "Crosstalk Lamp" — "a phone stands on a placemat... when two voices
-  overlap, all the phones glow amber... it's never me having to say 'one at
-  a time' for the hundredth time." Picked as one of the three top solutions
-  in that file's "Stepping out" section.
-- **Asked you:** `research/09-niche-scale.md` §4, ledger rename to "Asked
-  you"; driven by `research/07-reddit-wishlist-analysis.md` N2 (#1-ranked
-  need, score 100/100) and the killer line "Mamma asked you: are you coming
-  Sunday?"
-- **Why they laughed:** `research/08-a-thursday-as-deniz.md`, 10:50 "The
-  hallway joke" beat and "Punchline Card" solution — "the room laughed at:"
-  card so the user "can laugh for real, without anyone having to perform it
-  again."
-- **While you looked away:** `research/08-a-thursday-as-deniz.md`, 15:30
-  "Behind-You Buzz" beat, and `research/07-reddit-wishlist-analysis.md` N6
-  "gaze-away re-sync" demo idea.
-- **Say it as text:** `research/07-reddit-wishlist-analysis.md` N3
-  (#2-ranked need, score 100/100) — the lawyer-meeting story and the
-  codesign wish for a discreet, non-interrupting way to respond; text-first,
-  voice optional, per `research/08-a-thursday-as-deniz.md`'s warning against
-  a default synthetic voice ("Next-Gap Line," flagged as the idea "most
-  likely to be wrong or offensive" if voice were the default).
-- **"Ava does the mics. We do what the mics are for.":** framing choice
-  from `research/06-github-landscape.md` §4 and §5 — per-phone named mics
-  are explicitly flagged "Taken (Ava, DieRekT/huddle)" and "High derivative
-  risk," with the recommendation to de-emphasize it and say "because each
-  voice arrives already named, we can reconstruct the conversation's
-  structure."
+## Slide 5 — what's new
 
-## Slide 5 ("what's new") sourcing
+Built from the competitor rows in `research/06-github-landscape.md`:
+- **Ava** does phones-as-mics for captions (§1: "QR/link so each person's
+  phone joins as a mic... colour-coded names, SpeakerID... type-to-speak
+  TTS"). It is the closest prior art to our phone-mic layer, and it stops
+  at captions — it never sends a pace or overlap signal back to the
+  hearing speakers' own phones.
+- **Nobody pushes pace or overlap to the speakers' phones**:
+  `research/06-github-landscape.md` §1 landscape table — every
+  diarization/captioning repo and product found (meetily, WhisperLiveKit,
+  pyannote, GlassFlow, huddle, backchannel, MS Teams captions) produces
+  output for the listener only; none was found that turns crosstalk or
+  pace into a signal shown to the people talking. Confirmed as the gap in
+  `research/07-reddit-wishlist-analysis.md` N3 ("Nothing found. No
+  product gives the room a shared pace signal or sends a discreet 'slow
+  down' from the DHH user"), our single strongest unmet-need finding.
+- **Otter / Zoom summarize after the fact**: `research/06-github-landscape.md`
+  §1, "Zoom AI Companion 'Catch me up'... Google Meet 'Summary so
+  far'... Online meetings only"; `research/07-reddit-wishlist-analysis.md`
+  N2, "Otter, Grain and Fireflies do post-hoc summaries... Nothing gives a
+  live 'what did I just miss' view."
+- **Caption glasses put more on the deaf person**:
+  `research/04-final-synthesis.md` matrix row "XRAI / AR Smart Glasses" —
+  "head-locked text bouncing induces motion sickness; severe hardware
+  conflict: arms physically collide with Behind-the-Ear (BTE) hearing
+  aids/CIs." Still just words in front of one person's eyes, not a signal
+  the table can act on.
 
-Built from the competitor rows and the "Our components vs closest prior
-art" table in `research/06-github-landscape.md` §1 (Commercial conversation
-apps) and §4:
-- **Ava** row: §1, "Ava: QR/link so each person's phone joins as a mic...
-  colour-coded names, SpeakerID... type-to-speak TTS. This is the incumbent
-  for our phone-mic and interjection pieces."
-- **Otter / Teams "Catch me up"** row: §1, "Zoom AI Companion 'Catch me
-  up'... Google Meet 'Summary so far'... Online meetings only," and §4,
-  "Catch-me-up... High [derivative risk] on its own."
-- **MS Teams** row: `research/04-final-synthesis.md` matrix row "Microsoft
-  Teams Captions" — "Drops text during overlapping speech; word
-  flickering/instability; post-meeting summaries erase intermediate
-  debate."
-- **Caption glasses** row: `research/04-final-synthesis.md` matrix row
-  "XRAI / AR Smart Glasses" — "Head-locked text bouncing induces motion
-  sickness; severe hardware conflict: arms physically collide with
-  Behind-the-Ear (BTE) hearing aids/CIs."
+## Slide 6 — scope, limits, next
 
-## Slide 6 ("how it works") and slide 7 (scope/limits/next) sourcing
+- **Persona** (hard-of-hearing and late-deafened adults in hearing rooms,
+  not sign-first Deaf users): stated per `research/09-niche-scale.md` §5's
+  claims-to-avoid list, and the rank-1 group finding in §3 ("HoH adults at
+  hearing family meals" scored highest of all group×moment combinations).
+  Sign-first Deaf users are better served by an interpreter or a full
+  visual language, a different, well-served problem — not a gap in our
+  research, a deliberate scope line.
+- **Not yet tested with a hard-of-hearing user**: stated as fact; no user
+  test has been run as of this pitch (2026-09-26).
+- **~10 million in the EU could use it**: `research/09-niche-scale.md` §4,
+  "Honest estimate of how many people would be materially helped" —
+  ~50M self-reported, cut to those with moderate-or-worse difficulty
+  following groups, cut again to smartphone users under ~75.
+- **Plans ledger and look-away catch-up already built as the second
+  layer**: these are real, shipped parts of the same codebase
+  (`research/08-a-thursday-as-deniz.md`'s "Crosstalk Lamp," "Punchline
+  Card," and "Behind-You Buzz" solutions, and the ledger described
+  throughout `research/09-niche-scale.md`) — kept off the main stage per
+  this pitch's scope, surfaced only in Q&A.
+- **Italian/Turkish verified**: `research/09-niche-scale.md` §4, "Italian
+  and Turkish, end to end... verify that our Deepgram model and region
+  support `it` and `tr` for streaming before the demo."
 
-- Architecture (phones → Deepgram per-stream → Claude structured
-  extraction → cards; on-device camera; nothing stored) matches the v2
-  build plan and stack notes (Deepgram nova-3 streaming diarization,
-  Claude structured extraction, in-memory ring buffer, "nothing stored
-  after session" privacy design).
-- **Italian and Turkish, verified on Deepgram nova-3:**
-  `research/09-niche-scale.md` §4, "Two changes to the current build so it
-  fits the family table" — item 1, "Italian and Turkish, end to end...
-  verify that our Deepgram model and region support `it` and `tr` for
-  streaming before the demo."
-- Scope line ("hard-of-hearing and late-deafened adults... not built for
-  sign-first Deaf users, classrooms with interpreters, or gamers") is the
-  persona and exclusion stated honestly; the gaming exclusion is grounded
-  in `research/07-reddit-wishlist-analysis.md` §"Biggest miss by category:
-  gaming (N5)," scored lowest of the ranked needs (36/100).
-- "Tested with: not yet tested with a hard-of-hearing user" — stated per
-  instructions; no user test has been run as of this pitch.
-- **Table mode for 65+ (next step):** `research/09-niche-scale.md` §4,
-  "Table mode: bigger, calmer, and family-worded... this also works for the
-  65+ relatives who won't read a phone," and §1's structural note that
-  Italy's densest pocket of hearing loss (75+, 38.3% prevalence) is also
-  where only 25% use the internet — so table mode, not a personal phone,
-  is the honest path to reaching them.
-- **Honest reach line** ("~10 million EU addressable, tens tonight"):
-  `research/09-niche-scale.md` §4, "Honest estimate of how many people
-  would be materially helped" table.
+## Numbered sources (as shown on slide 6)
+
+1. AEA / EFHOH / EHIMA, *Getting the numbers right on hearing loss, hearing
+   care and hearing aid use in Europe*, 2024.
+   https://www.ehima.com/wp-content/uploads/2024/03/Getting-the-numbers-right-on-Hearing-Loss-Hearing-Care-and-Hearing-Aid-Use-in-Europe-2024.pdf
+2. EHIMA / Anovum, *EuroTrak Italy 2022*.
+   https://www.ehima.com/wp-content/uploads/2022/11/EuroTrak_Italy_2022.pdf
+3. Non-speech information in captions — EEG study, PMC7040021; May et al.,
+   2025. https://pmc.ncbi.nlm.nih.gov/articles/PMC7040021/
+4. Reddit, r/deaf, "Anyone else struggling with group conversations at
+   work…" (35↑). https://www.reddit.com/r/deaf/comments/1r2797f/
+5. Reddit, r/deaf, "Exhausted and sad after family Sunday lunch" (36↑).
+   https://www.reddit.com/r/deaf/comments/1fh8h7h/
+6. Reddit, r/deaf, "Dinner table syndrome and I want to cry" (174↑) —
+   background reading on Dinner Table Syndrome, not directly quoted on
+   this deck. https://www.reddit.com/r/deaf/comments/n8msyg/

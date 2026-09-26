@@ -2,123 +2,76 @@
 @import "tw-animate-css";
 
 /*
- * Theme tokens: design/BRAND.md. "Lamplight. Linen. Walnut."
- * The page is the walnut table under a pendant lamp (tex/walnut-table.jpg), the reading surface is
- * linen (tex/linen-weave.jpg), plans and notes are paper (tex/paper-sheet.jpg).
- * Dark scope = things on the walnut (cream text). Light scope (.linen/.paper) redefines the same
- * tokens for ink, so every component re-colors itself by the material it sits on.
- * Contrast: cream on walnut 9.0:1, cream on card 14.5:1, muted on card 9.0:1, tea-lit on card 5.9:1,
- * ink on linen 13.3:1, ink-muted on linen 6.0:1, amber-ink on linen 5.0:1 (all >= AA).
- * Amber (lamplight) means "asked you" and nothing else. Blue rim marks "you" and nothing else.
+ * One at a time: design/BRAND.md v2. Cream, ink, one amber. Single theme, flat, no textures.
+ * Contrast on cream #F5EFE4: ink 15.9:1, muted 5.6:1, amber-ink 5.4:1, lamp red 5.1:1.
+ * Amber means "attention" and nothing else: the asked-you moment and the one-at-a-time lamp.
  */
 :root {
-  /* brand palette, exact */
-  --walnut: #5A3B22;
-  --lamplight: #F1C76A;
-  --linen: #F3EBDD;
-  --ink: #2B2117;
-  --cream: #F7F1E6;
-  --tea: #A8742A;
-  --blue-rim: #6E8FB5;
-  --shadow: #1B1410;
-  --lamp-good: #5D8A5E;
-  --lamp-amber: #D99A3D;
-  --lamp-red: #B8503A;
-  --lamp-light: var(--lamplight);
+  --cream: #F5EFE4;
+  --ink: #1B1611;
+  --ink-muted: #6B6057;
+  --amber: #E0A63A;
+  --amber-ink: #7E5210;
+  --lamp-good: #4F8A5B;
+  --lamp-amber: #E0A63A;
+  --lamp-red: #B4432F;
+  /* legacy names kept so unmounted components still compile to something sane */
+  --lamplight: var(--amber);
+  --linen: var(--cream);
+  --walnut: var(--ink);
+  --tea: var(--amber-ink);
+  --shadow: var(--ink);
+  --blue-rim: #3f5f86;
+  --lamp-light: var(--amber);
 
-  /* dark scope: on the walnut */
-  --bg: var(--shadow);
-  --card: #2a1d14;        /* walnut in shadow */
-  --card-2: #3a2819;
-  --line: #4d3826;
-  --line-strong: #6a4f37;
-  --fg: var(--cream);
-  --muted: #cdbfa9;
-  --accent: #C8904A;      /* tea under the lamp: links and quiet actions on walnut */
-  --accent-deep: var(--tea);
-  --accent-fg: var(--shadow);
-  --warn: var(--lamplight);
-  --good: #8DB88E;
-  --bad: #E08F78;
-  --change: #D8C49A;
-  --you: var(--blue-rim);
-  --ring: var(--cream);
+  --bg: var(--cream);
+  --card: #FBF8F2;
+  --card-2: rgb(27 22 17 / .06);
+  --line: rgb(27 22 17 / .14);
+  --line-strong: rgb(27 22 17 / .34);
+  --fg: var(--ink);
+  --muted: var(--ink-muted);
+  --accent: var(--ink);
+  --accent-deep: var(--ink);
+  --accent-fg: var(--cream);
+  --warn: var(--amber-ink);
+  --good: #3E6F48;
+  --bad: var(--lamp-red);
+  --change: var(--ink-muted);
+  --you: #3f5f86;
+  --ring: var(--ink);
   --radius: 1rem;
-  /* one light, above-left: every shadow falls down and to the right */
-  --shadow-obj: 3px 6px 12px -4px rgb(27 20 16 / .55);
-  --shadow-sheet: 8px 16px 32px -12px rgb(27 20 16 / .75);
-  /* legacy names: now solid rims, never glows */
-  --glow-warn: 0 0 0 2px var(--lamplight), var(--shadow-obj);
-  --glow-accent: 0 0 0 1px rgb(247 241 230 / .22), var(--shadow-obj);
-  --wood-hi: #8a5f3a;
-  --wood: var(--walnut);
-  --wood-lo: #3a2616;
-  --linen-lo: #e4d8c2;
-  --ink-muted: #6b5443;   /* 6.0:1 on linen */
-  --spk-mix: 70%;         /* speaker colors as text: mixed toward --spk-to (see lib/utils readable) */
-  --spk-to: white;
+  --shadow-obj: none;
+  --shadow-sheet: 0 -1px 0 rgb(27 22 17 / .08);
+  --glow-warn: 0 0 0 2px var(--amber);
+  --glow-accent: 0 0 0 1px var(--line);
+  --spk-mix: 55%;
+  --spk-to: var(--ink);
 
-  font-size: 18px; /* base; prefs S/M/L/XL overrides this only, everything else is rem */
-  color-scheme: dark;
+  font-size: 19px; /* base; prefs S/M/L/XL overrides this only, everything else is rem */
+  color-scheme: light;
   -webkit-text-size-adjust: 100%;
 }
 
-/* Light scope: printed on linen or paper. Same token names, ink values. */
-.linen { --card: var(--linen); --bg: var(--linen); }
-.paper { --card: #f1e8d6; --bg: #f1e8d6; }
-.linen, .paper {
-  --card-2: rgb(43 33 23 / .07);
-  --line: rgb(43 33 23 / .16);
-  --line-strong: rgb(43 33 23 / .34);
-  --fg: var(--ink);
-  --muted: var(--ink-muted);
-  --accent: #7a4f17;      /* tea, inked: 6.0:1 */
-  --accent-fg: var(--cream);
-  --warn: #8a5a10;        /* amber ink: 5.0:1; the fill stays --lamplight */
-  --good: #3f6b40;
-  --bad: #9a3f2a;
-  --change: #6b5443;
-  --you: #3f5f86;         /* blue rim, inked: 5.6:1 */
-  --ring: var(--ink);
-  --spk-mix: 55%;
-  --spk-to: var(--ink);
-  color: var(--ink);
-  color-scheme: light;
-}
+/* Legacy material scopes: now plain cream, same tokens. */
+.linen, .paper, .dish, .seat { color: var(--ink); }
 
-/* The phone seat: darker ink for >= 10:1 on linen/paper (ink 15:1, ink-muted 10.5:1) and a 19px body. */
-.seat {
-  --ink: #1E160F;
-  --ink-muted: #3F3024;
-}
-.seat .linen, .seat .paper { font-weight: 500; }
-@media (width < 40rem) {
-  .seat .text-body { font-size: 1.06rem; line-height: 1.34; }
-  .seat .text-meta { font-size: 0.86rem; }
-}
-
-/* High contrast: pure black/white, visible borders, saturated semantics. */
+/* High contrast: pure black on white. */
 :root[data-contrast="high"] {
-  --bg: #000000;
-  --card: #000000;
-  --card-2: #121212;
-  --line: #d4d4d4;
-  --line-strong: #ffffff;
-  --fg: #ffffff;
-  --muted: #e5e5e5;
-  --accent: #ffd9a0;
-  --accent-deep: #ffd9a0;
-  --accent-fg: #000000;
-  --warn: #ffd23f;
-  --good: #4ff0b0;
-  --bad: #ff9a8a;
-  --change: #f0dcb4;
-  --glow-warn: 0 0 0 2px #ffd23f;
-  --glow-accent: 0 0 0 2px #ffffff;
+  --bg: #ffffff;
+  --card: #ffffff;
+  --card-2: #f0f0f0;
+  --line: #000000;
+  --line-strong: #000000;
+  --fg: #000000;
+  --muted: #222222;
+  --ink: #000000;
+  --ink-muted: #222222;
+  --cream: #ffffff;
+  --warn: #5a3a00;
 }
 
 @theme inline {
-  /* app tokens */
   --color-bg: var(--bg);
   --color-card: var(--card);
   --color-card-2: var(--card-2);
@@ -132,27 +85,28 @@
   --color-good: var(--good);
   --color-bad: var(--bad);
   --color-change: var(--change);
-  --color-linen: var(--linen);
+  --color-linen: var(--cream);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
-  --color-wood: var(--wood);
+  --color-wood: var(--ink);
   --color-you: var(--you);
-  --color-tea: var(--tea);
-  --color-lamplight: var(--lamplight);
+  --color-tea: var(--amber-ink);
+  --color-amber: var(--amber);
+  --color-amber-ink: var(--amber-ink);
+  --color-lamplight: var(--amber);
   --color-lamp-good: var(--lamp-good);
   --color-lamp-amber: var(--lamp-amber);
   --color-lamp-red: var(--lamp-red);
   --color-cream: var(--cream);
-  --color-dusk: var(--shadow);
+  --color-dusk: var(--ink);
 
-  /* shadcn/ui semantic tokens mapped onto the app palette */
   --color-background: var(--bg);
   --color-foreground: var(--fg);
   --color-card-foreground: var(--fg);
-  --color-popover: var(--card-2);
+  --color-popover: var(--card);
   --color-popover-foreground: var(--fg);
-  --color-primary: var(--tea);
-  --color-primary-foreground: var(--shadow);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--cream);
   --color-secondary: var(--card-2);
   --color-secondary-foreground: var(--fg);
   --color-muted-foreground: var(--muted);
@@ -171,7 +125,6 @@
   --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
   --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* type scale (rem, so S/M/L/XL scales it) */
   --text-display: 3.2rem;
   --text-display--line-height: 1.02;
   --text-title: 1.9rem;
@@ -183,17 +136,7 @@
 html, body, #root { height: 100%; }
 body {
   margin: 0;
-  background-color: var(--shadow);
-  /* the walnut table (tex/walnut-table.jpg: the mood photo's grain with its lighting flattened),
-     a pendant lamp's warm pool at the top, the wood falling into shadow toward you */
-  /* calmer table: a warm walnut wash over the grain so the wood reads as a surface, not a pattern */
-  background-image:
-    radial-gradient(ellipse 95% 42% at 50% 0%, rgb(241 199 106 / .22), transparent 72%),
-    linear-gradient(180deg, rgb(78 50 30 / .62), rgb(52 33 19 / .74) 55%, rgb(30 18 10 / .86) 100%),
-    url("/tex/walnut-table.jpg");
-  background-size: auto, auto, 1400px auto;
-  background-position: 0 0, 0 0, 42% 0;
-  background-repeat: no-repeat, no-repeat, repeat;
+  background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
   line-height: 1.4;
@@ -203,12 +146,10 @@ body {
 }
 
 :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; border-radius: 6px; }
-::selection { background: color-mix(in oklab, var(--accent) 35%, transparent); color: var(--fg); }
+::selection { background: rgb(224 166 58 / .35); color: var(--ink); }
 .tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
 
-/* 90s, smooth: Fraunces with its SOFT axis all the way up (rounded, Cooper-ish curves), a touch
- * heavier than a book serif; Nunito's rounded terminals for reading; Space Mono for meta. In @layer
- * base so a font-weight utility on an element still wins. */
+/* Fraunces with SOFT all the way up; Nunito for reading; Space Mono for labels. */
 @layer base {
   [class*="font-display"], .wordmark, blockquote, h1, h2 { font-variation-settings: "SOFT" 100, "WONK" 0; }
   [class*="font-display"] { font-weight: 520; letter-spacing: -0.005em; }
@@ -274,12 +215,12 @@ body {
 @keyframes imt-shimmer { 0% { opacity: .45; } 50% { opacity: .9; } 100% { opacity: .45; } }
 .imt-skeleton { animation: imt-shimmer 1.2s ease-in-out infinite; background: var(--card-2); border-radius: 8px; }
 /* The single proactive interrupt: amber glow that breathes three times, then stays lit. */
-@keyframes imt-flash { 0% { box-shadow: 0 0 0 0 rgb(241 199 106 / .8), var(--glow-warn); } 100% { box-shadow: 0 0 0 12px rgb(241 199 106 / 0), var(--glow-warn); } }
+@keyframes imt-flash { 0% { box-shadow: 0 0 0 0 rgb(224 166 58 / .8), var(--glow-warn); } 100% { box-shadow: 0 0 0 12px rgb(224 166 58 / 0), var(--glow-warn); } }
 .imt-flash { animation: imt-flash 1s ease-out 3; box-shadow: var(--glow-warn); }
 /* New/replaced content: fade in + a brief tint that clears. Opacity/background only, no reflow. */
 @keyframes imt-in { from { opacity: .35; } to { opacity: 1; } }
 .imt-in { animation: imt-in 180ms ease-out; }
-@keyframes imt-highlight { from { background-color: rgb(200 144 74 / .16); } to { background-color: transparent; } }
+@keyframes imt-highlight { from { background-color: rgb(224 166 58 / .16); } to { background-color: transparent; } }
 .imt-highlight { animation: imt-highlight 700ms ease-out; }
 /* "Catch me up" invites a press only after an away span ended. */
 /* a small nudge on the table (translate), never a glow */
@@ -292,94 +233,25 @@ body {
 @keyframes imt-breathe { 0%, 100% { opacity: .75; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
 .imt-breathe { animation: imt-breathe 4.8s ease-in-out infinite; }
 
-/* ---------- Surfaces: things on the table, lit from above-left ---------- */
-@utility surface-1 {
-  background: rgb(42 29 20 / .82);
-  border: 1px solid rgb(247 241 230 / .08);
-  box-shadow: var(--shadow-obj);
-}
-@utility surface-2 {
-  background: var(--card-2);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-obj);
-}
-@utility surface-hero {
-  background: rgb(42 29 20 / .78);
-  border: 1px solid rgb(247 241 230 / .08);
-  box-shadow: var(--shadow-sheet);
-}
-/* Micro-interaction: hover lift <= 2px, 150 ms. */
-@utility lift {
-  transition: transform 150ms var(--ease-out-soft), background-color 150ms, border-color 150ms, box-shadow 150ms;
-  &:hover { transform: translateY(-2px); }
-  &:active { transform: none; }
-}
-/* Grain: 5% noise over everything, so no surface is ever a flat fill. */
-body::after {
-  content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: .045;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-:root[data-contrast="high"] body::after { display: none; }
+/* ---------- Surfaces (flat; kept for unmounted legacy components) ---------- */
+@utility surface-1 { background: var(--card); border: 1px solid var(--line); }
+@utility surface-2 { background: var(--card-2); border: 1px solid var(--line); }
+@utility surface-hero { background: var(--card); border: 1px solid var(--line); }
+@utility lift { transition: background-color 160ms, border-color 160ms; }
+@utility room-light { background: transparent; }
+@utility wood { background: var(--card); border: 1px solid var(--line); }
+@utility linen { background: var(--card); }
+@utility paper { background: var(--card); }
+@utility dish { background: var(--card); border: 1px solid var(--line); }
+@utility deckle { clip-path: none; }
+@utility lay { filter: none; }
+@utility brass { background: var(--line-strong); }
 
-/* ---------- Materials ---------- */
-/* The room: only a vignette (the lamp's pool is in the walnut photo itself). */
-@utility room-light {
-  background: radial-gradient(120% 90% at 50% 30%, transparent 55%, rgb(27 20 16 / .35));
-}
-/* Walnut: the real wood, a thin bevel, one shadow down-right. */
-@utility wood {
-  background-color: var(--walnut);
-  background-image: linear-gradient(180deg, rgb(27 20 16 / .05), rgb(27 20 16 / .35)), url("/tex/walnut-table.jpg");
-  background-size: cover;
-  background-position: 40% 10%;
-  box-shadow: inset 0 0 0 1px rgb(247 241 230 / .08), inset 0 0 36px 8px rgb(27 20 16 / .45), var(--shadow-sheet);
-}
-/* Linen: the woven placemat, washed toward --linen so ink stays >= 8:1 on its darkest thread. */
-@utility linen {
-  background-color: var(--linen);
-  background-image: linear-gradient(180deg, rgb(243 235 221 / .15), rgb(243 235 221 / .15)), url("/tex/linen-weave.jpg");
-  background-blend-mode: normal, multiply;
-  background-size: auto, 460px auto;
-  box-shadow: var(--shadow-obj), inset 0 0 0 1px rgb(255 255 255 / .25), inset -10px -14px 30px -18px rgb(90 59 34 / .35);
-}
-/* Paper: a hand-torn note. */
-@utility paper {
-  background-color: #f1e8d6;
-  background-image: linear-gradient(180deg, rgb(247 241 230 / .25), rgb(239 229 211 / .25)), url("/tex/paper-sheet.jpg");
-  background-blend-mode: normal, multiply;
-  background-size: auto, 260px auto;
-  box-shadow: var(--shadow-obj), inset 0 0 0 1px rgb(255 255 255 / .3);
-}
-/* Desktop dishes are notes on the table too. */
-@utility dish {
-  background-color: #f1e8d6;
-  background-image: linear-gradient(180deg, rgb(247 241 230 / .25), rgb(239 229 211 / .25)), url("/tex/paper-sheet.jpg");
-  background-blend-mode: normal, multiply;
-  background-size: auto, 260px auto;
-  border: 0;
-  box-shadow: var(--shadow-sheet);
-}
-.dish {
-  --card: #f1e8d6; --bg: #f1e8d6; --card-2: rgb(43 33 23 / .07); --line: rgb(43 33 23 / .16); --line-strong: rgb(43 33 23 / .34);
-  --fg: var(--ink); --muted: var(--ink-muted); --accent: #7a4f17; --accent-fg: var(--cream); --warn: #8a5a10;
-  --good: #3f6b40; --bad: #9a3f2a; --change: #6b5443; --you: #3f5f86; --ring: var(--ink); --spk-mix: 55%; --spk-to: var(--ink);
-  color: var(--ink); color-scheme: light;
-}
-/* A hand-torn paper edge. clip-path clips box-shadow, so the parent carries a drop-shadow filter (.lay). */
-@utility deckle {
-  clip-path: polygon(0.00% 0.36%, 4.55% 0.17%, 9.09% 0.72%, 13.64% 0.08%, 18.18% 0.59%, 22.73% 0.40%, 27.27% 0.06%, 31.82% 0.56%, 36.36% 0.04%, 40.91% 0.48%, 45.45% 0.08%, 50.00% 0.10%, 54.55% 0.47%, 59.09% 0.91%, 63.64% 0.14%, 68.18% 0.25%, 72.73% 0.69%, 77.27% 1.04%, 81.82% 0.63%, 86.36% 0.44%, 90.91% 1.07%, 95.45% 0.05%, 100.00% 0.94%, 99.74% 4.55%, 99.87% 9.09%, 99.89% 13.64%, 99.72% 18.18%, 99.27% 22.73%, 99.84% 27.27%, 99.48% 31.82%, 99.42% 36.36%, 99.66% 40.91%, 99.51% 45.45%, 99.94% 50.00%, 99.95% 54.55%, 99.81% 59.09%, 99.39% 63.64%, 99.62% 68.18%, 99.72% 72.73%, 99.47% 77.27%, 99.59% 81.82%, 99.73% 86.36%, 99.29% 90.91%, 99.37% 95.45%, 99.78% 100.00%, 95.45% 99.37%, 90.91% 99.42%, 86.36% 99.04%, 81.82% 99.20%, 77.27% 99.68%, 72.73% 98.92%, 68.18% 99.87%, 63.64% 99.54%, 59.09% 99.17%, 54.55% 99.83%, 50.00% 99.46%, 45.45% 99.96%, 40.91% 99.26%, 36.36% 99.16%, 31.82% 99.37%, 27.27% 99.04%, 22.73% 99.65%, 18.18% 99.24%, 13.64% 99.35%, 9.09% 99.36%, 4.55% 99.50%, 0.00% 99.08%, 0.85% 95.45%, 0.43% 90.91%, 0.60% 86.36%, 0.05% 81.82%, 0.63% 77.27%, 0.58% 72.73%, 0.89% 68.18%, 0.74% 63.64%, 0.26% 59.09%, 0.35% 54.55%, 0.60% 50.00%, 0.02% 45.45%, 0.42% 40.91%, 0.15% 36.36%, 0.11% 31.82%, 0.05% 27.27%, 0.69% 22.73%, 0.12% 18.18%, 0.22% 13.64%, 0.35% 9.09%, 0.78% 4.55%);
-}
-@utility lay {
-  filter: drop-shadow(3px 6px 5px rgb(27 20 16 / .45));
-}
-:root[data-contrast="high"] .deckle { clip-path: none; }
-/* Brass: the table bell, the lamp's ring. */
-@utility brass {
-  background: linear-gradient(135deg, #e3c07a 0%, #b8893f 38%, #7a5424 72%, #4a3114 100%);
-  box-shadow: var(--shadow-obj), inset 1px 1px 0 rgb(255 240 200 / .5);
-}
-:root[data-contrast="high"] .wood, :root[data-contrast="high"] .dish, :root[data-contrast="high"] .paper { background: #fff; color: #000; box-shadow: none; border: 2px solid #000; }
-:root[data-contrast="high"] .linen { background: #ffffff; color: #000; box-shadow: none; }
+/* One at a time: 180 ms opacity + a small rise, nothing else. */
+@keyframes oat-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.oat-in { animation: oat-in 180ms var(--ease-out-soft) both; }
+@keyframes oat-fade { from { opacity: 0; } to { opacity: 1; } }
+.oat-fade { animation: oat-fade 200ms ease-out both; }
 
 /* Things slide on the table (translate), they do not pop. 200 ms. */
 @keyframes imt-slide-in-r { from { transform: translateX(42px); opacity: .0; } to { transform: none; opacity: 1; } }
@@ -422,7 +294,7 @@ html.io .reveal { opacity: 0; transform: translateY(18px); transition: opacity 7
 html.io .reveal.is-in { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .imt-pulse, .imt-skeleton, .imt-flash, .imt-sheet-up, .imt-line-in, .imt-slide-r, .imt-slide-l, .imt-note-in, .imt-ring, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .imt-lamp, .animate-spin { animation: none !important; }
+  .imt-pulse, .imt-skeleton, .imt-flash, .imt-sheet-up, .imt-line-in, .imt-slide-r, .imt-slide-l, .imt-note-in, .imt-ring, .imt-in, .imt-highlight, .imt-invite, .imt-flare, .imt-breathe, .imt-rise, .imt-lamp, .oat-in, .oat-fade, .animate-spin { animation: none !important; }
   html.io .reveal { opacity: 1; transform: none; }
   *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }

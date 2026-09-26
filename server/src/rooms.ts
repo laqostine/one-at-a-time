@@ -107,8 +107,27 @@ export class Room {
     const arr = (this.voiced.get(k) ?? []).filter((v) => now - v.at <= OVERLAP_WINDOW_MS);
     arr.push({ at: now, ms });
     this.voiced.set(k, arr);
+    this.maybeLaugh(now);
   }
   hostVoice(ms: number): void { this.voice(HOST_SOURCE, ms); }
+
+  private lastLaughAt = 0;
+  /** Laughter proxy: ≥2 phones voiced ≥900 ms within the last 2 s and none of them produced words in the last 3 s. */
+  private maybeLaugh(now: number): void {
+    if (now - this.lastLaughAt < 8000) return;
+    let loud = 0;
+    for (const [k, arr] of this.voiced) {
+      if (k === String(HOST_SOURCE)) continue;
+      const ms = arr.filter((v) => now - v.at <= 2000).reduce((a, v) => a + v.ms, 0);
+      if (ms < 900) continue;
+      const id = Number(k);
+      const spoke = (this.finals.get(id) ?? []).some((f) => now - f.at <= 3000);
+      if (!spoke) loud++;
+    }
+    if (loud < 2) return;
+    this.lastLaughAt = now;
+    for (const h of this.hosts) this.sendTo(h, { type: 'laugh', t: now, sources: loud });
+  }
 
   /** t0/t1 = absolute start/end of the final's words (ms). */
   recordFinal(id: number, text: string, t0: number, t1: number): void {
@@ -163,9 +182,9 @@ export class Room {
   }
 
   /** Show the host user's words on every participant phone (text-first Speak for me). */
-  say(text: string): number {
+  say(text: string, audio?: string, voice = false): number {
     const name = this.meName.trim() || 'They';
-    const m = { type: 'say' as const, name, text, t: Date.now() };
+    const m = { type: 'say' as const, name, text, t: Date.now(), voice, ...(audio ? { audio } : {}) };
     // Count phones (people) that actually got it: open sockets only, one per participant id.
     const got = new Set<number>();
     for (const [ws, p] of this.parts) if (this.sendTo(ws, m)) got.add(p.id);
@@ -325,10 +344,12 @@ export function registerRooms(app: FastifyInstance): void {
   });
   // Host tells the room its user's name so phones can say "Good pace for Bera".
   // Host user's line → text on every phone. Body: {text}. Returns how many phones got it.
-  app.post<{ Body: { text?: unknown } }>('/api/room/say', async (req, reply) => {
+  app.post<{ Body: { text?: unknown; voice?: unknown } }>('/api/room/say', async (req, reply) => {
     const t = typeof req.body?.text === 'string' ? req.body.text.trim().slice(0, 240) : '';
     if (!t) return reply.code(400).send({ ok: false });
-    return { ok: true, delivered: room.say(t) };
+    const voice = req.body?.voice === true;
+    const audio = voice ? await elevenLabsMp3(t, room.lang) : undefined;
+    return { ok: true, delivered: room.say(t, audio, voice), spoken: !!audio };
   });
   // Table language: applies to every NEW audio socket (host + phones). Client reconnects after changing it.
   app.post<{ Body: { lang?: unknown } }>('/api/room/lang', async (req, reply) => {
@@ -343,4 +364,23 @@ export function registerRooms(app: FastifyInstance): void {
     room.meName = n;
     return { ok: true, name: n };
   });
+}
+
+/** ElevenLabs TTS → base64 mp3, or undefined when no key / on error (phones fall back to browser speech). */
+async function elevenLabsMp3(text: string, lang: string): Promise<string | undefined> {
+  const key = process.env.ELEVENLABS_API_KEY;
+  if (!key) return undefined;
+  const voiceId = process.env.ELEVENLABS_VOICE_ID || 'XB0fDUnXU5powFXDhCwa'; // Charlotte (multilingual)
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_22050_32`, {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'xi-api-key': key, 'content-type': 'application/json', accept: 'audio/mpeg' },
+      body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.6, similarity_boost: 0.75 }, ...(lang !== 'multi' ? { language_code: lang } : {}) }),
+    });
+    clearTimeout(to);
+    if (!res.ok) { console.warn('[say] elevenlabs', res.status); return undefined; }
+    return Buffer.from(await res.arrayBuffer()).toString('base64');
+  } catch (e) { console.warn('[say] elevenlabs failed', (e as Error).message); return undefined; }
 }

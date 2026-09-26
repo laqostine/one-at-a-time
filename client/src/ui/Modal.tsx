@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { X } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -15,12 +14,11 @@ interface Props {
 
 /**
  * Accessible dialog on shadcn/ui (Radix): focus trapped and restored, Esc + outside click close.
- * `center` = Dialog, `sheet` = bottom Sheet, `drawer` = right Sheet. Mounted = open.
+ * Flat cream sheet, a title in Fraunces italic, a plain "Done" text button. Mounted = open.
  */
 export function Modal({ title, onClose, children, variant = 'center', dismissable = true }: Props) {
   const onOpenChange = (open: boolean) => { if (!open && dismissable) onClose(); };
   const block = dismissable ? undefined : (e: Event) => e.preventDefault();
-  // Focus the first field/action in the body rather than the header's close button.
   const onOpenAutoFocus = (e: Event) => {
     const root = e.currentTarget as HTMLElement;
     const first = root.querySelector<HTMLElement>('[data-modal-body] :is(input, select, textarea, button, [href]):not([disabled])');
@@ -29,12 +27,11 @@ export function Modal({ title, onClose, children, variant = 'center', dismissabl
   const guards = { onOpenAutoFocus, onEscapeKeyDown: block, onPointerDownOutside: block, onInteractOutside: block, 'aria-describedby': undefined };
 
   const header = (Title: typeof DialogTitle) => (
-    <div className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-3">
-      <Title className="text-[1.15rem] leading-tight font-semibold text-fg">{title}</Title>
+    <div className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-line px-5">
+      <Title className="font-display-italic text-[1.5rem] leading-tight text-ink">{title}</Title>
       {dismissable && (
-        <DialogPrimitive.Close aria-label="Close"
-          className="-mr-2 flex size-11 cursor-pointer items-center justify-center rounded-xl text-muted transition-colors duration-150 hover:bg-card-2 hover:text-fg">
-          <X size={22} aria-hidden />
+        <DialogPrimitive.Close className="-mr-2 h-14 min-w-14 cursor-pointer rounded-xl px-3 font-bold text-ink underline-offset-4 hover:underline">
+          Done
         </DialogPrimitive.Close>
       )}
     </div>
@@ -45,7 +42,7 @@ export function Modal({ title, onClose, children, variant = 'center', dismissabl
     return (
       <Dialog open onOpenChange={onOpenChange}>
         <DialogContent showCloseButton={false} {...guards}
-          className="flex max-h-[90dvh] w-full max-w-md flex-col gap-0 overflow-hidden linen rounded-[8px_12px_10px_6px] border-0 p-0 shadow-[var(--shadow-sheet)] sm:max-w-md">
+          className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden rounded-2xl border border-line bg-bg p-0 text-ink shadow-none sm:max-w-md">
           {header(DialogTitle)}
           {body}
         </DialogContent>
@@ -55,8 +52,8 @@ export function Modal({ title, onClose, children, variant = 'center', dismissabl
   return (
     <Sheet open onOpenChange={onOpenChange}>
       <SheetContent side={variant === 'sheet' ? 'bottom' : 'right'} showCloseButton={false} {...guards}
-        className={cn('linen flex-col gap-0 border-0 p-0',
-          variant === 'sheet' ? 'mx-auto max-h-[80dvh] w-full max-w-3xl rounded-t-2xl border-x' : 'h-full w-full max-w-sm sm:max-w-sm')}>
+        className={cn('flex-col gap-0 border-line bg-bg p-0 text-ink shadow-none',
+          variant === 'sheet' ? 'mx-auto max-h-[85dvh] w-full max-w-[640px] rounded-t-2xl border-x border-t' : 'h-full w-full max-w-md border-l sm:max-w-md')}>
         {header(SheetTitle)}
         {body}
       </SheetContent>
