@@ -11,9 +11,11 @@ interface Props {
   onPrefs: (p: Prefs) => void;
   onListening: (on: boolean) => void;
   onClose: () => void;
+  /** Optional look-away section (camera, on-device). */
+  away?: { enabled: boolean; sim: boolean; active: boolean; calibrating: boolean; setEnabled: (v: boolean) => void; calibrate: () => Promise<boolean> };
 }
 
-export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListening, onClose }: Props) {
+export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListening, onClose, away }: Props) {
   const [name, setName] = useState(me.name);
   const [aliases, setAliases] = useState(me.aliases.join(', '));
   const save = () => onMe(name, aliases.split(',').map((a) => a.trim()).filter(Boolean));
@@ -41,6 +43,20 @@ export function SettingsDrawer({ me, prefs, listening, onMe, onPrefs, onListenin
         </fieldset>
         <Toggle label="High contrast" on={prefs.contrast} onChange={(v) => onPrefs({ ...prefs, contrast: v })} />
         <Toggle label="Listening" on={listening} onChange={onListening} />
+        {away && (
+          <div className="space-y-2">
+            <Toggle label="Notice when I look away (camera, on-device)" on={away.enabled} onChange={away.setEnabled} />
+            {away.enabled && (
+              <button type="button" disabled={away.sim || !away.active || away.calibrating} onClick={() => void away.calibrate()}
+                className="w-full rounded-xl border border-line bg-card-2 px-3 py-3 text-[1.05rem] disabled:opacity-50">
+                {away.calibrating ? 'Hold still, looking at the table…' : 'Calibrate: look at the table and press'}
+              </button>
+            )}
+            <p className="text-[0.85rem] text-muted">
+              {away.sim ? 'Simulator on (?away=1): press A to toggle away.' : 'Video is analysed on this device only. No frames are stored or sent; only "away / not away" is kept.'}
+            </p>
+          </div>
+        )}
         <p className="text-[0.85rem] text-muted">Audio stays in memory for the last 15 minutes only. Nothing is stored after you close this tab.</p>
       </div>
     </Modal>

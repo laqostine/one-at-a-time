@@ -17,6 +17,8 @@ import { Onboarding } from './ui/Onboarding';
 import { SoundHistory } from './ui/SoundHistory';
 import { JoinQr } from './ui/JoinQr';
 import { SpeakCard } from './ui/SpeakCard';
+import { useAway, type AwayInterval } from './state/useAway';
+import { AwayIndicator } from './ui/AwayIndicator';
 
 /** Click gate: the mic's AudioContext needs a user gesture, so a saved name shows one big button instead of auto-starting. */
 function StartGate({ name, onStart }: { name: string; onStart: () => void }) {
@@ -41,6 +43,24 @@ export default function App() {
   const [joinOpen, setJoinOpen] = useState(false);
   const [renaming, setRenaming] = useState<number | null>(null);
   const [jumpT, setJumpT] = useState<number | null>(null);
+
+  // "Away" detection (camera, on-device): coming back after >=4s auto-opens "While you looked away".
+  const [awayTitle, setAwayTitle] = useState<string | null>(null);
+  const catchUpSince = useCallback((iv: AwayInterval) => {
+    setAwayTitle(`While you looked away (${Math.round((iv.t1 - iv.t0) / 1000)}s)`);
+    void s.catchUp({ sinceT: iv.t0 });
+  }, [s.catchUp]); // eslint-disable-line react-hooks/exhaustive-deps
+  const awayApi = useAway({
+    nowSessionMs: s.nowT,
+    onReturn: (iv) => { if (iv.t1 - iv.t0 >= 4_000) catchUpSince(iv); },
+  });
+  useEffect(() => { if (s.catchup.status === 'idle') setAwayTitle(null); }, [s.catchup.status]);
+  // Manual "Catch me up" defaults to the last away span if it ended after the last catch-up.
+  const manualCatchUp = () => {
+    const la = awayApi.lastAway;
+    if (la && la.t1 > session.lastSeenAt) catchUpSince(la);
+    else { setAwayTitle(null); void s.catchUp(); }
+  };
 
   // "Speak for me": gap detection follows timeline activity (live ASR or replay alike).
   const lastActivityAt = useLastActivity(session.timeline);
@@ -67,7 +87,8 @@ export default function App() {
       <Header asr={s.asr} latency={s.latency} listening={s.listening}
         onToggleListening={() => s.setListening(!s.listening)} onSettings={() => setSettingsOpen(true)}
         onEveryoneJoins={() => setJoinOpen(true)} participantCount={s.participants.length}
-        lastTranscriptAt={s.lastTranscriptAt} requestPending={s.requestPending} micLevel={s.micLevel} />
+        lastTranscriptAt={s.lastTranscriptAt} requestPending={s.requestPending} micLevel={s.micLevel}
+        badge={<AwayIndicator enabled={awayApi.enabled} active={awayApi.active} away={awayApi.away} sim={awayApi.sim} />} />
 
       <main className="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-3">
         <NowCard utt={now} name={now ? nameOf(now.speaker) : ''} color={now ? colorOf(now.speaker) : ''}
@@ -79,10 +100,10 @@ export default function App() {
             nudgeColor={s.nudge?.speakerId != null ? colorOf(s.nudge.speakerId) : colorFor(s.nudge?.speaker)}
             colorFor={colorFor} onDismiss={s.dismissNudge} onOpen={setJumpT} />
           <SpeakCard api={interject} />
-          <CatchupCard state={s.catchup} colorFor={colorFor} onBullet={setJumpT} onDismiss={s.dismissCatchup} />
+          <CatchupCard state={s.catchup} title={awayTitle ?? undefined} colorFor={colorFor} onBullet={setJumpT} onDismiss={s.dismissCatchup} />
         </div>
 
-        <button type="button" onClick={() => void s.catchUp()} disabled={loading} aria-busy={loading}
+        <button type="button" onClick={manualCatchUp} disabled={loading} aria-busy={loading}
           className="h-16 w-full shrink-0 rounded-2xl bg-accent text-[1.3rem] font-bold text-black transition-opacity hover:brightness-110 disabled:opacity-60">
           {loading ? 'Catching you up…' : 'Catch me up'}
         </button>
@@ -102,7 +123,7 @@ export default function App() {
       )}
       {settingsOpen && (
         <SettingsDrawer me={session.me} prefs={prefs} listening={s.listening} onMe={s.setMe} onPrefs={setPrefs}
-          onListening={s.setListening} onClose={() => setSettingsOpen(false)} />
+          onListening={s.setListening} onClose={() => setSettingsOpen(false)} away={awayApi} />
       )}
       {joinOpen && <JoinQr participants={s.participants} colorOf={colorOf} onClose={() => setJoinOpen(false)}
         phonesOnly={s.phonesOnly} phonesOnlyPref={s.phonesOnlyPref} onPhonesOnly={s.setPhonesOnly} table={s.table} />}

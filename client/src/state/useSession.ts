@@ -295,10 +295,13 @@ export function useSession() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [nowT]);
 
-  const catchUp = useCallback(async () => {
+  // opts.sinceT (e.g. start of a look-away span) overrides the default lastSeenAt window.
+  const catchUp = useCallback(async (opts?: { sinceT?: number }) => {
     const s = ref.current;
     const now = nowT();
-    const sinceT = Math.max(0, now - CATCHUP_MAX_MS, Math.min(s.lastSeenAt, now - CATCHUP_MIN_MS));
+    const sinceT = opts?.sinceT != null
+      ? Math.max(0, Math.min(opts.sinceT, now - 1_000))
+      : Math.max(0, now - CATCHUP_MAX_MS, Math.min(s.lastSeenAt, now - CATCHUP_MIN_MS));
     setCatchup({ status: 'loading', startedAt: Date.now() });
     setRequestPending(true);
     const t0 = performance.now();

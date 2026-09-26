@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useEffect, useReducer } from 'react';
 import { Settings, Pause, Play, Users } from 'lucide-react';
 import type { SessionApi } from '../state/useSession';
@@ -18,6 +19,8 @@ interface Props {
   micLevel: number;
   /** Optional: set by a future useInterject hook when the assistant is talking over TTS. */
   speaking?: boolean;
+  /** Extra status badge (e.g. look-away camera indicator + "Away" pill). */
+  badge?: ReactNode;
 }
 
 function statusText(asr: Props['asr'], listening: boolean): { text: string; tone: string } {
@@ -64,7 +67,7 @@ function deriveLevel(asr: Props['asr'], lastTranscriptAt: number, micLevel: numb
 
 export function Header({
   asr, latency, listening, onToggleListening, onSettings, onEveryoneJoins, participantCount = 0,
-  lastTranscriptAt, requestPending, micLevel, speaking,
+  lastTranscriptAt, requestPending, micLevel, speaking, badge,
 }: Props) {
   const s = statusText(asr, listening);
 
@@ -82,7 +85,7 @@ export function Header({
 
   return (
     <header className="flex items-center gap-3 px-3 pt-2 pb-1">
-      <Presence size={28} state={presenceState} level={presenceLevel} />
+      <Presence size={56} state={presenceState} level={presenceLevel} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[0.95rem] font-semibold" role="status">{s.text}</div>
         <div className="truncate text-[0.75rem] text-muted tabular-nums">
@@ -90,6 +93,7 @@ export function Header({
           ledger {latency.stateError ? 'offline' : fmtMs(latency.stateMs)} · catch-up {fmtMs(latency.catchupMs)}
         </div>
       </div>
+      {badge}
       {onEveryoneJoins && (
         <button type="button" onClick={onEveryoneJoins} aria-label={`Everyone joins (${participantCount} connected)`} title="Everyone joins"
           className="relative rounded-xl p-2.5 text-muted hover:bg-card-2 hover:text-fg">

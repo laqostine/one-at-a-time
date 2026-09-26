@@ -4,6 +4,8 @@ import type { CatchupState } from '../state/useSession';
 
 interface Props {
   state: CatchupState;
+  /** Header override, e.g. "While you looked away (12s)". Defaults to "You missed". */
+  title?: string;
   colorFor: (name?: string) => string;
   onBullet: (t: number) => void;
   onDismiss: () => void;
@@ -12,7 +14,7 @@ interface Props {
 const FADE_MS = 15_000;
 
 /** Static ≤3-bullet card overlaying the middle cards (no layout shift). */
-export function CatchupCard({ state, colorFor, onBullet, onDismiss }: Props) {
+export function CatchupCard({ state, colorFor, onBullet, onDismiss, title }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [paused, setPaused] = useState(false);
   useEffect(() => {
@@ -38,7 +40,7 @@ export function CatchupCard({ state, colorFor, onBullet, onDismiss }: Props) {
       onClick={onDismiss} onFocus={() => setPaused(true)} onMouseEnter={() => setPaused(true)}
       className={`absolute inset-0 z-10 flex cursor-pointer flex-col overflow-hidden rounded-2xl border-2 border-accent bg-card px-3 py-3 shadow-2xl transition-opacity duration-1000 ${fading ? 'opacity-30' : 'opacity-100'}`}>
       <div className="flex items-center justify-between gap-2 px-1 pb-2">
-        <h2 className="text-[0.75rem] font-semibold tracking-wider text-accent uppercase">You missed</h2>
+        <h2 className="text-[0.75rem] font-semibold tracking-wider text-accent uppercase">{title ?? 'You missed'}</h2>
         {state.status === 'ready' && (
           <span className="ml-auto text-[0.75rem] text-muted tabular-nums">
             as of {age}s ago · {(state.latencyMs / 1000).toFixed(1)}s · {state.data.confidence} confidence
